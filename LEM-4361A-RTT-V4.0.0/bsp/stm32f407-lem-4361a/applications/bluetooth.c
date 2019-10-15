@@ -1293,7 +1293,16 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 		return RT_ERROR;
 }
 
-
+/********************************************************************  
+*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
+*	功能说明: 698 Security Request 解析
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+//rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+//{
+//	
+//}
 
 /********************************************************************  
 *	函 数 名: BLE_698_Security_Request_Analysis_and_Response
