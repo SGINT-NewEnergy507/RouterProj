@@ -55,7 +55,7 @@ const char* _dir_name[MAX_DIR_NUM]={
 	"/LOG",
 };
 
-ROUTER_IFO_UNIT RouterIfo;
+//ROUTER_IFO_UNIT RouterIfo;
 
 __align(4) char *Para_Buff = NULL; //¹Ì»¯²ÎÊýbuff
 const char* METER_POWER_PATH=(const char*)"/Meter";

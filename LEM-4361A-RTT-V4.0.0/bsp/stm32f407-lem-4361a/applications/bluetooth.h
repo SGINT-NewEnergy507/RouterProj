@@ -4,6 +4,8 @@
 #include <rtdevice.h>
 
 
+#define _698_head				0x68
+
 #define  GET_REQUEST 						5
 #define  SET_REQUEST 						6	
 #define  ACTION_REQUEST			 	7
