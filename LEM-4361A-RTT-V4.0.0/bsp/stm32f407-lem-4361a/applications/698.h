@@ -859,6 +859,9 @@ static unsigned short fcstab[256]={
 ±‰¡ø
 */
 
+extern rt_uint32_t Strategy_get_BLE_event(void);
+
+
 unsigned short pppfcs16(unsigned short fcs, unsigned char *cp, int len);
 int tryfcs16(unsigned char *cp, int len);
 int _698_FCS(unsigned char *data, int start_size,int size,unsigned short FCS);

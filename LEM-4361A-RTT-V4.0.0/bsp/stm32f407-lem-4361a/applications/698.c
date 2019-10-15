@@ -141,22 +141,36 @@ void hplc_thread_entry(void * parameter){
 	hplc_inition(&hplc_data_wait_list,&hplc_data_rev,&hplc_data_tx);
 	init_698_state(&hplc_698_state);
 	rt_memset(hplc_698_state.last_link_requset_time.data,0,10);	//将时间减去
-	CHARGE_APPLY hplc_CHARGE_APPLY;
-	
-	
-	report_notification_package(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY,&hplc_data_tx,&hplc_698_state);
-//	rt_kprintf("[hplc]  (%s)  TX:\n",__func__);
-//	printmy(&hplc_data_tx._698_frame);	
-	
-	for(i=0;i<hplc_data_tx.dataSize;i++){
-//		rt_kprintf("[hplc] (%s)  __698_frame->usrData[%d]= %0x\n",__func__,i,_698_frame->usrData[i]);
-		rt_kprintf("%02x ",hplc_data_tx.priveData[i]);	
-		
-	}	
-	
-	
-	return;	
-	
+//	CHARGE_APPLY hplc_CHARGE_APPLY;
+////	report_notification_package(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY,&hplc_data_tx,&hplc_698_state);
+////	rt_kprintf("[hplc]  (%s)  TX:\n",__func__);
+////	printmy(&hplc_data_tx._698_frame);	
+//	
+//	for(i=0;i<hplc_data_tx.dataSize;i++){
+////		rt_kprintf("[hplc] (%s)  __698_frame->usrData[%d]= %0x\n",__func__,i,_698_frame->usrData[i]);
+//		rt_kprintf("%02x ",hplc_data_tx.priveData[i]);	
+//		
+//	}
+
+//	rt_thread_mdelay(10000);	
+//	
+//	struct _698_date_time_s priv_date_time_s;
+//	get_date_time_s(&priv_date_time_s);
+//	
+//	for(i=0;i<7;i++){
+////		rt_kprintf("[hplc] (%s)  __698_frame->usrData[%d]= %0x\n",__func__,i,priv_date_time_s[i]);
+//		rt_kprintf("%02x ",priv_date_time_s.data[i]);	
+//		
+//	}	
+//	rt_kprintf("%02x ",System_Time_STR.Year);
+//	rt_kprintf("%02x ",System_Time_STR.Month);		
+//	rt_kprintf("%02x ",System_Time_STR.Day);
+//	rt_kprintf("%02x ",System_Time_STR.Hour);	
+//	rt_kprintf("%02x ",System_Time_STR.Minute);
+//	rt_kprintf("%02x ",System_Time_STR.Second);		
+
+//	return;	
+//	
 	while(1){
 		
 //	if(1){
@@ -379,7 +393,8 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 */
 int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx){
 	
-	int result=-1;	
+	int result=-1;
+	CHARGE_APPLY hplc_CHARGE_APPLY;
 	while(hplc_698_state.lock1==1){
 		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
 		rt_thread_mdelay(20);
@@ -391,22 +406,21 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	}
 	hplc_698_state.lock2=1;
 	
-//		if(hplc_event&(0x1<<Cmd_CHARGE_APPLY)){	//转发充电申请	
-//		hplc_event&=(~(0x1<<Cmd_ChgPlanIssueAck));	
-//		rt_kprintf("[hplc]  (%s)   Cmd_CHARGE_APPLY  \n",__func__);
+		if(Strategy_get_BLE_event()==ChgRequest_EVENT){	//转发充电申请	
+
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
 	
-//			result!=CHARGE_APPLY_package(&hplc_CHARGE_APPLY,priv_698_state,data_tx);
-//	
-//		if( result!=0){
-//				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-//		}else{//下面是需要回复的情况
-//			
-//			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-//			result=security_get_package(priv_698_state,data_tx);
-//			
-//			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-//		}				
-//	}		
+		result=report_notification_package(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY,data_tx,priv_698_state);
+
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			
+
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}				
+	}		
 	
 	if(hplc_event&(0x1<<Cmd_ChgPlanIssueAck)){	//充电计划下发应答	
 		hplc_event&=(~(0x1<<Cmd_ChgPlanIssueAck));	
@@ -1813,7 +1827,7 @@ int get_date_time_s(struct _698_date_time_s *date_time_s){
 		date_time_s->second=date_time_s->data[6]=(System_Time_STR.Second>>4)*10+System_Time_STR.Second&0x0f;//秒	
 
 
-return 0;
+		return 0;
 }
 
 
@@ -6023,7 +6037,9 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STAT
 		    0x35, 0x05, 0x02, 0x0a, 0x35, 0x05, 0x02, 0x0b, 0x35, 0x05, 0x02, 0x0c, 0x35, 0x05, 
 				0x02, 0x0d, 0x35, 0x05, 0x02, 0x0e, 0x35, 0x05, 0x02, 0x0f, 0x35, 0x05, 0x02, 0x10, 
 				0x35, 0x05, 0x02, 0x11};
-	
+	unsigned char router_no[30]={0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x11, 0x20, 0x20, 0x20, 0x20,0x20, 0x20, 0x20, 0x20, 0x20, 
+	0x20, 0x20, 0x20};
 	//结构体赋值，共同部分
 	/**用户数据的结构体部分，参考读取一个记录型对象属性**/  
 	//SEQUENCE OF A-ResultNormal
@@ -6190,10 +6206,11 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STAT
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 //	len=temp_char=hplc_CHARGE_APPLY->cUserID[0];
-	len=temp_char=22;
+	len=temp_char=6;
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_array=( unsigned char *) (hplc_CHARGE_APPLY->cUserID+1);
+//	temp_array=( unsigned char *) (hplc_CHARGE_APPLY->cUserID+1);
+	temp_array=router_no;
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
 
