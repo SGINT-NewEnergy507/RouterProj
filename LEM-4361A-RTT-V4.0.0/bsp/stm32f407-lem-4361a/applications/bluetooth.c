@@ -143,7 +143,8 @@ static void BLE_Trans_Send(rt_device_t dev,rt_uint32_t cmd,rt_uint8_t reason,Scm
 rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData);
 
 rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd);//·¢ËÍÊÂ¼þµ½²ßÂÔ
-rt_uint32_t BLE_strategy_event_get(void);
+rt_uint32_t Strategy_get_BLE_event(void);
+rt_uint32_t BLE_Event_get(void);
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
 
 /********************************************************************  
@@ -314,6 +315,23 @@ void BLE_ATCmd_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//ATÖ
 	g_ulBLE_Rx_Ptr = 0;
 	g_ulBLE_Rx_Pre = 0;
 	g_ulBLE_Rx_Beg = 0;
+}
+
+rt_err_t _698_date_to_sys_date(struct _698_DATE_S* _698_date_s,STR_SYSTEM_TIME* sys_date)
+{
+	rt_uint16_t _698_year;
+		
+	_698_year = _698_date_s->g_year.year%100;
+	
+	
+	Int_toBCD(&sys_date->Year,(rt_uint8_t*)&_698_year,1);
+	Int_toBCD(&sys_date->Month,&_698_date_s->month,1);
+	Int_toBCD(&sys_date->Day,&_698_date_s->day,1);
+	Int_toBCD(&sys_date->Hour,&_698_date_s->hour,1);
+	Int_toBCD(&sys_date->Minute,&_698_date_s->minute,1);
+	Int_toBCD(&sys_date->Second,&_698_date_s->second,1);
+	
+	return RT_EOK;
 }
 
 
@@ -663,6 +681,7 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 	rt_uint8_t	Esam_KEY_DATA2[16];//DATA2Êý¾Ý
 	rt_uint8_t 	i,ptr,lenth,total_lenth;
 	rt_uint16_t Esam_endata_len;
+	rt_uint8_t Version[2];
 	rt_err_t result;
 	
 	
@@ -717,6 +736,10 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 			Esam_endata_len = stBLE_Esam_Comm.Rx_data[2];
 			Esam_endata_len = (rt_uint16_t)(((Esam_endata_len<<8)&0xff00)|(stBLE_Esam_Comm.Rx_data[3]));
 
+		
+			Version[0] = dev_recv->apdu.apdu_data[8];
+			Version[1] = dev_recv->apdu.apdu_data[9];
+		
 			ptr = 6;
 			dev_recv->apdu.apdu_data[ptr++]				= 0;//³É¹¦
 			dev_recv->apdu.apdu_data[ptr++]				= 1;//optional
@@ -724,13 +747,14 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 			dev_recv->apdu.apdu_data[ptr++]				= Data_octet_string;//Êý¾ÝÀàÐÍ
 			dev_recv->apdu.apdu_data[ptr++]				= Esam_endata_len+2;
 			
-			dev_recv->apdu.apdu_data[ptr++]				= dev_recv->apdu.apdu_data[8];
-			dev_recv->apdu.apdu_data[ptr++]				= dev_recv->apdu.apdu_data[9];//°æ±¾ºÅ
+			dev_recv->apdu.apdu_data[ptr++]				= Version[0];
+			dev_recv->apdu.apdu_data[ptr++]				= Version[1];//°æ±¾ºÅ
 			
 			for(i = 0;i < Esam_endata_len;i++)
 			{
 				dev_recv->apdu.apdu_data[ptr++]			= stBLE_Esam_Comm.Rx_data[4+i];
 			}	
+			dev_recv->apdu.apdu_data[ptr++]				= 0;//ÎÞoptional
 			dev_recv->apdu.apdu_data[ptr++]				= 0;//ÎÞÊ±¼ä±êÇ©
 			ptr++;
 			
@@ -856,7 +880,8 @@ rt_err_t BLE_698_ESAM_SESS_KEY_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 			
 			dev_recv->apdu.apdu_data[ptr++]				= 0;
 			dev_recv->apdu.apdu_data[ptr++]				= 0;//´íÎó´úÂë 0000 ÕýÈ·
-	
+			
+			dev_recv->apdu.apdu_data[ptr++]				= 0;//ÎÞoptional
 			dev_recv->apdu.apdu_data[ptr++]				= 0;//ÎÞÊ±¼ä±êÇ©
 			ptr++;
 						
@@ -931,6 +956,8 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	rt_uint32_t power;
 	rt_uint16_t time;
 	
+	struct _698_DATE_S _698_date_s;
+	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
 	
 	ptr = 0;
@@ -969,7 +996,12 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 
 	ptr += data_len+1;
 	data_len = 7;
-	time = dev_recv->apdu.apdu_data[10+ptr];
+	
+	memcpy(&_698_date_s,&dev_recv->apdu.apdu_data[10+ptr],data_len);
+	_698_date_to_sys_date(&_698_date_s,&stBLE_Charge_Apply.PlanUnChg_TimeStamp);
+	
+	
+/*	time = dev_recv->apdu.apdu_data[10+ptr];
 	time = (time<<8)|dev_recv->apdu.apdu_data[11+ptr];
 	time = time%100;
 	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Year,(rt_uint8_t*)&time,1);
@@ -977,7 +1009,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Day,&dev_recv->apdu.apdu_data[13+ptr],1);
 	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Hour,&dev_recv->apdu.apdu_data[14+ptr],1);
 	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Minute,&dev_recv->apdu.apdu_data[15+ptr],1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Second,&dev_recv->apdu.apdu_data[16+ptr],1);
+	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Second,&dev_recv->apdu.apdu_data[16+ptr],1);*/
 	
 	rt_kprintf("[bluetooth]: TimeStamp:");
 	my_printf((char*)&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Second,data_len,MY_HEX,1," ");
@@ -997,7 +1029,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	rt_kprintf("[bluetooth]: Token:");
 	my_printf((char*)&stBLE_Charge_Apply.Token[1],data_len,MY_HEX,1," ");
 	
-	BLE_strategy_event_send(Cmd_StartChg);
+//	BLE_strategy_event_send(Cmd_StartChg);
+	
+	g_BLE_Strategy_event |= (0x00000001<<Cmd_ChgRequest);
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
 }
@@ -1259,47 +1293,180 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 		return RT_ERROR;
 }
 
+
+
+/********************************************************************  
+*	º¯ Êý Ãû: BLE_698_Security_Request_Analysis_and_Response
+*	¹¦ÄÜËµÃ÷: 698 Security Request ½âÎö
+*	ÐÎ    ²Î: ÎÞ
+*	·µ »Ø Öµ: ÎÞ
+********************************************************************/
+rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint8_t i,ptr,lenth,apdu[100];
+	rt_err_t res;
+		
+	ptr = 0;
+	apdu[ptr++]    = ACTION_REQUEST |0x80;
+	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x90;		//oad 90027f00
+	apdu[ptr++]    = 0x02;
+	apdu[ptr++]    = 0x7F;
+	apdu[ptr++]    = 0x00;
+	
+	apdu[ptr++]    = 0x00;  //³É¹¦
+	apdu[ptr++]    = 0x01;  //optional
+	
+	apdu[ptr++]    = 0x02;		//½á¹¹Ìå
+	apdu[ptr++]    = 0x02;   //½á¹¹Ìå³ÉÔ±2
+	apdu[ptr++]    = 0x09;   //ÀàÐÍ
+	
+	lenth = stBLE_Charge_Apply.cRequestNO[0];   //³¤¶È
+	apdu[ptr++]    = lenth;
+	
+	for(i = 0;i < lenth;i++)
+	{
+		apdu[ptr++] = stBLE_Charge_Apply.cRequestNO[1+i];//ÉêÇëµ¥ºÅ
+	}
+	apdu[ptr++]    = 0x0A;   //ÀàÐÍ
+	
+	lenth = stBLE_Charge_Apply.cAssetNO[0];   //³¤¶È
+	apdu[ptr++]    = lenth;
+	
+	for(i = 0;i < lenth;i++)
+	{
+		apdu[ptr++] = stBLE_Charge_Apply.cAssetNO[1+i];//×Ê²ú±àºÅ
+	}
+	
+	apdu[ptr++]    = 0x00;
+	apdu[ptr++]    = 0x00;
+	
+	memcpy(stBLE_Esam_Comm.Tx_data,Esam_KEY_DATA,32);
+	memcpy(stBLE_Esam_Comm.Tx_data+32,apdu,ptr);
+	stBLE_Esam_Comm.DataTx_len = 32+ptr;
+	
+	ESAM_Communicattion(APP_SESS_CALC_MAC_A4,&stBLE_Esam_Comm);
+	if((stBLE_Esam_Comm.Rx_data[0] == 0x90)&&(stBLE_Esam_Comm.Rx_data[1] == 0x00))
+	{
+		ptr = 0;
+		lenth = stBLE_Esam_Comm.Rx_data[3];
+		
+		dev_recv->apdu.apdu_cmd				=	SECURITY_REQUEST |0x80;    
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;//  00 Ã÷ÎÄ  01  ÃÜÎÄ
+		dev_recv->apdu.apdu_data[ptr++]		= lenth;  //ÃÜÎÄ³¤¶È
+		for(i = 0;i < lenth;i++)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= stBLE_Esam_Comm.Rx_data[4+i];
+		}
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //mac optional
+		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x04;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		ptr++;
+		
+		res = BLE_698_Data_Package(dev_recv,ptr,stData);
+	}
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+}
+
+
+
 /******************************************Óë²ßÂÔÊý¾Ý´«µÝ½Ó¿Ú******************************************/
+
 
 rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//·¢ËÍÊÂ¼þµ½²ßÂÔ
 {
-	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	rt_kprintf("\n\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
-	g_BLE_Strategy_event=g_BLE_Strategy_event|cmd;
+	g_BLE_Strategy_event |= (0x00000001<<cmd);
 	
-	rt_kprintf("[bluetooth]: Send cmd=%d      Strategy_event = 0x%02X\n",cmd,g_BLE_Strategy_event);
+	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Strategy_event);
 	
-	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
+	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\n\n",__func__);
 		
 	return 0;	
 }
 
-rt_uint32_t BLE_strategy_event_get(void)
+
+rt_uint32_t Strategy_get_BLE_event(void)
 {
-	rt_uint32_t i,event;
+	rt_uint32_t i,cmd;
+	CTRL_EVENT_TYPE event;
 	
 	if(g_BLE_Strategy_event){}
 	else
 		return 0;
 	
-	for(i = 0; i <sizeof(rt_uint32_t);i++)
+	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	
+	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
 		if(g_BLE_Strategy_event&(0x00000001<<i))
 		{
-			event = i;
+			cmd = i;
+			break;
 		}
 	}
 	
-	switch(event)
+	switch(cmd)
 	{
-		case Cmd_StartChgAck:
-			
+		case Cmd_ChgRequest:
+			event = ChgRequest_EVENT;
+		break;
+		default:
+			break;
+	}
+	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
+	
+	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
+	
+	return event;
+}
+	
+rt_uint32_t BLE_event_get(void)
+{
+	rt_uint32_t i,cmd;
+	
+	if(g_BLE_Strategy_event){}
+	else
+		return 0;
+	
+	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	
+	rt_kprintf("[bluetooth]: Recv Strategy_event = 0x%04X\n",g_BLE_Strategy_event);
+	
+	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
+	{
+		if(g_BLE_Strategy_event&(0x00000001<<i))
+		{
+			cmd = i;
+			break;
+		}
+	}
+	
+	switch(cmd)
+	{
+		case Cmd_ChgRequestAck:
+			BLE_698_Action_Request_Charge_Apply_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		default:
 			break;
 	}
 	
-	g_BLE_Strategy_event &= (0xfffffffe<<event);
+	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
+	
+	
+	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 	
 	return 0;
 }
@@ -1309,13 +1476,13 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 	rt_uint8_t result=1;
 
 	switch(cmd){					
-		case Cmd_StartChg:	//Æô¶¯³äµç ÉêÇëµ¥  CHARGE_APPLY stBLE_Charge_Apply;
+		case Cmd_ChgRequest:	//Æô¶¯³äµç ÉêÇëµ¥  CHARGE_APPLY stBLE_Charge_Apply;
 			rt_kprintf("[hplc] (%s) Cmd_StartChg \n",__func__);	
 			STR_SetPara=(CHARGE_APPLY *)&stBLE_Charge_Apply;			
 			result=0;										
 		break;
 		case Cmd_StartChgAck:
-			g_BLE_Strategy_event |= Cmd_StartChgAck;
+			g_BLE_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
 		break;
 		
 		default:
@@ -1328,22 +1495,6 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 }
 
 /*************************************************************************************************************/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1404,6 +1555,8 @@ static void bluetooth_thread_entry(void *parabluetooth)
 			BLE_RecvData_Process(bluetooth_serial,g_ucProtocol,BLE_ATCmd,&stBLE_Comm);
 		}
 		
+		BLE_event_get();
+
 		if(g_ucProtocol == AT_MODE)
 		{
 			BLE_ATCmd_Send(bluetooth_serial,BLE_ATCmd);
