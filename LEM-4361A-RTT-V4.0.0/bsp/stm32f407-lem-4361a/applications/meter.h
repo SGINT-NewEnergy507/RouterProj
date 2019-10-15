@@ -33,12 +33,12 @@ typedef struct
 //电度表模拟量
 typedef struct 
 {
-	unsigned long ulVol;        	// 交流电压
-	unsigned long ulCur;         	// 交流电流
-	unsigned long ulAcPwr;         	// 瞬时有功功率
-	unsigned long ulMeterTotal;    	// 有功总电量
-	unsigned long ulPwrFactor;     	// 功率因数
-	unsigned long ulFrequency;     	// 频率
+	unsigned long ulVol;         // 交流电压
+	unsigned long ulCur;         // 交流电流
+	unsigned long ulAcPwr;         // 瞬时有功功率
+	unsigned long ulMeterTotal;     //有功总电量
+	unsigned long ulPwrFactor;     //功率因数
+	unsigned long ulFrequency;     //频率
 	
 }ScmMeter_Analog;
 
@@ -55,8 +55,8 @@ typedef struct //电量结构体
 //电度表历史电量信息
 typedef struct 
 {
-	ScmMeter_Power	ulMeter_Day;		//每日尖峰平谷总电量
-	ScmMeter_Power 	ulMeter_Month;     	//每月尖峰平谷总电量
+	ScmMeter_Power	ulMeter_Day;			//每日尖峰平谷总电量
+	ScmMeter_Power 	ulMeter_Month;     //每月尖峰平谷总电量
 }ScmMeter_HisData;
 
 enum cmEMMETER

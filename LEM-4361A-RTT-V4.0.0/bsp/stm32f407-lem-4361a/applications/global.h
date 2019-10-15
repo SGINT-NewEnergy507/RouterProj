@@ -32,9 +32,9 @@ extern unsigned char DEBUG_MSH;
 
 typedef struct{
 	rt_uint8_t DataRx_len;
-	rt_uint8_t Rx_data[255];
+	rt_uint8_t Rx_data[1024];
 	rt_uint8_t DataTx_len;
-	rt_uint8_t Tx_data[255];
+	rt_uint8_t Tx_data[1024];
 
 }ScmUart_Comm;
 

@@ -4,10 +4,18 @@
 #include <rtdevice.h>
 
 
-#define GET_REQUEST						5
-#define GET_REQUEST_NOMAL			1	
+#define  GET_REQUEST 						5
+#define  SET_REQUEST 						6	
+#define  ACTION_REQUEST			 	7
+#define  REPORT_RESPONSE			  8
+#define  PROXY_REQUEST				  9
+#define  SECURITY_REQUEST     	16
 
-#define SECURITY_REQUEST     16
+#define GET_REQUEST_NOMAL			1	
+#define ACTION_REQUEST_NOMAL			1
+
+#define PLAINTEXT							0
+#define CIPHERTEXT						1
 
 
 #define ADDR_MAX_LINE					6

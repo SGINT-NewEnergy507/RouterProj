@@ -30,7 +30,7 @@ static struct rt_event meter_uartevent;//用于接收数据的事件
 
 //static ScmStorage_Msg stStorage_msg;
 
-static ScmUart_Comm stMeter;//meter 串口数据结构体
+CCMRAM static ScmUart_Comm stMeter;//meter 串口数据结构体
 static ScmMeter_PriceModle stMeter_PriceModle;//计费模型
 static ScmMeter_Analog stMeter_Analog;//meter 模拟量数据结构体
 static ScmMeter_HisData stMeter_HisData;//meter历史数据缓存结构体

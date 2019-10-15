@@ -16,7 +16,7 @@ typedef struct{
 
 typedef enum
 {
-	RD_INFO = 1,//读取ESAM信息
+	RD_INFO_01 = 1,//读取ESAM信息
 	RD_INFO_02,//
 	RD_INFO_03,
 	RD_INFO_04,
@@ -28,6 +28,7 @@ typedef enum
 	RD_INFO_10,
 	RD_INFO_11,
 	RD_INFO_12,
+	RD_INFO_FF,
 	HOST_KEY_AGREE,//主站会话密钥协商
 	HOST_KEY_UPDATE,//主站密钥更新
 	HOST_CERT_UPDATE,//主站证书更新
@@ -45,6 +46,21 @@ typedef enum
 	CON_SESS_VERI_MAC_11,//控制器会话解密验证 明文+MAC
 	CON_SESS_VERI_MAC_12,//控制器会话解密验证 密文
 	CON_SESS_VERI_MAC_13,//控制器会话解密验证 密文+MAC
+	
+	APP_KEY_AGREE_ONE,//主站会话密钥协商
+	APP_KEY_AGREE_TWO,//主站会话密钥协商
+	APP_KEY_AGREE_THREE,//主站会话密钥协商
+	APP_KEY_AGREE_FOUR,//主站会话密钥协商
+	
+	APP_SESS_AGREE_ONE,//主站会话密钥协商
+	APP_SESS_AGREE_TWO,//主站会话密钥协商
+	
+	APP_KEY_UPDATE,//主站密钥更新
+	APP_CERT_UPDATE,//主站证书更新
+	APP_SESS_CALC_MAC_11,//主站会话加密计算 明文+MAC
+	APP_SESS_CALC_MAC_A2,//主站会话加密计算 密文
+	APP_SESS_CALC_MAC_A7,//主站会话加密计算 密文+MAC
+	APP_SESS_VERI_MAC,//主站会话解密验证MAC
 	
 	HOST_READ,//主站抄读
 }ESAM_CMD;

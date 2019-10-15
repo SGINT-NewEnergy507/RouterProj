@@ -21,7 +21,7 @@ static rt_uint8_t esam_stack[THREAD_ESAM_STACK_SIZE];//
 static struct rt_thread esam_thread;
 struct rt_spi_device* spi_esam;
 
-static rt_uint8_t g_ucEsam_cmd;
+//static rt_uint8_t g_ucEsam_cmd;
 
 ScmEsam_Comm stEsam_Comm;
 //SCMEsam_Info stEsam_Info;
@@ -30,6 +30,21 @@ rt_uint8_t ESAM_Check(rt_uint8_t *pData, rt_uint16_t Len);
 //rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,rt_uint8_t* send_buf,rt_uint16_t send_len,rt_uint8_t* recv_buf,rt_uint16_t recv_len);
 
 rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_Comm);
+
+
+//rt_uint8_t test_buf[]={0x80,0x1C,0x33,0x10,0x00,0xC4,0x40,0xBA,0xA8,0x07,0x5A,
+//	0x09,0x64,0xC3,0x95,0x68,0xBF,0xE4,0x53,0x9E,0x5E,0x8A,0x6E,0x34,0x79,0x7F,0x2A,
+//	0x8E,0x6C,0x66,0x38,0x0A,0x74,0x2D,0x11,0xBB,0x8B,0xB2,0xF5,0xCF,0x96,0x34,0x94,
+//	0xC6,0xEC,0x57,0xB4,0xD7,0x52,0x6A,0xBF,0x3B,0x35,0x15,0xBC,0xD9,0x29,0x2C,0xAB,
+//	0x27,0xD1,0x7B,0x84,0x3D,0xE1,0xAC,0x4A,0xC6,0x0E,0xD1,0x67,0x93,0xB1,0x03,0x86,
+//	0x49,0x71,0x9D,0xB7,0x69,0xFB,0xD1,0x47,0xE0,0xE5,0x62,0x5F,0x9F,0x64,0x1C,0x48,
+//	0x59,0x39,0x43,0xB2,0x2C,0x73,0xA2,0x7B,0x57,0x1E,0x14,0x29,0x19,0xB6,0x47,0x9C,
+//	0xCF,0xE0,0x7D,0x6B,0x73,0xE8,0x90,0x31,0xA1,0x6D,0x31,0x35,0x97,0x11,0x2B,0xD1,
+//	0xDE,0x21,0xDC,0x82,0x17,0xF7,0x8E,0xFD,0x7B,0x99,0xE9,0xB1,0xD4,0x6E,0xF6,0xF2,
+//	0x2A,0x3F,0x42,0xA5,0xA3,0xEF,0xAD,0x63,0xE8,0x2B,0x84,0x0E,0x50,0xDD,0x82,0xC0,
+//	0x58,0x97,0x06,0x90,0x6F,0x73,0xC0,0x3A,0x1E,0x1E,0x82,0x27,0xE0,0x2E,0xD6,0x9B,
+//	0x59,0x4A,0xDE,0xA0,0xF1,0x4E,0xF1,0xB0,0x62,0x9B,0x4A,0x8A,0x7D,0x7E,0xAB,0xFB,
+//0x8B,0xFD,0x86,0x27,0xC3,0x1A,0x90,0x9D,0xDD,0x5C,0x6F,0x5B,0xFB,0xC6,0x45};
 
 static void esam_thread_entry(void *parameter)
 {
@@ -53,7 +68,15 @@ static void esam_thread_entry(void *parameter)
 	
 	rt_thread_mdelay(1000);	
 	
-	g_ucEsam_cmd = RD_INFO;
+//	memcpy(stEsam_Comm.Tx_data,test_buf,sizeof(test_buf));
+//	stEsam_Comm.DataTx_len = sizeof(test_buf);
+//	
+//	ESAM_Communicattion(APP_SESS_VERI_MAC,&stEsam_Comm);
+	
+	
+//	g_ucEsam_cmd = RD_INFO;
+//	
+//	ESAM_Communicattion(RD_INFO_07,&stEsam_Comm);
 	while (1)
 	{
 //		if(g_ucEsam_cmd != 0xff)
@@ -84,7 +107,7 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 	sendbuf[ptr++] = ESAM_HEAD;
 	switch(cmd)
 	{
-		case RD_INFO:
+		case RD_INFO_FF:
 			sendbuf[ptr++] = 0x80;
 			sendbuf[ptr++] = 0x36;
 			sendbuf[ptr++] = 0x00;
@@ -92,6 +115,7 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 			sendbuf[ptr++] = 0x00;
 			sendbuf[ptr++] = 0x00;
 			break;
+		case RD_INFO_01:
 		case RD_INFO_02:
 		case RD_INFO_03:
 		case RD_INFO_04:
@@ -110,6 +134,7 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 			sendbuf[ptr++] = 0x00;
 			sendbuf[ptr++] = 0x00;
 		break;
+		
 		case HOST_KEY_AGREE:
 			sendbuf[ptr++] = 0x81;
 			sendbuf[ptr++] = 0x02;
@@ -244,6 +269,54 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 			sendbuf[ptr++] = ((lenth-2)>>8)&0xff;
 			sendbuf[ptr++] = ((lenth-2)&0xff);
 			break;
+		case APP_KEY_AGREE_ONE://app会话协商 第一步
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x04;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x10;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			break;
+		case APP_KEY_AGREE_TWO://app会话协商 第二步804A00800015
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4A;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x15;
+			break;
+		case APP_KEY_AGREE_THREE://app会话协商 第三步804A00000030
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4A;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x30;
+			break;
+		case APP_SESS_AGREE_ONE://主站会话密钥协商
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4A;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0xC0;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x20;
+			break;
+		case APP_SESS_AGREE_TWO://主站会话密钥协商
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4C;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = (lenth>>8)&0xff;
+			sendbuf[ptr++] = (lenth&0xff);
+			break;
+		case APP_SESS_VERI_MAC:
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4C;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = (lenth>>8)&0xff;
+			sendbuf[ptr++] = (lenth&0xff);
+			break;
 		case HOST_READ:
 //			sendbuf[ptr++] = 0x81;
 //			sendbuf[ptr++] = 0x1c;
@@ -280,6 +353,9 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 	
 	stEsam_Comm.DataTx_len = ptr+lenth+1;
 	memcpy(stEsam_Comm.Tx_data,sendbuf,stEsam_Comm.DataTx_len);
+	
+	my_printf((char*)stEsam_Comm.Tx_data,stEsam_Comm.DataTx_len,MY_HEX,1,"[Esam]:TX:");
+	
 	
 	res = ESAM_Send_and_Recv(spi_esam,&stEsam_Comm);
 	if(res == RT_EOK)
@@ -354,12 +430,14 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 						
 						l_stEsam_Comm->DataRx_len = lenth+4;
 									
-						rt_kprintf("spi esam recv data:");
-						for(count = 0; count <lenth+4; count++)
-						{
-							rt_kprintf("%02X ",l_stEsam_Comm->Rx_data[count]);
-						}
-						rt_kprintf("  \n");
+//						rt_kprintf("[Esam]:RX:");
+//						for(count = 0; count <lenth+4; count++)
+//						{
+//							rt_kprintf("%02X ",l_stEsam_Comm->Rx_data[count]);
+//						}
+//						rt_kprintf("  \n");
+						
+						my_printf((char*)l_stEsam_Comm->Rx_data,l_stEsam_Comm->DataRx_len,MY_HEX,1,"[Esam]:RX:");
 						
 						return RT_EOK;
 					}
@@ -367,15 +445,17 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 					{
 						rt_spi_take(device);
 						rt_thread_delay(20);
-						rt_lprintf("spi esam recv data check error!!!\n");
+						rt_lprintf("Esam]:spi esam recv data check error!!!\n");
 					}
 					
-					rt_kprintf("spi esam recv data:");
-					for(count = 0; count <lenth+4; count++)
-					{
-						rt_kprintf("%02X ",l_stEsam_Comm->Rx_data[count]);
-					}
-					rt_kprintf("  \n");
+					my_printf((char*)l_stEsam_Comm->Rx_data,l_stEsam_Comm->DataRx_len,MY_HEX,1,"[Esam]:RX:");
+					
+//					rt_kprintf("[Esam]:RX:");
+//					for(count = 0; count <lenth+4; count++)
+//					{
+//						rt_kprintf("%02X ",l_stEsam_Comm->Rx_data[count]);
+//					}
+//					rt_kprintf("  \n");
 				}
 			}
 			else
@@ -438,4 +518,6 @@ int esam_thread_init(void)
 	INIT_APP_EXPORT(esam_thread_init);
 #endif
 MSH_CMD_EXPORT(esam_thread_init, esam thread run);
+
+
 

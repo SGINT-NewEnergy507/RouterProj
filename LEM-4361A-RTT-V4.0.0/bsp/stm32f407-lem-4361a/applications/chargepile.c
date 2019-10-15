@@ -541,11 +541,11 @@ rt_uint8_t ChargepileDataGetSet(COMM_CMD_P cmd,void *STR_SetGetPara)
 			result = SUCCESSFUL;
 		
 			break;
-		case Cmd_GetPower://
-			((ChargPilePara_TypeDef*)STR_SetGetPara)->PWM_Duty = STR_ChargPilePara.PWM_Duty;
-			result = SUCCESSFUL;
-		
-			break;		
+//		case Cmd_GetPower://
+//			((ChargPilePara_TypeDef*)STR_SetGetPara)->PWM_Duty = STR_ChargPilePara.PWM_Duty;
+//			result = SUCCESSFUL;
+//		
+//			break;		
 		case Cmd_RdVertion://
 			result = SUCCESSFUL;
 		

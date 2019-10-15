@@ -2722,7 +2722,7 @@ int oi_esam_info_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  
 	CHARGE_STRATEGY *priv_struct_STRATEGY;
 	
 	hplc_ScmEsam_Comm.DataTx_len=0;
-	hplc_current_ESAM_CMD=RD_INFO;
+	hplc_current_ESAM_CMD=RD_INFO_FF;
 	ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);
 	
 

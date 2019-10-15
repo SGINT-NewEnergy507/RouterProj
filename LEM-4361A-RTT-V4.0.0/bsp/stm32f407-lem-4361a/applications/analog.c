@@ -163,6 +163,7 @@ int get_analog_data(Power_Analog_TypeDef *analog)
 
 
 
+
 int analog_thread_init(void)
 {
 	rt_err_t res;

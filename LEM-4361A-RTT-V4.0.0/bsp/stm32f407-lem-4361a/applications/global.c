@@ -447,7 +447,7 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 		{
 			for(i = 0; i <datalenth; i++)
 			{			 
-				sprintf((char*)Srintf_Buffer,"%02X",*(buf+i)); 
+				sprintf((char*)Srintf_Buffer,"%02X ",*(buf+i)); 
 				strcat((char*)Printf_Buffer,(const char*)Srintf_Buffer);								
 			}
 			if(cmd)
