@@ -14,6 +14,16 @@
 #ifndef TRUE
 #define TRUE          1
 #endif
+#ifndef SUCCESSFUL
+#define SUCCESSFUL    0
+#endif
+#ifndef FAILED
+#define FAILED        1
+#endif
+#ifndef ORTHERS
+#define ORTHERS       255
+#endif
+
 #define THREAD_STRATEGY_PRIORITY     8
 #define THREAD_STRATEGY_STACK_SIZE   1024
 #define THREAD_STRATEGY_TIMESLICE    5
@@ -56,7 +66,9 @@ CHARGE_STRATEGY Adj_Chg_Strategy;
 CHARGE_STRATEGY_RSP Adj_Chg_StrategyRsp;
 CHARGE_EXE_STATE Chg_ExeState;
 
-CHARGE_APPLY Chg_Application;
+CHARGE_APPLY Chg_Apply;
+CHARGE_APPLY_RSP Chg_Apply_Rsp;
+CHARGE_APPLY_EVENT Chg_Apply_Event;//（上送）
 
 //超时结果
 static rt_timer_t ChgReqReportRsp;
@@ -64,7 +76,7 @@ static rt_timer_t ChgReqReportRsp;
  * 函数名称: ChgReqReportResp_Timeout 
  * 参    数: 
  * 返 回 值: 
- * 描    述: 上送充电计划超时函数
+ * 描    述: 上送充电申请超时函数
  **************************************************************/
 static void ChgReqReportResp_Timeout(void *parameter)
 {
@@ -79,7 +91,7 @@ static void ChgReqReportResp_Timeout(void *parameter)
  **************************************************************/
 static void timer_create_init()
 {
-    /* 创建启机回复定时器 */
+    /* 创建充电申请上送回复定时器 */
 	 ChgReqReportRsp = rt_timer_create("ChgReqReportRsp",  /* 定时器名字是 ChgReqReportRsp */
 									ChgReqReportResp_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
@@ -107,7 +119,7 @@ static void ChgPlan_RecProcess(void)
 		{
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//取值
 			if((Chg_Strategy.ucChargeMode == 1)&&(Chg_Strategy.ucDecType == 1))
-				rt_sem_release(&rx_sem_energycon);
+				rt_sem_release(&rx_sem_setpower);
 			
 			memcpy(&Chg_StrategyRsp,&Chg_Strategy,40);
 			Chg_StrategyRsp.cSucIdle = 0;
@@ -120,7 +132,7 @@ static void ChgPlan_RecProcess(void)
 		{
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanAdjust,&Adj_Chg_Strategy,0);//取值	
 			if((Chg_Strategy.ucChargeMode == 1)&&(Chg_Strategy.ucDecType == 2))
-				rt_sem_release(&rx_sem_energycon);
+				rt_sem_release(&rx_sem_adjpower);
 			
 			memcpy(&Adj_Chg_StrategyRsp,&Adj_Chg_Strategy,40);
 			Chg_StrategyRsp.cSucIdle = 0;
@@ -133,10 +145,10 @@ static void ChgPlan_RecProcess(void)
 		{
 			rt_lprintf("[strategy]  (%s)  收到查询工作状态的命令  \n",__func__);  
 				
-			if((memcmp(Chg_ExeState.cRequestNO,Chg_Strategy.cRequestNO,22) == 0)
-				||(memcpy(Chg_ExeState.cRequestNO,Adj_Chg_Strategy.cRequestNO,22) == 0))
+			if((memcmp(Chg_ExeState.cRequestNO,Chg_Strategy.cRequestNO,sizeof(Chg_ExeState.cRequestNO)) == 0)
+				||(memcpy(Chg_ExeState.cRequestNO,Adj_Chg_Strategy.cRequestNO,sizeof(Chg_ExeState.cRequestNO)) == 0))
 			{
-				memcpy(Chg_ExeState.cAssetNO,RouterIfo.AssetNum,22);
+				memcpy(Chg_ExeState.cAssetNO,RouterIfo.AssetNum,sizeof(Chg_ExeState.cRequestNO));
 				
 				if(Chg_ExeState.exeState != EXE_ING)//非执行过程中，按计划中额定功率传
 					Chg_ExeState.ucPlanPower = Chg_Strategy.ulChargeRatePow;
@@ -163,6 +175,12 @@ static void ChgPlan_RecProcess(void)
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeStateAck,&Chg_ExeState,0);//回复			   	
 			break;
+		}
+		//收到充电申请确认
+		case ChgReqReportConfirm_EVENT:
+		{	
+			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestConfirm,0,0);//通知蓝牙	
+			break;
 		}		
 		default:
 			break;
@@ -172,24 +190,45 @@ static void ChgPlan_RecProcess(void)
 	//收到充电申请
 	if(BLE_EventCmd == ChgRequest_EVENT)
 	{
-		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequest,&Chg_Application,0);//取值
-		
+		memcpy(&Chg_Apply_Event.RequestTimeStamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//申请时间
+		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequest,&Chg_Apply,0);//取值
 		if(b_rst == 0)
 		{
-			if(memcmp(&RouterIfo.AssetNum,&Chg_Application.cAssetNO,22) == 0)//校验资产一致性
+			if(memcmp(&RouterIfo.AssetNum,&Chg_Apply.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 			{
-				c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Application,0);//上送
+				Chg_Apply_Event.OrderNum++;
+				memcpy(&Chg_Apply_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+				memcpy(&Chg_Apply_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+				memcpy(&Chg_Apply_Event.RequestNO,&Chg_Apply.cRequestNO,51);//连续三个字段			
+				Chg_Apply_Event.ChargeReqEle = Chg_Apply.ulChargeReqEle;			
+				memcpy(&Chg_Apply_Event.PlanUnChg_TimeStamp,&Chg_Apply.PlanUnChg_TimeStamp,sizeof(STR_SYSTEM_TIME));
+				Chg_Apply_Event.ChargeMode = Chg_Apply.ChargeMode;
+				
+				if(Chg_Apply.cUserID[0]<=9)//防止溢出
+				{
+					memcpy(&Chg_Apply_Event.UserAccount[1],&Chg_Apply.cUserID[1],Chg_Apply.cUserID[0]);		
+					Chg_Apply_Event.UserAccount[0] = Chg_Apply.cUserID[0];
+				}
+				
+				c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送
+				b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时回传APP
 
 				/* 充电申请上送回复计时 */
 				if (ChgReqReportRsp != RT_NULL)
 					rt_timer_start(ChgReqReportRsp);
 				else
-					rt_lprintf("ChgReqReportResp timer create error\n");	
+					rt_lprintf("ChgReqReportResp timer create error\n");
+
+				Chg_Apply_Rsp.cSucIdle = SUCCESSFUL;
+			}
+			else
+			{				
+				Chg_Apply_Rsp.cSucIdle = FAILED;
 			}
 		}
 		
 
-		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Application,0);//回复	
+		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Apply_Rsp,0);//回复	
 	}
 	BLE_EventCmd = 0;//清位
 }
@@ -257,6 +296,7 @@ int strategy_thread_init(void)
 	
 	
 	Chg_ExeState.exeState = EXE_NULL;
+	memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));
 	
 	/* 初始化定时器 */
     timer_create_init();

@@ -3241,14 +3241,7 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 			strcat((char*)buffer,(const char*)bytebuf);
 		}
 		strcat((char*)buffer,(const char*)"\n");
-		//	第n个关联对象属性的数据	
-		sprintf((char*)buffer,"Data=");
-		for(int i=0;i<sizeof(pPlan_Offer->Data);i++)
-		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->Data[i]);
-			strcat((char*)buffer,(const char*)bytebuf);
-		}
-		strcat((char*)buffer,(const char*)"\n");
+
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
 		{
@@ -3649,27 +3642,7 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		else
 		{
 			rt_lprintf("namelen=0\n");
-		}		
-/////////第n个关联对象属性的数据	///////////////////////////////////////////////////////////////////////////
-		sprintf((char*)fpnameRd,"Data"); 
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Data,sizeof(pPlan_Offer->Data));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->Data);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
-			}
-			namelen=0;
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");
-		}
+		}	
 /////////////////////////////////////////////////////////////////////////////////////////	
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -3770,14 +3743,6 @@ static int Plan_Fail_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ord
 		}
 		strcat((char*)buffer,(const char*)"\n");	
 
-		//	第n个关联对象属性的数据	
-		sprintf((char*)buffer,"Data=");
-		for(int i=0;i<sizeof(pPlan_Fail->Data);i++)
-		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Fail->Data[i]);
-			strcat((char*)buffer,(const char*)bytebuf);
-		}
-		strcat((char*)buffer,(const char*)"\n");
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
 		{
@@ -4016,26 +3981,6 @@ static int Plan_Fail_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ord
 			{
 				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Fail->AssetNO,sizeof(pPlan_Fail->AssetNO));//返回当前文件读指针
 				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Fail->AssetNO);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
-			}
-			namelen=0;
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");
-		}
-/////////第n个关联对象属性的数据	///////////////////////////////////////////////////////////////////////////
-		sprintf((char*)fpnameRd,"Data"); 
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Fail->Data,sizeof(pPlan_Fail->Data));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Fail->Data);
 			}
 			else
 			{
