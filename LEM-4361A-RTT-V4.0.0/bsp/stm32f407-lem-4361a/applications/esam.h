@@ -58,7 +58,7 @@ typedef enum
 	APP_KEY_UPDATE,//主站密钥更新
 	APP_CERT_UPDATE,//主站证书更新
 	APP_SESS_CALC_MAC_11,//主站会话加密计算 明文+MAC
-	APP_SESS_CALC_MAC_A2,//主站会话加密计算 密文
+	APP_SESS_CALC_MAC_A4,//主站会话加密计算 密文
 	APP_SESS_CALC_MAC_A7,//主站会话加密计算 密文+MAC
 	APP_SESS_VERI_MAC,//主站会话解密验证MAC
 	

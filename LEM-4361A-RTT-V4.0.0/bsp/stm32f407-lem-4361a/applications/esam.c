@@ -317,6 +317,14 @@ rt_err_t ESAM_Communicattion(ESAM_CMD cmd,ScmEsam_Comm* l_stEsam_Comm)
 			sendbuf[ptr++] = (lenth>>8)&0xff;
 			sendbuf[ptr++] = (lenth&0xff);
 			break;
+		case APP_SESS_CALC_MAC_A4:
+			sendbuf[ptr++] = 0x80;
+			sendbuf[ptr++] = 0x4A;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = 0x00;
+			sendbuf[ptr++] = (lenth>>8)&0xff;
+			sendbuf[ptr++] = (lenth&0xff);
+			break;
 		case HOST_READ:
 //			sendbuf[ptr++] = 0x81;
 //			sendbuf[ptr++] = 0x1c;

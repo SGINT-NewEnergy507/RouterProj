@@ -24,6 +24,24 @@
 #define APDU_MAX_LENTH				512
 #define APDU_USER_MAX_LENTH		512
 
+
+
+struct _698_DATE_S
+{
+	union
+	{
+		unsigned int year;
+		unsigned char c_year[2];
+	}g_year;
+	unsigned char month;
+	unsigned char day;
+	unsigned char hour;
+	unsigned char minute;
+	unsigned char second;
+};
+
+
+
 struct _698_BLE_ADDR        //P   µÿ÷∑”Úa
 {
 	union 
