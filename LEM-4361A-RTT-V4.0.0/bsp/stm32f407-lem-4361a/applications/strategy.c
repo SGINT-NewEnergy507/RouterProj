@@ -20,7 +20,7 @@
 
 
 
-extern rt_uint32_t BLE_strategy_event_get(void);
+extern rt_uint32_t Strategy_get_BLE_event(void);
 extern rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
 ///////////////////////////////////////////////////////////////////
 //定义故障原因
@@ -98,7 +98,7 @@ static void ChgPlan_RecProcess(void)
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t Ctrl_EventCmd,BLE_EventCmd;
 	Ctrl_EventCmd = strategy_event_get();
-	BLE_EventCmd = BLE_strategy_event_get();
+	BLE_EventCmd = Strategy_get_BLE_event();
 	
 	switch(Ctrl_EventCmd)
 	{
