@@ -6,17 +6,8 @@
 #include "global.h"
 #include "chargepile.h"
 
-extern ChargPilePara_TypeDef ChargePilePara_Set;
-extern ChargPilePara_TypeDef ChargePilePara_Get;
-
-extern void DevState_Judge(void);
 
 extern struct rt_semaphore rt_sem_bluetoothfau;
-
-extern rt_uint8_t DeviceState;
-extern rt_uint8_t ChgpileState;
-
-
 
 /******************************** 与控制器交互信息 ***********************************/
 typedef enum
@@ -31,7 +22,7 @@ typedef enum
 	EXE_ING,
 	EXE_END,
 	EXE_FAILED,
-	}EXESTATE;/*执行状态 {0：未执行  1：正常执行 2：执行结束 3：执行失败}*/
+}EXESTATE;/*执行状态 {0：未执行  1：正常执行 2：执行结束 3：执行失败}*/
 
 typedef enum
 {
@@ -102,26 +93,15 @@ extern CHARGE_EXE_STATE Chg_ExeState;
 
 typedef struct
 {
-	char cRequestNO[17];			//申请单号  octet-string（SIZE(16)）
-	char cAssetNO[23];				//路由器资产编号  visible-string（SIZE(22)）
-	char cUserID[65];   			//用户id  visible-string（SIZE(64)）	
-	unsigned char GunNum;			//枪序号	{A枪（1）、B枪（2）}
-	unsigned long ulChargeReqEle;	//充电需求电量（单位：kWh，换算：-2）
+	char cRequestNO[17];				//	申请单号  octet-string（SIZE(16)）
+	char cAssetNO[23];					//	路由器资产编号  visible-string（SIZE(22)）
+	char cUserID[65];   				//	用户id  visible-string（SIZE(64)）	
+	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
+	unsigned long ulChargeReqEle;		//	充电需求电量（单位：kWh，换算：-2）
 	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
 	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
 	char Token[33];   					//	用户登录令牌  visible-string（SIZE(32)）
 }CHARGE_APPLY;/*充电申请单(BLE)*/
-
-/******************************* 充电控制 *************************************/
-typedef struct
-{
-	char OrderSn[17];			//订单号  octet-string（SIZE(16)）
-	char cAssetNO[23];			//路由器资产编号  visible-string（SIZE(22)）
-	unsigned char GunNum;		//枪序号	{A枪（1）、B枪（2）}
-	unsigned long SetPower;		//设定充电功率（单位：W，换算：-1）
-	unsigned char cSucIdle;		//成功或失败原因:{0：成功 1：失败 255：其他}
-}CTL_CHARGE;/*控制器充电控制*/
-
 
 
 /******************************** 事件信息记录 ***********************************/

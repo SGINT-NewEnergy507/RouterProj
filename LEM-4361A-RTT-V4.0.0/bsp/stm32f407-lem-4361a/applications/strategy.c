@@ -245,7 +245,7 @@ static void strategy_thread_entry(void *parameter)
 	while (1)
 	{
 		RtState_Judge();
-		
+		ChgPlan_RecProcess();
 						
 		rt_thread_mdelay(1000);
 	}

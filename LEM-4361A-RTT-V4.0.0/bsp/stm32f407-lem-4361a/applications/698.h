@@ -15,27 +15,12 @@ extern rt_uint32_t strategy_event;
 
 
 /****************宏定义**********************************/
-//定义事件类型
-typedef enum {
-	CTRL_NO_EVENT             	=0x00000000,
-	ChgPlanIssue_EVENT       	=0x00000001,        	//充电计划下发事件
-	ChgPlanIssueGet_EVENT     	=0x00000002,      		//充电计划召测事件	
-	ChgPlanAdjust_EVENT    		=0x00000004,        	//充电计划调整事件
-	StartChg_EVENT				=0x00000008,          	//启动充电事件
-	StopChg_EVENT				=0x00000010,          	//停止充电事件
-	PowerAdj_EVENT				=0x00000020,          	//调整功率事件
-	AskState_EVENT				=0x00000040,          	//查询工作状态事件
-}CTRL_EVENT_TYPE;//控制器→路由器的命令事件
-
-
-
 typedef struct
 {
 	int array_size;
 	PLAN_FAIL_EVENT *plan_fail_event;
 
 }_698_PLAN_FAIL_EVENT;
-
 
 
 typedef struct
@@ -46,25 +31,7 @@ typedef struct
 }_698_CHARGE_STRATEGY;
 /**********/
 
-typedef enum {
-	Cmd_ChgPlanIssue=0, 					//充电计划下发
-	Cmd_ChgPlanIssueAck,                 	//充电计划下发应答
-	Cmd_ChgPlanAdjust,                 		//充电计划调整
-	Cmd_ChgPlanAdjustAck,                 	//充电计划调整应答
-	Cmd_StartChg,							//启动充电参数下发
-	Cmd_StartChgAck,						//启动充电应答
-	Cmd_StopChg,							//停止充电参数下发
-	Cmd_StopChgAck,							//停止充电应答
-	Cmd_PowerAdj,							//功率调节参数下发
-	Cmd_PowerAdjAck,						//功率调节应答
-	Cmd_ChgPlanExeState,                    //充电计划执行状态查询
-	Cmd_ChgPlanExeStateAck,                 //充电计划执行应答
-	Cmd_ChgRecord,							//上送充电订单
-	Cmd_DeviceFault,                      	//上送路由器异常状态
-	Cmd_PileFault,                 			//上送充电桩异常状态
-	Cmd_ChgPlanIssueGetAck,
-}COMM_CMD_C;//路由器→控制器的命令号
-#define COMM_CMD_C rt_uint32_t
+
 
 //事件
 
