@@ -144,7 +144,7 @@ rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 
 rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd);//发送事件到策略
 rt_uint32_t BLE_strategy_event_get(void);
-rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd);//发送事件到策略
+rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
 
 /********************************************************************  
 *	函 数 名: Uart_Recv_Data
@@ -1278,6 +1278,10 @@ rt_uint32_t BLE_strategy_event_get(void)
 {
 	rt_uint32_t i,event;
 	
+	if(g_BLE_Strategy_event){}
+	else
+		return 0;
+	
 	for(i = 0; i <sizeof(rt_uint32_t);i++)
 	{
 		if(g_BLE_Strategy_event&(0x00000001<<i))
@@ -1286,14 +1290,18 @@ rt_uint32_t BLE_strategy_event_get(void)
 		}
 	}
 	
+	switch(event)
+	{
+		case Cmd_StartChgAck:
+			
+		break;
+		default:
+			break;
+	}
 	
-	result=g_BLE_Strategy_event;
-	g_BLE_Strategy_event=CTRL_NO_EVENT;//清除事件
+	g_BLE_Strategy_event &= (0xfffffffe<<event);
 	
-
-
-		
-	return result;
+	return 0;
 }
 
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
