@@ -143,7 +143,8 @@ static void BLE_Trans_Send(rt_device_t dev,rt_uint32_t cmd,rt_uint8_t reason,Scm
 rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData);
 
 rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd);//发送事件到策略
-rt_uint32_t BLE_strategy_event_get(void);
+rt_uint32_t Strategy_get_BLE_event(void);
+rt_uint32_t BLE_Event_get(void);
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
 
 /********************************************************************  
@@ -1030,7 +1031,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	
 //	BLE_strategy_event_send(Cmd_StartChg);
 	
-	g_BLE_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
+	g_BLE_Strategy_event |= (0x00000001<<Cmd_ChgRequest);
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
 }
@@ -1338,6 +1339,9 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 		apdu[ptr++] = stBLE_Charge_Apply.cAssetNO[1+i];//资产编号
 	}
 	
+	apdu[ptr++]    = 0x00;
+	apdu[ptr++]    = 0x00;
+	
 	memcpy(stBLE_Esam_Comm.Tx_data,Esam_KEY_DATA,32);
 	memcpy(stBLE_Esam_Comm.Tx_data+32,apdu,ptr);
 	stBLE_Esam_Comm.DataTx_len = 32+ptr;
@@ -1355,7 +1359,13 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 		{
 			dev_recv->apdu.apdu_data[ptr++]		= stBLE_Esam_Comm.Rx_data[4+i];
 		}
-		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //mac optional
+		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x04;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
 		ptr++;
 		
 		res = BLE_698_Data_Package(dev_recv,ptr,stData);
@@ -1378,9 +1388,9 @@ rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//发送事件到策略
 {
 	rt_kprintf("\n\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
-	g_BLE_Strategy_event |=(0x00000001<<cmd);
+	g_BLE_Strategy_event |= (0x00000001<<cmd);
 	
-	rt_kprintf("[bluetooth]: Send cmd=%d      Strategy_event = 0x%04X\n",cmd,g_BLE_Strategy_event);
+	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Strategy_event);
 	
 	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\n\n",__func__);
 		
@@ -1388,9 +1398,44 @@ rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//发送事件到策略
 }
 
 
-rt_uint32_t BLE_strategy_event_get(void)
+rt_uint32_t Strategy_get_BLE_event(void)
 {
-	rt_uint32_t i,event;
+	rt_uint32_t i,cmd;
+	CTRL_EVENT_TYPE event;
+	
+	if(g_BLE_Strategy_event){}
+	else
+		return 0;
+	
+	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	
+	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
+	{
+		if(g_BLE_Strategy_event&(0x00000001<<i))
+		{
+			cmd = i;
+			break;
+		}
+	}
+	
+	switch(cmd)
+	{
+		case Cmd_ChgRequest:
+			event = ChgRequest_EVENT;
+		break;
+		default:
+			break;
+	}
+	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
+	
+	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
+	
+	return event;
+}
+	
+rt_uint32_t BLE_event_get(void)
+{
+	rt_uint32_t i,cmd;
 	
 	if(g_BLE_Strategy_event){}
 	else
@@ -1404,21 +1449,21 @@ rt_uint32_t BLE_strategy_event_get(void)
 	{
 		if(g_BLE_Strategy_event&(0x00000001<<i))
 		{
-			event = i;
+			cmd = i;
 			break;
 		}
 	}
 	
-	switch(event)
+	switch(cmd)
 	{
-		case Cmd_StartChgAck:
+		case Cmd_ChgRequestAck:
 			BLE_698_Action_Request_Charge_Apply_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		default:
 			break;
 	}
 	
-	g_BLE_Strategy_event &= (0xfffffffe<<event);
+	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
 	
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
@@ -1431,7 +1476,7 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 	rt_uint8_t result=1;
 
 	switch(cmd){					
-		case Cmd_StartChg:	//启动充电 申请单  CHARGE_APPLY stBLE_Charge_Apply;
+		case Cmd_ChgRequest:	//启动充电 申请单  CHARGE_APPLY stBLE_Charge_Apply;
 			rt_kprintf("[hplc] (%s) Cmd_StartChg \n",__func__);	
 			STR_SetPara=(CHARGE_APPLY *)&stBLE_Charge_Apply;			
 			result=0;										
@@ -1510,7 +1555,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 			BLE_RecvData_Process(bluetooth_serial,g_ucProtocol,BLE_ATCmd,&stBLE_Comm);
 		}
 		
-		BLE_strategy_event_get();
+		BLE_event_get();
 
 		if(g_ucProtocol == AT_MODE)
 		{
