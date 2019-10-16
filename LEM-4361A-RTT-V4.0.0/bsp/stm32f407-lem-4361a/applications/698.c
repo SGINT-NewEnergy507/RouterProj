@@ -6310,12 +6310,6 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STAT
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
 
-
-
-
-
-
-
 	return result;//²»·¢ËÍ
 
 

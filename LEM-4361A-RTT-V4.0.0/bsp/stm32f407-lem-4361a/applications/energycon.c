@@ -38,7 +38,8 @@
 static rt_uint8_t energycon_stack[THREAD_ENERGYCON_STACK_SIZE];//线程堆栈
 
 struct rt_thread energycon;
-struct rt_semaphore rx_sem_energycon;     //用于接收数据的信号量
+struct rt_semaphore rx_sem_setpower;     //用于接收数据的信号量
+struct rt_semaphore rx_sem_adjpower;
 
 CTL_CHARGE Ctrl_Start;
 CTL_CHARGE Ctrl_Stop;
@@ -161,7 +162,7 @@ static void CtrlData_RecProcess(void)
 			
 			if(Fault.Total != TRUE)
 			{
-				if(memcmp(&RouterIfo.AssetNum,&Ctrl_Start.cAssetNO,22) == 0)//校验资产一致性
+				if(memcmp(&RouterIfo.AssetNum,&Ctrl_Start.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
 					ChargepileDataGetSet(Cmd_ChargeStart,0);	
 				
@@ -196,8 +197,8 @@ static void CtrlData_RecProcess(void)
 			
 			if(Fault.Total != TRUE)
 			{
-				if((memcmp(&RouterIfo.AssetNum,&Ctrl_Stop.cAssetNO,22) == 0)//校验资产一致性
-					||(memcmp(&Ctrl_Start.OrderSn,&Ctrl_Stop.OrderSn,16) == 0))//校验启停单号一致性		
+				if((memcmp(&RouterIfo.AssetNum,&Ctrl_Stop.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
+					||(memcmp(&Ctrl_Start.OrderSn,&Ctrl_Stop.OrderSn,sizeof(Ctrl_Start.OrderSn)) == 0))//校验启停单号一致性		
 				{
 					ChargepileDataGetSet(Cmd_ChargeStop,0);	
 				
@@ -232,7 +233,7 @@ static void CtrlData_RecProcess(void)
 			
 			if(Fault.Total != TRUE)
 			{
-				if(memcmp(&RouterIfo.AssetNum,&Ctrl_PowerAdj.cAssetNO,22) == 0)//校验资产一致性
+				if(memcmp(&RouterIfo.AssetNum,&Ctrl_PowerAdj.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
 					ChargePilePara_Set.PWM_Duty = Ctrl_PowerAdj.SetPower*10/132;//功率换算: D(含一位小数)=I/60*1000=P/(60*220)*1000
 					ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);	
@@ -410,29 +411,35 @@ static void PileData_RecProcess(void)
 ********************************************************************/ 
 static void TimeSolt_PilePowerCtrl(void)
 {
-	count = 0;
-	memset(&SetPowerFinishFlag,0,50);
-	while(1)
+	rt_uint8_t i;
+	
+	//定位当前所属计划单起始时间段
+	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
 	{
-		if((Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Year >= System_Time_STR.Year)&& 
-		(Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Month >= System_Time_STR.Month)&& 
-		(Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Day >= System_Time_STR.Day)&& 
-		(Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Hour >= System_Time_STR.Hour)&& 
-		(Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Minute >= System_Time_STR.Minute)&& 
-		(Chg_Strategy.strChargeTimeSolts[count].strDecStartTime.Second >= System_Time_STR.Second))	//定位当前所属计划单起始时间段
+		if((Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Year <= System_Time_STR.Year)&& 
+		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Month <= System_Time_STR.Month)&& 
+		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day <= System_Time_STR.Day)&& 
+		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Hour <= System_Time_STR.Hour)&& 
+		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Minute <= System_Time_STR.Minute)&& 
+		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Second <= System_Time_STR.Second))	
 		{
-			Chg_ExeState.ucPlanPower = Chg_Strategy.strChargeTimeSolts[count].ulChargePow;
-			
+			Chg_ExeState.ucPlanPower = Chg_Strategy.strChargeTimeSolts[i].ulChargePow;		
 			ChargePilePara_Set.PWM_Duty = Chg_ExeState.ucPlanPower*10/132;//功率换算
-			ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
 			
-			Chg_ExeState.exeState = EXE_ING;
-			memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));
+			if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
+			{
+				ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
+				Chg_ExeState.exeState = EXE_ING;
+				SetPowerFinishFlag[i] = TRUE;
+				count = i;
+				//count++;
+			}
 			break;
 		}
-		
-		count++;
 	}
+	
+	if(count == Chg_Strategy.ucTimeSlotNum)
+		memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));//新旧保持一致，不再给桩发送功率设定帧
 }
 
 
@@ -442,7 +449,7 @@ static void energycon_thread_entry(void *parameter)
 	rt_err_t res;
 	rt_err_t ret = RT_EOK;
 	rt_uint32_t* r_str;
-	unsigned char i = 0;
+	
 	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
@@ -452,10 +459,18 @@ static void energycon_thread_entry(void *parameter)
 	
 	while (1)
 	{
-//		if((res = rt_sem_take(&rx_sem_energycon, 1000)) == RT_EOK)
-//		{	
-//			memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));		
-//		}	
+		if((res = rt_sem_take(&rx_sem_setpower, 1000)) == RT_EOK)
+		{	
+			memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));
+			memset(&SetPowerFinishFlag,0,50);//清空标志位
+			count = 0;						 
+		}	
+		
+		if((res = rt_sem_take(&rx_sem_adjpower, 1000)) == RT_EOK)
+		{
+			memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));
+			
+		}			
 		PileData_RecProcess();	
 		CtrlData_RecProcess();
 		
@@ -464,24 +479,7 @@ static void energycon_thread_entry(void *parameter)
 			TimeSolt_PilePowerCtrl(); 
 		}
 		
-		for(i=count;i<50;i++)
-		{
-			if((Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Year >= System_Time_STR.Year)&& 
-			(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Month >= System_Time_STR.Month)&& 
-			(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day >= System_Time_STR.Day)&& 
-			(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Hour >= System_Time_STR.Hour)&& 
-			(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Minute >= System_Time_STR.Minute)&& 
-			(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Second >= System_Time_STR.Second))	//定位当前所属计划单起始时间段
-			{
-				ChargePilePara_Set.PWM_Duty = Chg_Strategy.strChargeTimeSolts[i].ulChargePow;
-				if(SetPowerFinishFlag[i] == 0)//限制发送一次
-				{
-					ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
-					SetPowerFinishFlag[i] = 1;
-				}
-				break;
-			}
-		}
+
 		
 		rt_thread_mdelay(1000);
 	}
@@ -495,7 +493,8 @@ int energycon_thread_init(void)
     timer_create_init();
 	
 	/*初始化信号量*/
-	rt_sem_init(&rx_sem_energycon, "rx_sem_energycon", 0, RT_IPC_FLAG_FIFO);
+	rt_sem_init(&rx_sem_setpower, "rx_sem_setpower", 0, RT_IPC_FLAG_FIFO);
+	rt_sem_init(&rx_sem_adjpower, "rx_sem_adjpower", 0, RT_IPC_FLAG_FIFO);
 	
 	res=rt_thread_init(&energycon,
 											"energycon",

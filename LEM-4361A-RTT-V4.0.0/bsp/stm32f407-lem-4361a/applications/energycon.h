@@ -11,8 +11,8 @@ extern ChargPilePara_TypeDef ChargePilePara_Get;
 
 
 extern struct rt_thread energycon;
-extern struct rt_semaphore rx_sem_energycon;
-
+extern struct rt_semaphore rx_sem_setpower;
+extern struct rt_semaphore rx_sem_adjpower;
 /******************************* ³äµç¿ØÖÆ *************************************/
 typedef struct
 {
