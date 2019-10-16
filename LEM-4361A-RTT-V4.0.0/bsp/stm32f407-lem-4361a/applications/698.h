@@ -2,10 +2,10 @@
 //#include <rtthread.h>
 #include <rtdevice.h>
 #include <strategy.h>
+#include "energycon.h"
 
 #define HPLC_UART_NAME       "uart5"  /* 串口设备名称 */
 
-#define BLUE_TOOTH_UART_NAME       "uart3"  /* 串口设备名称 */
 extern struct rt_thread hplc;
 extern struct _698_STATE hplc_698_state;
 extern rt_uint32_t hplc_event;
