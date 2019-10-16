@@ -101,7 +101,9 @@ CCMRAM static ScmEsam_Comm stBLE_Esam_Comm;
 CCMRAM static rt_uint8_t BLE_698_data_buf[4][255];
 
 
-CCMRAM CHARGE_APPLY stBLE_Charge_Apply;
+CCMRAM CHARGE_APPLY stBLE_Charge_Apply;//³äµçÉêÇë
+CHARGE_APPLY_RSP	stBLE_Charge_Apply_RSP;//³äµçÉêÇëÏìÓ¦
+CHARGE_APPLY_EVENT stBLE_Charge_Apply_Event;//³äµçÉêÇëÊÂ¼þµ¥ÉÏ±¨
 
 
 static rt_uint8_t	Esam_KEY_R1[16];//R1Êý¾Ý
@@ -132,6 +134,7 @@ static rt_uint32_t g_BLE_Get_Strategy_event;
 struct _698_BLE_FRAME _698_ble_frame;
 struct _698_BLE_ADDR _698_ble_addr;
 static rt_uint8_t _698_ble_control;
+struct _698_BLE_METER_ADDR stBLE_meter_addr;
 
 static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData);
 
@@ -318,19 +321,35 @@ void BLE_ATCmd_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//ATÖ
 	g_ulBLE_Rx_Beg = 0;
 }
 
-rt_err_t _698_date_to_sys_date(struct _698_DATE_S* _698_date_s,STR_SYSTEM_TIME* sys_date)
+rt_err_t date_time_s_to_sys_time(struct _698_DATE_S* date_time_s,STR_SYSTEM_TIME* sys_time)
 {
 	rt_uint16_t _698_year;
 		
-	_698_year = _698_date_s->g_year.year%100;
+	_698_year = date_time_s->g_year.year%100;
 	
 	
-	Int_toBCD(&sys_date->Year,(rt_uint8_t*)&_698_year,1);
-	Int_toBCD(&sys_date->Month,&_698_date_s->month,1);
-	Int_toBCD(&sys_date->Day,&_698_date_s->day,1);
-	Int_toBCD(&sys_date->Hour,&_698_date_s->hour,1);
-	Int_toBCD(&sys_date->Minute,&_698_date_s->minute,1);
-	Int_toBCD(&sys_date->Second,&_698_date_s->second,1);
+	Int_toBCD(&sys_time->Year,(rt_uint8_t*)&_698_year,1);
+	Int_toBCD(&sys_time->Month,&date_time_s->month,1);
+	Int_toBCD(&sys_time->Day,&date_time_s->day,1);
+	Int_toBCD(&sys_time->Hour,&date_time_s->hour,1);
+	Int_toBCD(&sys_time->Minute,&date_time_s->minute,1);
+	Int_toBCD(&sys_time->Second,&date_time_s->second,1);
+	
+	return RT_EOK;
+}
+
+rt_err_t Sys_time_to_date_time_s(STR_SYSTEM_TIME * sys_time,struct _698_DATE_S *date_time_s)
+{
+	rt_uint16_t _698_year;
+	rt_uint8_t year;
+	
+	BCD_toInt(&year,&sys_time->Year,1);
+	date_time_s->g_year.year = 2000+year;
+	BCD_toInt(&date_time_s->month,&sys_time->Month,1);
+	BCD_toInt(&date_time_s->day,&sys_time->Day,1);
+	BCD_toInt(&date_time_s->hour,&sys_time->Hour,1);
+	BCD_toInt(&date_time_s->minute,&sys_time->Minute,1);
+	BCD_toInt(&date_time_s->second,&sys_time->Second,1);
 	
 	return RT_EOK;
 }
@@ -347,9 +366,15 @@ rt_uint32_t BLE_698_Data_Package(struct _698_BLE_FRAME *dev_recv,rt_uint8_t user
 	stData->Tx_data[ptr++] 							= 0;
 	
 	stData->Tx_data[ptr++] 							= _698_ble_control|0x80;
+	
+	_698_ble_addr.S_ADDR.SA							= 0x05;
 	stData->Tx_data[ptr++] 							= _698_ble_addr.S_ADDR.SA;
 
 	lenth = _698_ble_addr.S_ADDR.B.uclenth+1;
+	
+	for(i = 0; i< lenth; i++)
+	_698_ble_addr.addr[lenth-i]					= stBLE_meter_addr.addr[i];								
+	
 	for(i=0;i<lenth;i++)
 		stData->Tx_data[ptr++] 						= _698_ble_addr.addr[i];//·þÎñÆ÷ µØÖ·
 	stData->Tx_data[ptr++]							= _698_ble_addr.CA;//¿Í»§¶ËµØÖ·
@@ -392,35 +417,18 @@ rt_err_t BLE_698_Get_METER_ADDR_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 	rt_uint16_t total_lenth;
 	rt_err_t result;
 	
-	struct _698_BLE_METER_ADDR meter_addr;
-	
-	
-	GetStorageData(Cmd_MeterNumRd,meter_addr.addr,6);
-	////////////////////////////////²âÊÔÓÃ///////////////////////////////
-	meter_addr.data = 0x01;
-	meter_addr.data_type=0x09;
-	meter_addr.addr_len = 0x06;
-	meter_addr.addr[0] = 0x00;
-	meter_addr.addr[1] = 0x00;
-	meter_addr.addr[2] = 0x00;
-	meter_addr.addr[3] = 0x00;
-	meter_addr.addr[4] = 0x00;
-	meter_addr.addr[5] = 0x01;
-	meter_addr.optional = 0x00;
-	meter_addr.time = 0x00;
-	//////////////////////////////////////////////////////////////////////
 	ptr = 6;
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.data;
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.data_type;
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr_len;
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[0];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[1];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[2];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[3];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[4];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.addr[5];
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.optional;
-	dev_recv->apdu.apdu_data[ptr++]	= meter_addr.time;
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.data;
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.data_type;
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr_len;
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[0];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[1];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[2];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[3];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[4];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.addr[5];
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.optional;
+	dev_recv->apdu.apdu_data[ptr++]	= stBLE_meter_addr.time;
 	ptr++;//apdu_cmd
 	
 	result = BLE_698_Data_Package(dev_recv,ptr,stData);
@@ -999,7 +1007,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	data_len = 7;
 	
 	memcpy(&_698_date_s,&dev_recv->apdu.apdu_data[10+ptr],data_len);
-	_698_date_to_sys_date(&_698_date_s,&stBLE_Charge_Apply.PlanUnChg_TimeStamp);
+	date_time_s_to_sys_time(&_698_date_s,&stBLE_Charge_Apply.PlanUnChg_TimeStamp);
 	
 	
 /*	time = dev_recv->apdu.apdu_data[10+ptr];
@@ -1300,10 +1308,222 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 *	ÐÎ    ²Î: ÎÞ
 *	·µ »Ø Öµ: ÎÞ
 ********************************************************************/
-//rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
-//{
-//	
-//}
+rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint8_t i,ptr,lenth;
+	rt_err_t res;
+	struct _698_DATE_S date_time_s;
+		
+	ptr = 0;
+	dev_recv->apdu.apdu_cmd    = REPORT_RESPONSE |0x80;//³äµçÉêÇë¼ÇÂ¼Ê±¼ä·µ»Ø
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//Èô¸É¸ö¼ÇÂ¼ÐÔ¶ÔÏó
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;  //piid-acd
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;		//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x60;//OAD 60120300
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //len ³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;  //csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;		//OAD 202A0200
+	dev_recv->apdu.apdu_data[ptr++]    = 0x2A;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x34;//OAD 34030200
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x10;// len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ¼ÇÂ¼ÐòºÅ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x22;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x1E;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ½áÊøÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÔ´ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x24;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x33;//OI Í¨µÀÉÏ±¨×´Ì¬ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	for(i = 0; i< 12; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = 0x35;//OI 3505³äµçÉêÇëÊÂ¼þ ÊôÐÔ2 ÐòºÅ6~16
+		dev_recv->apdu.apdu_data[ptr++]    = 0x05;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x06+i;//
+	}
+
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//½á¹ûÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_TSA;// 0x85 tsaÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x07;//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x05;//
+	for(i = 0; i < 6; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_meter_addr.addr[i];//µç±íµØÖ·
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x10;//³¤¶È16
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//ÀàÐÍ 06//ÊÂ¼þ¼ÇÂ¼ÐòºÅ
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum>>24)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum>>16)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum>>8)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum)&0xff;
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.StartTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.FinishTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//ÊÂ¼þÔ´
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;// ÏàÊý
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_OAD;//OAD 81
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0xF2;//OI F209 ÔØ²¨ÎÞÏß½Ó¿Ú
+	dev_recv->apdu.apdu_data[ptr++]    = 0x09;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_unsigned;//ÀàÐÍ 08 Öµ 00
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_octet_string;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.RequestNO[0];//³¤¶È
+	
+	for(i = 0; i < stBLE_Charge_Apply_Event.RequestNO[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.RequestNO[1+i];//
+	}
+	dev_recv->apdu.apdu_data[ptr++]    = Data_visible_string;//
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.AssetNO[0];//³¤¶È
+	
+	for(i = 0; i < stBLE_Charge_Apply_Event.AssetNO[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.AssetNO[1+i];//
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//Ç¹ºÅ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.RequestTimeStamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.actSOC>>8)&0xff;//µ±Ç°SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.actSOC)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.aimSOC>>8)&0xff;//µ±Ç°SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.aimSOC)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.CellCapacity>>24)&0xff;//µç³ØÈÝÁ¿
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.CellCapacity>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.CellCapacity>>8)&0xff;//µ±Ç°SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.CellCapacity)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.ChargeReqEle>>24)&0xff;//³äµçÐèÇóµçÁ¿
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.ChargeReqEle>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.ChargeReqEle>>8)&0xff;//µ±Ç°SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.ChargeReqEle)&0xff;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//Ç¹ºÅ
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.ChargeMode;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_visible_string;//
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.Token[0];//³¤¶È
+	
+	for(i = 0; i < stBLE_Charge_Apply_Event.Token[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.Token[1+i];//
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_visible_string;//
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.UserAccount[0];//³¤¶È
+	
+	for(i = 0; i < stBLE_Charge_Apply_Event.UserAccount[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.UserAccount[1+i];//
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+
+	res = BLE_698_Data_Package(dev_recv,ptr,stData);
+
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+	return res;
+}
 
 /********************************************************************  
 *	º¯ Êý Ãû: BLE_698_Security_Request_Analysis_and_Response
@@ -1325,28 +1545,28 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	apdu[ptr++]    = 0x7F;
 	apdu[ptr++]    = 0x00;
 	
-	apdu[ptr++]    = 0x00;  //³É¹¦
+	apdu[ptr++]    = stBLE_Charge_Apply_RSP.cSucIdle;  //½á¹û  00³É¹¦
 	apdu[ptr++]    = 0x01;  //optional
 	
 	apdu[ptr++]    = 0x02;		//½á¹¹Ìå
 	apdu[ptr++]    = 0x02;   //½á¹¹Ìå³ÉÔ±2
 	apdu[ptr++]    = 0x09;   //ÀàÐÍ
 	
-	lenth = stBLE_Charge_Apply.cRequestNO[0];   //³¤¶È
+	lenth = stBLE_Charge_Apply_RSP.cRequestNO[0];   //³¤¶È
 	apdu[ptr++]    = lenth;
 	
 	for(i = 0;i < lenth;i++)
 	{
-		apdu[ptr++] = stBLE_Charge_Apply.cRequestNO[1+i];//ÉêÇëµ¥ºÅ
+		apdu[ptr++] = stBLE_Charge_Apply_RSP.cRequestNO[1+i];//ÉêÇëµ¥ºÅ
 	}
 	apdu[ptr++]    = 0x0A;   //ÀàÐÍ
 	
-	lenth = stBLE_Charge_Apply.cAssetNO[0];   //³¤¶È
+	lenth = stBLE_Charge_Apply_RSP.cAssetNO[0];   //³¤¶È
 	apdu[ptr++]    = lenth;
 	
 	for(i = 0;i < lenth;i++)
 	{
-		apdu[ptr++] = stBLE_Charge_Apply.cAssetNO[1+i];//×Ê²ú±àºÅ
+		apdu[ptr++] = stBLE_Charge_Apply_RSP.cAssetNO[1+i];//×Ê²ú±àºÅ
 	}
 	
 	apdu[ptr++]    = 0x00;
@@ -1489,9 +1709,15 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			STR_SetPara=(CHARGE_APPLY *)&stBLE_Charge_Apply;			
 			result=0;										
 		break;
-		case Cmd_StartChgAck:
+		case Cmd_ChgRequestAck:
+			memcpy(&stBLE_Charge_Apply_RSP,STR_SetPara,sizeof(CHARGE_APPLY_RSP));
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
 		break;
+		case Cmd_ChgRequestReportAPP:
+			memcpy(&stBLE_Charge_Apply_Event,STR_SetPara,sizeof(CHARGE_APPLY_EVENT));
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);
+		break;
+			
 		
 		default:
 			rt_kprintf("[hplc]  (%s)   not  \n",__func__);
@@ -1554,6 +1780,22 @@ static void bluetooth_thread_entry(void *parabluetooth)
 //	memcpy(stBLE_Comm.Rx_data,buf,sizeof(buf));
 //	stBLE_Comm.DataRx_len = 25;
 //	check_698_data_to_buf(&stBLE_Comm,_698_data_buf);	
+
+	
+	GetStorageData(Cmd_MeterNumRd,stBLE_meter_addr.addr,6);
+	////////////////////////////////²âÊÔÓÃ///////////////////////////////
+	stBLE_meter_addr.data = 0x01;
+	stBLE_meter_addr.data_type=0x09;
+	stBLE_meter_addr.addr_len = 0x06;
+	stBLE_meter_addr.addr[0] = 0x00;
+	stBLE_meter_addr.addr[1] = 0x00;
+	stBLE_meter_addr.addr[2] = 0x00;
+	stBLE_meter_addr.addr[3] = 0x00;
+	stBLE_meter_addr.addr[4] = 0x00;
+	stBLE_meter_addr.addr[5] = 0x01;
+	stBLE_meter_addr.optional = 0x00;
+	stBLE_meter_addr.time = 0x00;
+	//////////////////////////////////////////////////////////////////////
 		
 	while (1)
 	{
