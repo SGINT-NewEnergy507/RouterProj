@@ -16,6 +16,8 @@ typedef enum {
 	Cmd_MeterHalfPowerRd,
 	Cmd_MeterAnalogWr,                  //0
 	Cmd_MeterAnalogRd,
+	Cmd_ChgRequestWr,                	/*充电申请事件记录单元*/
+	Cmd_ChgRequestRd,	
 	Cmd_HistoryRecordWr,                /*充电订单事件记录单元*/
 	Cmd_HistoryRecordRd,	
 	Cmd_OrderChargeWr,                  /*有序充电事件记录单元*/
@@ -30,7 +32,6 @@ typedef enum {
 	
 	
 	End_Sto_cmdListNum,
-	
 }STORAGE_CMD_ENUM;
 #define STORAGE_CMD_ENUM rt_uint32_t
 
