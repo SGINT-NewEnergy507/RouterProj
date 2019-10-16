@@ -104,7 +104,8 @@ struct  _698_FRAME _698_StopChg;
 unsigned char _698_StopChg_data[50];
 //START_STOP_CHARGE stop_charge;
 
-
+/*充电申请事件记录单元*/
+CHARGE_APPLY_EVENT hplc_CHARGE_APPLY_EVENT;
 
 //上送结构体
 CHARGE_EXE_STATE Report_charge_exe_state;
@@ -365,209 +366,7 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 	}	
 }
 
-/*
-回复全加密
 
-*/
-int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx){
-	
-	int result=-1;
-	CHARGE_APPLY_EVENT hplc_CHARGE_APPLY_EVENT;
-	while(hplc_698_state.lock1==1){
-		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
-		rt_thread_mdelay(20);
-	}
-	hplc_698_state.lock1=1;
-	while(hplc_698_state.lock2==1){
-		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);
-		rt_thread_mdelay(20);
-	}
-	hplc_698_state.lock2=1;
-	
-//		if(Strategy_get_BLE_event()==ChgRequest_EVENT){	//
-	if(hplc_event&(0x1<<Cmd_ChgRequestReport)){	//转发充电申请		
-		hplc_event&=(~(0x1<<Cmd_ChgRequestReport));		
-	
-//	if(1){	//转发充电申请	
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
-	
-		result=report_notification_package(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,data_tx,priv_698_state);
-
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			
-
-			
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}				
-	}		
-	
-	if(hplc_event&(0x1<<Cmd_ChgPlanIssueAck)){	//充电计划下发应答	
-		hplc_event&=(~(0x1<<Cmd_ChgPlanIssueAck));	
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
-		_698_ChgPlanIssue.need_package=1;
-		//用小周的来填充我的_698_ChgPlanIssue，然后进行组应答帧
-		
-		result=action_response_package(&_698_ChgPlanIssue,priv_698_state,data_tx);//发送
-
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-//			if(security_flag==1){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
-				//将用户数据整个地加密，然后重新打包
-
-				data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-				result=security_get_package(priv_698_state,data_tx);
-//			}	
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}		
-	}		
-
-	if(hplc_event&(0x1<<Cmd_ChgPlanAdjustAck)){	//充电计划调整应答	
-		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanAdjustAck  \n",__func__);	
-		_698_ChgPlanAdjust.need_package=1;
-		result=action_response_package(&_698_ChgPlanAdjust,priv_698_state,data_tx);//发送	
-		_698_ChgPlanAdjust.need_package=0;
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
-			
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}		
-	}	
-	if(hplc_event&(0x1<<Cmd_ChgPlanIssueGetAck)){		
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueGetAck  \n",__func__);	
-		_698_ChgPlanIssueGet.need_package=1;
-		result=get_response_package(&_698_ChgPlanIssueGet,priv_698_state,data_tx);//发送
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
-			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
-			
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据
-			//printmy(&data_tx->_698_frame);
-		}
-	}	
-	
-	
-//	rt_kprintf("[hplc]  (%s)   hplc_event=%4x  \n",__func__,hplc_event);
-	if(hplc_event&(0x1<<Cmd_StartChgAck)){	//启动充电应答
-		hplc_event&=(~(0x1<<Cmd_StartChgAck));	
-		rt_kprintf("[hplc]  (%s)   Cmd_StartChgAck  \n",__func__);
-
-		_698_StartChg.need_package=1;
-		result=action_response_package(&_698_StartChg,priv_698_state,data_tx);//发送
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
-			
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}		
-	}
-
-	if(hplc_event&(0x1<<Cmd_StopChgAck)){	//启动充电应答
-		hplc_event&=(~(0x1<<Cmd_StopChgAck));	
-		rt_kprintf("[hplc]  (%s)   Cmd_StopChgAck  \n",__func__);	
-		_698_StopChg.need_package=1;
-		result=action_response_package(&_698_StopChg,priv_698_state,data_tx);//发送
-		_698_StopChg.need_package=0;
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
-			
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}				
-	}		
-	
-	
-	if(hplc_event&(0x1<<Cmd_ChgPlanExeState)){	//						
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanExeState  \n",__func__);	
-		result=Report_Cmd_ChgPlanExeState(data_tx,priv_698_state);
-		//printmy(&data_tx->_698_frame);			
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}													
-	}
-	
-	
-	if(hplc_event&(0x1<<Cmd_ChgRecord)){	//上送充电订单 REPORT  只有上报若干个对象属性，和上报若干个记录型对象属性两种
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);
-//		result=Report_Cmd_ChgRecord(data_tx,priv_698_state);//Cmd_ChgPlanExeState();//
-		
-			report_notification_package(Cmd_ChgRecord,data_tx,data_tx,priv_698_state);
-			
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}				
-	}	
-
-	if(hplc_event&(0x1<<Cmd_DeviceFault)){	//上送路由器异常状态
-		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
-//		result=Report_Cmd_DeviceFault(data_tx,priv_698_state);
-		report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);		
-		
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-		}					
-	}	
-	if(hplc_event&(0x1<<Cmd_PileFault)){	//上送路由器异常状态
-		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
-//		result=Report_Cmd_PileFault(data_tx,priv_698_state);
-		if( result!=0){
-				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
-		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
-			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-			report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);				
-		}				
-	}				
-	hplc_698_state.lock2=0;
-	hplc_698_state.lock1=0;
-
-	return result;		
-}
-
-
-
-/*
- 发送，调用发送单个帧，应答组帧时是不是需要等待hplc回复？按道理不要，是不是就没有组帧的需要，组帧还需要一发一确认么？
-
-
-*/
-int hplc_tx(struct CharPointDataManage *hplc_data){
-	int result=1;
-	//unsigned char rel_time[10];//9位时间，加一位，应该是时间差
-	
-	//    发送字符串 
-  //rt_device_write(serial, 0, str, (sizeof(str) - 1));
-	//获取实时时间,并计算时间差
-	//开启发送的线程，不影响正常接收? 还是阻塞发送? 阻塞发送比较好实现，并且在没法发送情况下，收到也没用，不如放在缓存里，但是长帧怎么办
-	//单一定要判断是不是工作着，因为有可能要转发其他用户的帧，这个指的是其他用户用hplc口发送数据，不是其他用户调用接口函数来组帧。
-	//打包数据，并发送函数，发送完后，进行下一步，或者监听
-	return result;	
-}
 
 
 int hplc_645_addr_response(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct CharPointDataManage *data_tx){
@@ -1864,14 +1663,14 @@ int action_response_charge_StartStop(CHARGE_STRATEGY * charge_strategy,struct  _
 }
 
 
-
+/*****存过去时第一个字节是长度*******/
 
 int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _698_FRAME  *_698_frame_rev){
 	int i=0,j=0,count,len=0,position;
 	rt_kprintf("[hplc]  (%s) \n",__func__);
 	i=_698_frame_rev->time_flag_positon;//指向了这个数,注意这个数
 	i++;//—— 结构体位置
-	if(_698_frame_rev->usrData[i++]!=10){//—— 成员数量位置
+	if(_698_frame_rev->usrData[i++]!=11){//—— 成员数量位置
 		rt_kprintf("[hplc]  (%s)  struct no. is not right i=%d!! \n",__func__,i);				
 	}
 	//充电申请单号 octet-string（SIZE(16)）
@@ -1905,9 +1704,13 @@ int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _6
 	//路由器资产编号  visible-string（SIZE(22)）	
 	i+=2;//跳过上面的位，一个类型,
 	len=_698_frame_rev->usrData[i]+1;//	
-	
 	my_strcpy_char(charge_strategy->cAssetNO,(char *)_698_frame_rev->usrData,i,len);
-	
+
+
+	//枪序号	enum{A枪（1）、B枪（2）}
+	i+=len+1;//跳过上面的位，一个类型,
+	charge_strategy->GunNum=_698_frame_rev->usrData[i];
+
 	//充电需求电量（单位：kWh，换算：-2）double-long-unsigned
 	i+=len+1;//跳过上面的位，一个类型,
 	charge_strategy->ulChargeReqEle=_698_frame_rev->usrData[i]<<24;
@@ -1923,6 +1726,7 @@ int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _6
 	//充电时段  array时段充电功率		
 	i+=2;//跳过上面的位，一个类型,
 	count=_698_frame_rev->usrData[i];//个数
+	charge_strategy->ucTimeSlotNum=count;
 	i++;//跳过上面的位
 	for(j=0;j<count;j++){
 		//开始时间    date_time_s
@@ -2739,33 +2543,42 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
 					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 		
-		
-					temp_char=Data_structure;//00 —— Data OPTIONAL=0 表示没有数据
+					temp_char=01;// OPTIONAL=0 表示没有数据
+					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+					
+					temp_char=Data_structure;//
 					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 					
 					temp_char=2;//成员数量
 					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
-								
+
+
+					
 					//充电申请单号 octet-string（SIZE(16)）
-					temp_char=Data_octet_string;//
-					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-					
-					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量
-					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-					
+//					temp_char=Data_octet_string;//
+//					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+//					
+ 					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量
+//					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+//					
 					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cRequestNO+1);
-					save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);	
+//					save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+
+					_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
+
 
 					//路由器资产编号  visible-string（SIZE(22)）
-					temp_char=Data_visible_string;//
-					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
-					
-					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量
-					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
-					
+					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量					
 					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cAssetNO+1);
-					save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+
+					_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);					
+
+					temp_char=Data_enum;//
+					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 					
+					temp_char=ChgPlanIssue_rsp.cAssetNO;//
+					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+
 
 					result=0;
 				
@@ -2783,9 +2596,8 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					_698_ChgPlanIssue.time_flag_positon=_698_frame_rev->usrData_len;//最后一位，只给方法用时有效
 		
 					//保存启动功率
-					action_response_charge_strategy(&charge_strategy_ChgPlanIssue,_698_frame_rev);//存到周的里面
+					action_response_charge_strategy(&charge_strategy_ChgPlanIssue,_698_frame_rev);//存到里面等周调用
 					strategy_event_send(ChgPlanIssue_EVENT);
-//					rt_event_send(&PowerCtrlEvent,ChgPlanIssue_EVENT);
 					return 2;//发送事件	
 				}
 
@@ -4665,7 +4477,6 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 			rt_kprintf("[hplc]  (%s)  [2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256 \n",__func__);		
 		}
 
-
 		data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
 		my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,0,data_rev->_698_frame.usrData_len);//	
 
@@ -4739,7 +4550,6 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 			break;
 
 		case(action_request)://由客户机应用进程调用,操作一个对象方法
-//			rt_kprintf("[hplc]  (%s)  action_request \n",__func__);
 			result=action_response_package(&data_rev->_698_frame,priv_698_state,data_tx);
 			//返回时调用这个就可以了
 			break;	
@@ -5179,7 +4989,7 @@ int copy_charge_strategy(CHARGE_STRATEGY *des,CHARGE_STRATEGY *src){
 //rt_uint32_t strategy_event;
 //rt_uint32_t hplc_event=0;
 
-rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
+rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd){
 //	rt_uint32_t event;
 //锁资源
 	while(hplc_lock1==1){
@@ -5201,6 +5011,11 @@ rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
 	return 0;
 	
 }
+
+/***
+用户来调用这个获取事件strategy_event
+
+****/
 
 rt_uint32_t strategy_event_get(void){
 	rt_uint32_t result=CTRL_NO_EVENT;
@@ -5251,10 +5066,6 @@ rt_uint32_t my_strategy_event_get(void){
 	hplc_lock1=0;		
 	return result;
 }
-
-
-
-
 
 
 /**
@@ -5396,9 +5207,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 
 	case(Cmd_ChgRequestReport)://不需要从我这里要数据，只执行就可以了
-			_698_charge_strategy.charge_strategy=(CHARGE_STRATEGY *)STR_SetPara;	
-			//这个会有问题，如果变了，但是这个是我网上招的数据，我不动他也应该不动
-			_698_charge_strategy.array_size=count;
+			hplc_CHARGE_APPLY_EVENT=*((CHARGE_APPLY_EVENT *)STR_SetPara);	
 			hplc_event=hplc_event|event;
 			//是否还要判断是否运行成功，成功了之后才推出。
 			result=0;	
@@ -5420,31 +5229,211 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	return result;			
 }
 
-int send_event(void){
-	
 
+/*
+回复全加密
+
+*/
+int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx){
 	
-//		rt_kprintf("[hplc]  send  NO_EVENT\n");
-//		rt_event_send(&PowerCtrlEvent,NO_EVENT);
-//		rt_thread_mdelay(500);
-//		
+	int result=-1;
+	while(hplc_698_state.lock1==1){
+		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_698_state.lock1=1;
+	while(hplc_698_state.lock2==1){
+		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_698_state.lock2=1;
 	
-//		rt_kprintf("[hplc]  send  ChgPlanIssue_EVENT\n");	
-//		rt_event_send(&PowerCtrlEvent,ChgPlanIssue_EVENT);
-//		rt_thread_mdelay(500);
-	while(1){
+//		if(Strategy_get_BLE_event()==ChgRequest_EVENT){	//
+	if(hplc_event&(0x1<<Cmd_ChgRequestReport)){	//转发充电申请		
+		hplc_event&=(~(0x1<<Cmd_ChgRequestReport));		
 	
-		for(int i=1;i<5;i++){
-			rt_kprintf("[hplc]  send  i=%d\n",i);		
-			rt_event_send(&PowerCtrlEvent,(0x1<<i));	
-			rt_thread_mdelay(500);
-			rt_event_send(&PowerCtrlEvent,StopChg_EVENT);
-		}	
+//	if(1){	//转发充电申请	
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
 	
+		result=report_notification_package(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,data_tx,priv_698_state);
+
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			
+
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}				
+	}		
+	
+	if(hplc_event&(0x1<<Cmd_ChgPlanIssueAck)){	//充电计划下发应答	
+		hplc_event&=(~(0x1<<Cmd_ChgPlanIssueAck));	
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
+		_698_ChgPlanIssue.need_package=1;
+		//用小周的来填充我的_698_ChgPlanIssue，然后进行组应答帧
+		
+		result=action_response_package(&_698_ChgPlanIssue,priv_698_state,data_tx);//发送
+
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+//			if(security_flag==1){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
+				//将用户数据整个地加密，然后重新打包
+
+				data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+				result=security_get_package(priv_698_state,data_tx);
+//			}	
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}		
+	}		
+
+	if(hplc_event&(0x1<<Cmd_ChgPlanAdjustAck)){	//充电计划调整应答	
+		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanAdjustAck  \n",__func__);	
+		_698_ChgPlanAdjust.need_package=1;
+		result=action_response_package(&_698_ChgPlanAdjust,priv_698_state,data_tx);//发送	
+		_698_ChgPlanAdjust.need_package=0;
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			
+			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+			result=security_get_package(priv_698_state,data_tx);
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}		
+	}	
+	if(hplc_event&(0x1<<Cmd_ChgPlanIssueGetAck)){		
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueGetAck  \n",__func__);	
+		_698_ChgPlanIssueGet.need_package=1;
+		result=get_response_package(&_698_ChgPlanIssueGet,priv_698_state,data_tx);//发送
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
+			
+			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+			result=security_get_package(priv_698_state,data_tx);
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据
+			//printmy(&data_tx->_698_frame);
+		}
+	}	
+	
+	
+//	rt_kprintf("[hplc]  (%s)   hplc_event=%4x  \n",__func__,hplc_event);
+	if(hplc_event&(0x1<<Cmd_StartChgAck)){	//启动充电应答
+		hplc_event&=(~(0x1<<Cmd_StartChgAck));	
+		rt_kprintf("[hplc]  (%s)   Cmd_StartChgAck  \n",__func__);
+
+		_698_StartChg.need_package=1;
+		result=action_response_package(&_698_StartChg,priv_698_state,data_tx);//发送
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			
+			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+			result=security_get_package(priv_698_state,data_tx);
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}		
 	}
 
+	if(hplc_event&(0x1<<Cmd_StopChgAck)){	//启动充电应答
+		hplc_event&=(~(0x1<<Cmd_StopChgAck));	
+		rt_kprintf("[hplc]  (%s)   Cmd_StopChgAck  \n",__func__);	
+		_698_StopChg.need_package=1;
+		result=action_response_package(&_698_StopChg,priv_698_state,data_tx);//发送
+		_698_StopChg.need_package=0;
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			
+			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+			result=security_get_package(priv_698_state,data_tx);
+			
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}				
+	}		
+	
+	
+	if(hplc_event&(0x1<<Cmd_ChgPlanExeState)){	//						
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanExeState  \n",__func__);	
+		result=Report_Cmd_ChgPlanExeState(data_tx,priv_698_state);
+		//printmy(&data_tx->_698_frame);			
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}													
+	}
+	
+	
+	if(hplc_event&(0x1<<Cmd_ChgRecord)){	//上送充电订单 REPORT  只有上报若干个对象属性，和上报若干个记录型对象属性两种
+		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);
+//		result=Report_Cmd_ChgRecord(data_tx,priv_698_state);//Cmd_ChgPlanExeState();//
+		
+			report_notification_package(Cmd_ChgRecord,data_tx,data_tx,priv_698_state);
+			
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}				
+	}	
 
+	if(hplc_event&(0x1<<Cmd_DeviceFault)){	//上送路由器异常状态
+		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
+//		result=Report_Cmd_DeviceFault(data_tx,priv_698_state);
+		report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);		
+		
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+		}					
+	}	
+	if(hplc_event&(0x1<<Cmd_PileFault)){	//上送路由器异常状态
+		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
+//		result=Report_Cmd_PileFault(data_tx,priv_698_state);
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+			report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);				
+		}				
+	}				
+	hplc_698_state.lock2=0;
+	hplc_698_state.lock1=0;
+
+	return result;		
 }
+
+
+
+/*
+ 发送，调用发送单个帧，应答组帧时是不是需要等待hplc回复？按道理不要，是不是就没有组帧的需要，组帧还需要一发一确认么？
+
+
+*/
+int hplc_tx(struct CharPointDataManage *hplc_data){
+	int result=1;
+	//unsigned char rel_time[10];//9位时间，加一位，应该是时间差
+	
+	//    发送字符串 
+  //rt_device_write(serial, 0, str, (sizeof(str) - 1));
+	//获取实时时间,并计算时间差
+	//开启发送的线程，不影响正常接收? 还是阻塞发送? 阻塞发送比较好实现，并且在没法发送情况下，收到也没用，不如放在缓存里，但是长帧怎么办
+	//单一定要判断是不是工作着，因为有可能要转发其他用户的帧，这个指的是其他用户用hplc口发送数据，不是其他用户调用接口函数来组帧。
+	//打包数据，并发送函数，发送完后，进行下一步，或者监听
+	return result;	
+}
+
+
 int save_char_point_usrdata(unsigned char *data,int *length,unsigned char *Res,int position,int size){
 
 	int i=0;
@@ -6016,7 +6005,7 @@ int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STA
 
 
 
-int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data)
+int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *APPLY_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data)
 {
 	int result=0,len=0,i=0;
 	struct _698_date_time_s priv_date_time_s;
@@ -6113,7 +6102,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=17;//长度
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	event_no=hplc_CHARGE_APPLY_EVENT->OrderNum;
+	event_no=APPLY_EVENT->OrderNum;
   _698_double_long_unsigned((unsigned int) event_no, hplc_data);//里面有类型
 
 
@@ -6122,7 +6111,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_date_time_s;//开始时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&hplc_CHARGE_APPLY_EVENT->StartTimestamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->StartTimestamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 	
 
@@ -6131,7 +6120,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_date_time_s;//结束时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&hplc_CHARGE_APPLY_EVENT->FinishTimestamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->FinishTimestamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 
 
@@ -6180,10 +6169,10 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_octet_string;//申请单号  octet-string（SIZE(16)） 
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-  len=temp_char=hplc_CHARGE_APPLY_EVENT->RequestNO[0];
+  len=temp_char=APPLY_EVENT->RequestNO[0];
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_array=( unsigned char *) (hplc_CHARGE_APPLY_EVENT->RequestNO+1);
+	temp_array=( unsigned char *) (APPLY_EVENT->RequestNO+1);
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
 
@@ -6192,10 +6181,10 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_visible_string;//路由器资产编号  visible-string（SIZE(22)）
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	len=temp_char=hplc_CHARGE_APPLY_EVENT->AssetNO[0];
+	len=temp_char=APPLY_EVENT->AssetNO[0];
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_array=( unsigned char *) (hplc_CHARGE_APPLY_EVENT->AssetNO+1);
+	temp_array=( unsigned char *) (APPLY_EVENT->AssetNO+1);
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
 
@@ -6203,7 +6192,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_enum;//枪序号	enum{A枪（1）、B枪（2）}，
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_char=hplc_CHARGE_APPLY_EVENT->GunNum; // 
+	temp_char=APPLY_EVENT->GunNum; // 
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 
@@ -6212,25 +6201,25 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_date_time_s;//充电申请时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&hplc_CHARGE_APPLY_EVENT->RequestTimeStamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->RequestTimeStamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 
 
 
 	//当前SOC  long-unsigned（单位：%，换算：-2）,
-	len=hplc_CHARGE_APPLY_EVENT->actSOC;
+	len=APPLY_EVENT->actSOC;
   _698_long_unsigned((unsigned int)len , hplc_data);
 	
 	//目标SOC  long-unsigned（单位：%，换算：-2）,
-	len=hplc_CHARGE_APPLY_EVENT->aimSOC;
+	len=APPLY_EVENT->aimSOC;
   _698_long_unsigned((unsigned int)len , hplc_data);
 	
 	//电池容量 double-long-unsigned（单位：kWh，换算：-2），
-	len=hplc_CHARGE_APPLY_EVENT->CellCapacity;
+	len=APPLY_EVENT->CellCapacity;
   _698_double_long_unsigned((unsigned int) len, hplc_data);
 	
 	//充电需求电量   double-long-unsigned（单位：kWh，换算：-2）
- 	len=hplc_CHARGE_APPLY_EVENT->ChargeReqEle;
+ 	len=APPLY_EVENT->ChargeReqEle;
   _698_double_long_unsigned((unsigned int) len, hplc_data);
 
 
@@ -6238,14 +6227,14 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 
-	STR_SYSTEM_TIME_to__date_time_s(&hplc_CHARGE_APPLY_EVENT->PlanUnChg_TimeStamp,&priv_date_time_s);//计划用车时间  date_time_s，	
+	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->PlanUnChg_TimeStamp,&priv_date_time_s);//计划用车时间  date_time_s，	
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);		
 
 
 	temp_char=Data_enum;//充电方式      enum{正常（0），有序（1）}，
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
 
-	temp_char=hplc_CHARGE_APPLY_EVENT->ChargeMode; //	充电模式 {正常（0），有序（1）}
+	temp_char=APPLY_EVENT->ChargeMode; //	充电模式 {正常（0），有序（1）}
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 
@@ -6253,10 +6242,10 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_visible_string;//路由器资产编号  visible-string（SIZE(22)）
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	len=temp_char=hplc_CHARGE_APPLY_EVENT->Token[0];//	用户登录令牌  visible-string（SIZE(32)）
+	len=temp_char=APPLY_EVENT->Token[0];//	用户登录令牌  visible-string（SIZE(32)）
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 				
-	temp_array=( unsigned char *) (hplc_CHARGE_APPLY_EVENT->Token+1);
+	temp_array=( unsigned char *) (APPLY_EVENT->Token+1);
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);	
 	
 
@@ -6264,10 +6253,10 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *hplc_CHARGE_APPLY_EVENT,stru
 	temp_char=Data_visible_string;//充电用户账号   visible-string（SIZE(9)），
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	len=temp_char=hplc_CHARGE_APPLY_EVENT->UserAccount[0];
+	len=temp_char=APPLY_EVENT->UserAccount[0];
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_array=( unsigned char *) (hplc_CHARGE_APPLY_EVENT->UserAccount+1);
+	temp_array=( unsigned char *) (APPLY_EVENT->UserAccount+1);
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
 
@@ -6579,10 +6568,19 @@ int _698_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data){
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	temp_char=((num&0x000000ff));
-	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
 	
 	
 }
+
+int _698_visible_octet_string(unsigned char data_type,int len,unsigned char * array,struct CharPointDataManage * hplc_data){
+
+	save_char_point_data(hplc_data,hplc_data->dataSize,&data_type,1);	
+	save_char_point_data(hplc_data,hplc_data->dataSize,array,len);
+
+}
+
+
 
 
 int hplc_thread_init(void)
@@ -6931,4 +6929,29 @@ MSH_CMD_EXPORT(hplc_thread_init, hplc thread run);
 //	hplc_data->_698_frame.FCS1=hplc_data->priveData[priv_698_state->FCS_position+1];		
 
 //	return result;
+//}
+
+
+
+
+//int send_event(void){
+
+////		rt_kprintf("[hplc]  send  NO_EVENT\n");
+////		rt_event_send(&PowerCtrlEvent,NO_EVENT);
+////		rt_thread_mdelay(500);
+////		
+//	
+////		rt_kprintf("[hplc]  send  ChgPlanIssue_EVENT\n");	
+////		rt_event_send(&PowerCtrlEvent,ChgPlanIssue_EVENT);
+////		rt_thread_mdelay(500);
+//	while(1){
+//	
+//		for(int i=1;i<5;i++){
+//			rt_kprintf("[hplc]  send  i=%d\n",i);		
+//			rt_event_send(&PowerCtrlEvent,(0x1<<i));	
+//			rt_thread_mdelay(500);
+//			rt_event_send(&PowerCtrlEvent,StopChg_EVENT);
+//		}	
+//	
+//	}
 //}

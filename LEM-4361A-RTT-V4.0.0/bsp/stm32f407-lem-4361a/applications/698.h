@@ -28,6 +28,7 @@ extern CHARGE_STRATEGY_RSP ChgPlanAdjust_rsp;
 
 
 
+
 typedef struct
 {
 	int array_size;
@@ -74,21 +75,32 @@ typedef struct
 #define  security_response 144
 
 /**
-#define object_Management_ForecastingControl 0x9000      //
-#define object_Management_ChargePlan 0x9001              //
-#define object_Management_ChargeApply 0x9002             //
-#define object_Management_RouterWorkS 0x9003             //
-#define object_Management_ChargeService 0x9004          //
-#define object_Management_RouterInformation 0x9005       //
-#define object_Management_RouterRoutersWhiteList 0x9006  //
-#define object_Management_RouterkeyInformationTable 0x9007  //
-#define object_Management_RouterkeyInformationUnit 0x9008  //
-#define object_Management_PeriodloadUnit 0x9009        //时段负荷单元 英语
+#define object_ForecastingControl 0x9000      //
+#define object_ChargePlan 0x9001              //
+#define object_ChargeApply 0x9002             //
+#define object_RouterWorkS 0x9003             //
+#define object_ChargeService 0x9004          //
+#define object_RouterInformation 0x9005       //
+#define object_RouterRoutersWhiteList 0x9006  //路由器白名单
+#define object_RouterkeyInformationTable 0x9007  //路由器秘钥信息表
+#define object_RouterkeyInformationUnit 0x9008  //路由器秘钥信息单元
+#define object_PeriodloadUnit 0x9009        //时段负荷单元 英语
+
+#define object_OnlineStatusChangeEvent   0x311D              //表计在线状态变化事件
+#define object_StatusChangeUnit  0x3317    //表计在线状态变化事件单元
+
+#define object_EventStatusMonitorTable  0x3330 //事件状态监控表
+#define object_ChargePlanGenerateFE   0x3401 //充电计划生成失败事件
+
+#define object_ChargePlanReportEvent  0x3402   //充电计划上报事件
+
+#define object_ChargeApplicationEvent  0x3403   //充电申请事件
+
+#define object_ChargeExecutionEvent   0x3404   //充电执行事件
+#define object_ChargingPlanOfferEvent   0x3404   //充电执行事件
 
 
-
-
-#define object_CollectionFileCT 0x6000
+#define object_CollectionFileCT 0x6000  //采集档案配置表
 **/
 //GET-Request∷=CHOICE
 //读取一个对象属性请求 [1] ;读取若干个对象属性请求 [2] ;读取一个记录型对象属性请求 [3] 
@@ -918,31 +930,53 @@ int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STAT
 int oi_parameter_get_addr(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 int get_data_class(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data,enum Data_T data_type);
 int send_event(void);
-extern rt_uint8_t CtrlUnit_RecResp(rt_uint32_t cmd,void *STR_SetPara,int count);
+
 int STR_SYSTEM_TIME_to__date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s);
 int my_strcpy_char(char *dst,char *src,int startSize,int size);
 int action_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int Report_Cmd_ChgRecord(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
 int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx);
-extern rt_uint32_t strategy_event_get(void);
-extern rt_uint8_t strategy_event_send(COMM_CMD_C cmd);
+
 int package_for_test(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 int hplc_tx(struct CharPointDataManage *hplc_data);
 int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPointDataManage * hplc_data);
 int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataManage * hplc_data);	
 int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataManage * hplc_data);
-int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state);
-void hplc_PWR_ON(void);
-void hplc_PWR_OFF(void);
 int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-rt_uint32_t my_strategy_event_get(void);
+
 int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev);
-
 int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+
+/************上报*****************/
+int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state);
+
+int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int Report_Cmd_ChgRecord(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+
+
+
+/************跟用户交互*****************/
+rt_uint32_t my_strategy_event_get(void);
+extern rt_uint32_t strategy_event_get(void);
+extern rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd);
+extern rt_uint8_t CtrlUnit_RecResp(rt_uint32_t cmd,void *STR_SetPara,int count);
+
+/************hplc上下电*****************/
+void hplc_PWR_ON(void);
+void hplc_PWR_OFF(void);
+
+
+/***************保存制定数据类型的函数***************/
 int _698_double_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data);
 int _698_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data);
+
+int _698_visible_octet_string(unsigned char data_type,int len,unsigned char * array,struct CharPointDataManage * hplc_data);
+
+
+
+
+
+
