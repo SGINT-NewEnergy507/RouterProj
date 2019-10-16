@@ -2043,6 +2043,7 @@ int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataMan
 //	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 
+
 	//向下没参考，无法写。
 	
 	return -1;
