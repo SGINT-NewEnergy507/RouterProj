@@ -126,8 +126,9 @@ static rt_uint32_t g_ulBLE_RX_Read;
 //static rt_uint32_t g_ulRx_Size;
 static rt_uint8_t g_ucRecv698_In_AT;//在AT指令模式下  收到了698协议数据
 	
-static rt_uint32_t g_BLE_Strategy_event;
-
+static rt_uint32_t g_BLE_Send_to_Strategy_event;
+static rt_uint32_t g_BLE_Get_Strategy_event;
+	
 struct _698_BLE_FRAME _698_ble_frame;
 struct _698_BLE_ADDR _698_ble_addr;
 static rt_uint8_t _698_ble_control;
@@ -1031,7 +1032,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	
 //	BLE_strategy_event_send(Cmd_StartChg);
 	
-	g_BLE_Strategy_event |= (0x00000001<<Cmd_ChgRequest);
+	g_BLE_Send_to_Strategy_event |= (0x00000001<<Cmd_ChgRequest);
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
 }
@@ -1397,9 +1398,9 @@ rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//发送事件到策略
 {
 	rt_kprintf("\n\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
-	g_BLE_Strategy_event |= (0x00000001<<cmd);
+	g_BLE_Send_to_Strategy_event |= (0x00000001<<cmd);
 	
-	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Strategy_event);
+	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Send_to_Strategy_event);
 	
 	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\n\n",__func__);
 		
@@ -1412,15 +1413,14 @@ rt_uint32_t Strategy_get_BLE_event(void)
 	rt_uint32_t i,cmd;
 	CTRL_EVENT_TYPE event;
 	
-	if(g_BLE_Strategy_event){}
-	else
+	if(g_BLE_Send_to_Strategy_event == 0)   //无事件发生  直接返回
 		return 0;
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
 	
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
-		if(g_BLE_Strategy_event&(0x00000001<<i))
+		if(g_BLE_Send_to_Strategy_event&(0x00000001<<i))
 		{
 			cmd = i;
 			break;
@@ -1430,33 +1430,32 @@ rt_uint32_t Strategy_get_BLE_event(void)
 	switch(cmd)
 	{
 		case Cmd_ChgRequest:
-			event = ChgRequest_EVENT;
+			event = ChgRequest_EVENT;//返回事件代码
 		break;
 		default:
 			break;
 	}
-	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
+	g_BLE_Send_to_Strategy_event &= (0xfffffffe<<cmd); //清除事件标志
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 	
 	return event;
 }
 	
-rt_uint32_t BLE_event_get(void)
+rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 {
 	rt_uint32_t i,cmd;
 	
-	if(g_BLE_Strategy_event){}
-	else
+	if(g_BLE_Get_Strategy_event == 0)//无事件发生
 		return 0;
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
 	
-	rt_kprintf("[bluetooth]: Recv Strategy_event = 0x%04X\n",g_BLE_Strategy_event);
+	rt_kprintf("[bluetooth]: Recv Strategy_event = 0x%04X\n",g_BLE_Get_Strategy_event);
 	
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
-		if(g_BLE_Strategy_event&(0x00000001<<i))
+		if(g_BLE_Get_Strategy_event&(0x00000001<<i))
 		{
 			cmd = i;
 			break;
@@ -1472,7 +1471,7 @@ rt_uint32_t BLE_event_get(void)
 			break;
 	}
 	
-	g_BLE_Strategy_event &= (0xfffffffe<<cmd);
+	g_BLE_Get_Strategy_event &= (0xfffffffe<<cmd);
 	
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
@@ -1491,7 +1490,7 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			result=0;										
 		break;
 		case Cmd_StartChgAck:
-			g_BLE_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
 		break;
 		
 		default:
@@ -1564,7 +1563,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 			BLE_RecvData_Process(bluetooth_serial,g_ucProtocol,BLE_ATCmd,&stBLE_Comm);
 		}
 		
-		BLE_event_get();
+//		BLE_event_get();
 
 		if(g_ucProtocol == AT_MODE)
 		{
