@@ -30,6 +30,7 @@ typedef enum {
 	
 	
 	End_Sto_cmdListNum,
+	
 }STORAGE_CMD_ENUM;
 #define STORAGE_CMD_ENUM rt_uint32_t
 
