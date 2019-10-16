@@ -6029,7 +6029,7 @@ int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STA
 
 int report_CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data)
 {
-	int result=1,len=0,i=0;
+	int result=0,len=0,i=0;
 	struct _698_date_time_s priv_date_time_s;
 	unsigned char temp_char,*temp_array,oad_array[4*17]={0x20, 0x22, 0x02, 0x00, 0x20, 0x1e, 0x02, 0x00, 
 		    0x20, 0x22, 0x02, 0x00, 0x20, 0x24, 0x02, 0x00, 0x33, 0x00, 0x02, 0x00, 0x35, 0x05, 
@@ -6308,12 +6308,6 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STAT
 	
 	temp_array=( unsigned char *) (hplc_CHARGE_APPLY->cUserID+1);
 	save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
-
-
-
-
-
-
 
 
 	return result;//²»·¢ËÍ
