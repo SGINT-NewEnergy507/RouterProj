@@ -203,8 +203,10 @@ typedef enum {
 
 	Cmd_ChgRequest,							//蓝牙充电申请
 	Cmd_ChgRequestAck,						//蓝牙充电申请应答
-	Cmd_ChgRequestReport,					//充电申请上送
-	Cmd_ChgRequestReportAck,				//充电申请上送应答
+	Cmd_ChgRequestReport,					//充电申请事件上送
+	Cmd_ChgRequestReportAck,				//充电申请事件上送应答
+	Cmd_ChgRequestReportAPP,				//充电申请事件告知APP
+	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
 	
 	Cmd_StartChg,							//启动充电参数下发
 	Cmd_StartChgAck,						//启动充电应答
@@ -231,7 +233,7 @@ typedef enum {
 	PowerAdj_EVENT				=0x00000020,          	//调整功率事件
 	AskState_EVENT				=0x00000040,          	//查询工作状态事件
 	ChgRequest_EVENT			=0x00000080,          	//发起充电申请事件
-	ChgRequestReport_EVENT		=0x00000100,          	//充电申请上报事件
+	ChgReqReportConfirm_EVENT	=0x00000100,          	//充电申请确认事件（控制器→路由器）
 }CTRL_EVENT_TYPE;//业务传输事件
 
 //////////////////////////////////////////////////////////////////////////////////

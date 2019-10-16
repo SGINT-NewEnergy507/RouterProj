@@ -91,18 +91,25 @@ typedef struct
 }CHARGE_EXE_STATE;/*路由器工作状态  即 充电计划单执行状态*/
 extern CHARGE_EXE_STATE Chg_ExeState;
 
+/****************************************** 充电申请 **********************************************/
 typedef struct
 {
 	char cRequestNO[17];				//	申请单号  octet-string（SIZE(16)）
-	char cAssetNO[23];					//	路由器资产编号  visible-string（SIZE(22)）
-	char cUserID[65];   				//	用户id  visible-string（SIZE(64)）	
+	char cAssetNO[23];					//	路由器资产编号  visible-string（SIZE(22)） 
 	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
+	char cUserID[65];   				//	用户id  visible-string（SIZE(64)）
 	unsigned long ulChargeReqEle;		//	充电需求电量（单位：kWh，换算：-2）
 	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
 	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
 	char Token[33];   					//	用户登录令牌  visible-string（SIZE(32)）
 }CHARGE_APPLY;/*充电申请单(BLE)*/
 
+typedef struct
+{
+	char cRequestNO[17];	//申请单号  octet-string（SIZE(16)）
+	char cAssetNO[23];		//路由器资产编号  visible-string（SIZE(22)）
+	unsigned char cSucIdle;	//成功或失败原因:{0：成功 1：失败 255：其他}
+}CHARGE_APPLY_RSP;/*充电申请单响应*/
 
 /******************************** 事件信息记录 ***********************************/
 typedef struct
@@ -136,7 +143,6 @@ typedef struct
 	unsigned char ChannelState;		//  事件上报状态 = 通道上报状态
 	char RequestNO[17];				//	充电申请单号   （SIZE(16)）
 	char AssetNO[23];				//	路由器资产编号 visible-string（SIZE(22)）
-	char Data[33];					//  第n个关联对象属性的数据 
 }PLAN_FAIL_EVENT;/*充电计划生成失败记录单元*/
 
 typedef struct
@@ -155,7 +161,6 @@ typedef struct
 	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
 	char Token[39];   					//	用户登录令牌  visible-string（SIZE(38)）
 	char UserAccount[10];				//  充电用户账号  visible-string（SIZE(9)） 
-	char Data[33];						//  第n个关联对象属性的数据
 }PLAN_OFFER_EVENT;/*充电计划上报记录单元*/
 
 typedef struct
@@ -191,5 +196,27 @@ typedef struct
 	unsigned long ucChargeTime;			//	已充时间（单位：s）
 }CHG_ORDER_EVENT;/*充电订单事件记录单元*/
 
+typedef struct
+{
+	unsigned long OrderNum;				//	事件记录序号 
+	STR_SYSTEM_TIME StartTimestamp;		//  事件发生时间  
+	STR_SYSTEM_TIME FinishTimestamp;	//  事件结束时间  
+	unsigned char OccurSource;			//	事件发生源    NULL 
+	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态
+	
+	char RequestNO[17];					//	充电申请单号   （SIZE(16)） 
+	char AssetNO[23];					//	路由器资产编号 visible-string（SIZE(22)）
+	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
+	
+	STR_SYSTEM_TIME RequestTimeStamp;	//	充电申请时间
+//	unsigned long actSOC;				//	当前SOC（单位：%，换算：-2）
+//	unsigned long aimSOC;				//  目标SOC（单位：%，换算：-2）
+//	unsigned long CellCapacity;			//	电池容量（单位：kWh，换算：-2）
+	unsigned long ChargeReqEle;			//	充电需求电量（单位：kWh，换算：-2）
+	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
+	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
+	char Token[39];   					//	用户登录令牌  visible-string（SIZE(38)）
+	char UserAccount[10];				//  充电用户账号  visible-string（SIZE(9)）
+}CHARGE_APPLY_EVENT;/*充电申请事件记录单元*/
 #endif
 
