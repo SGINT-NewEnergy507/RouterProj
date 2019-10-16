@@ -8,6 +8,7 @@
 #include <meter.h>
 #include "strategy.h"
 #include "global.h"
+#include "energycon.h"
 
 #ifdef RT_USING_DFS
 #include <dfs_fs.h>
@@ -2165,7 +2166,7 @@ static int Charge_Record_Storage(const char *PATH,void *Storage_Para,rt_uint32_t
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件发生原因
-		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pCharge_Record->Reason); 
+		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pCharge_Record->OccurSource); 
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件上报状态 = 通道上报状态
@@ -2430,8 +2431,8 @@ static int Charge_Record_Storage(const char *PATH,void *Storage_Para,rt_uint32_t
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Record->Reason,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Record->Reason);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Record->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Record->OccurSource);
 			}
 			else
 			{
@@ -2821,9 +2822,6 @@ static int Order_Charge_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 																		   (rt_uint32_t)pOrder_Charge->FinishTimestamp.Year);//  事件结束时间
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
-		// 事件发生原因
-		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pOrder_Charge->Reason); 
-		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件上报状态 = 通道上报状态
 		sprintf((char*)buffer,"ChannelState=%03u\n",(rt_uint32_t)pOrder_Charge->ChannelState);
@@ -3018,8 +3016,8 @@ static int Order_Charge_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOrder_Charge->Reason,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pOrder_Charge->Reason);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOrder_Charge->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pOrder_Charge->OccurSource);
 			}
 			else
 			{
@@ -3166,7 +3164,7 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件发生原因
-		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pPlan_Offer->Reason); 
+		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pPlan_Offer->OccurSource); 
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件上报状态 = 通道上报状态
@@ -3204,43 +3202,13 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		//	充电需求电量（单位：kWh，换算：-2）
 		sprintf((char*)buffer,"ChargeReqEle=%08u\n",(rt_uint32_t)pPlan_Offer->ChargeReqEle);
 		strcat((char*)Para_Buff,(const char*)buffer);	
-		
-		sprintf((char*)buffer,"RequestTimeStamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint32_t)pPlan_Offer->RequestTimeStamp.Second,\
-							   										        (rt_uint32_t)pPlan_Offer->RequestTimeStamp.Minute,\
-																		    (rt_uint32_t)pPlan_Offer->RequestTimeStamp.Hour,\
-																		    (rt_uint32_t)pPlan_Offer->RequestTimeStamp.Day,\
-																		    (rt_uint32_t)pPlan_Offer->RequestTimeStamp.Month,\
-																		    (rt_uint32_t)pPlan_Offer->RequestTimeStamp.Year);//	充电申请时间
-		strcat((char*)Para_Buff,(const char*)buffer);	
-	
-		sprintf((char*)buffer,"PlanUnChg_TimeStamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Second,\
-																		       (rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Minute,\
-																		       (rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Hour,\
-																		       (rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Day,\
-																		       (rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Month,\
-																		       (rt_uint32_t)pPlan_Offer->PlanUnChg_TimeStamp.Year);//	计划用车时间
-		strcat((char*)Para_Buff,(const char*)buffer);		
+			
 
 		//	充电模式 {正常（0），有序（1）}
 		sprintf((char*)buffer,"ChargeMode=%08u\n",(rt_uint32_t)pPlan_Offer->ChargeMode);
 		strcat((char*)Para_Buff,(const char*)buffer);
 	
-		//	用户登录令牌  visible-string（SIZE(38)）
-		sprintf((char*)buffer,"Token=");
-		for(int i=0;i<sizeof(pPlan_Offer->Token);i++)
-		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->Token[i]);
-			strcat((char*)buffer,(const char*)bytebuf);
-		}
-		strcat((char*)buffer,(const char*)"\n");		
-		//	充电用户账号  visible-string（SIZE(9)）
-		sprintf((char*)buffer,"UserAccount=");
-		for(int i=0;i<sizeof(pPlan_Offer->UserAccount);i++)
-		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->UserAccount[i]);
-			strcat((char*)buffer,(const char*)bytebuf);
-		}
-		strcat((char*)buffer,(const char*)"\n");
+
 
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
@@ -3418,8 +3386,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Reason,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->Reason);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->OccurSource);
 			}
 			else
 			{
@@ -3531,58 +3499,6 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			rt_lprintf("namelen=0\n");
 		}
-////////////////////充电申请时间//////////////////////////////////////////////////////////
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			sprintf((char*)fpnameRd,"RequestTimeStamp"); 
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->RequestTimeStamp.Second,6);//返回当前文件读指针
-				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
-							pPlan_Offer->RequestTimeStamp.Year,\
-							pPlan_Offer->RequestTimeStamp.Month,\
-							pPlan_Offer->RequestTimeStamp.Day,\
-							pPlan_Offer->RequestTimeStamp.Hour,\
-							pPlan_Offer->RequestTimeStamp.Minute,\
-							pPlan_Offer->RequestTimeStamp.Second);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
-			}
-			namelen=0;							
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");			
-		}
-////////////////////计划用车时间//////////////////////////////////////////////////////////
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			sprintf((char*)fpnameRd,"PlanUnChg_TimeStamp"); 
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->PlanUnChg_TimeStamp.Second,6);//返回当前文件读指针
-				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Year,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Month,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Day,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Hour,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Minute,\
-							pPlan_Offer->PlanUnChg_TimeStamp.Second);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
-			}
-			namelen=0;							
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");			
-		}
 /////////充电模式 {正常（0），有序（1）}/////////////////////////////////////////////////////////////////////////////////
 		sprintf((char*)fpnameRd,"ChargeMode"); 
 		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
@@ -3596,46 +3512,6 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 			else
 			{
 				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
-			}
-			namelen=0;
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");
-		}		
-/////////用户登录令牌  visible-string（SIZE(38)）////////////////////////////////////////////////////////////////////////////////
-		sprintf((char*)fpnameRd,"Token"); 
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Token,sizeof(pPlan_Offer->Token));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->Token);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
-			}
-			namelen=0;
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");
-		}		
-/////////充电用户账号  visible-string（SIZE(9)）/////////////////////////////////////////////////////////////////////////////
-		sprintf((char*)fpnameRd,"UserAccount"); 
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->UserAccount,sizeof(pPlan_Offer->UserAccount));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->UserAccount);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
 			}
 			namelen=0;
 		}
@@ -3716,9 +3592,6 @@ static int Plan_Fail_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ord
 																		   (rt_uint32_t)pPlan_Fail->FinishTimestamp.Year);//  事件结束时间
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
-		// 事件发生原因
-		sprintf((char*)buffer,"Reason=%03u\n",(rt_uint32_t)pPlan_Fail->Reason); 
-		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		// 事件上报状态 = 通道上报状态
 		sprintf((char*)buffer,"ChannelState=%03u\n",(rt_uint32_t)pPlan_Fail->ChannelState);
@@ -3919,8 +3792,8 @@ static int Plan_Fail_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ord
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Fail->Reason,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Fail->Reason);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Fail->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Fail->OccurSource);
 			}
 			else
 			{
@@ -4073,8 +3946,8 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 		sprintf((char*)buffer,"AutualState=%03u\n",(rt_uint32_t)pOnline_State->AutualState);
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
-		//离线原因 {未知（0），停电（1），信道变化（2）}
-		sprintf((char*)buffer,"OfflineReason=%03u\n",(rt_uint32_t)pOnline_State->OfflineReason);
+		//事件发生源
+		sprintf((char*)buffer,"OfflineReason=%03u\n",(rt_uint32_t)pOnline_State->OccurSource);
 		strcat((char*)Para_Buff,(const char*)buffer);
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
@@ -4285,15 +4158,15 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 		{
 			rt_lprintf("namelen=0\n");
 		}
-////////离线原因 {未知（0），停电（1），信道变化（2）}/////////////////////////////////////////////////////////////////////////////////
+////////事件发生源////////////////////////////////////////////////////////////////////////////////
 		sprintf((char*)fpnameRd,"OfflineReason"); 
 		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
 		if(namelen)//接收完了
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOnline_State->OfflineReason,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pOnline_State->OfflineReason);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOnline_State->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pOnline_State->OccurSource);
 			}
 			else
 			{

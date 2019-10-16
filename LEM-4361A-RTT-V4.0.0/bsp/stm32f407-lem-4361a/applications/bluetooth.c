@@ -1009,17 +1009,6 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	memcpy(&_698_date_s,&dev_recv->apdu.apdu_data[10+ptr],data_len);
 	date_time_s_to_sys_time(&_698_date_s,&stBLE_Charge_Apply.PlanUnChg_TimeStamp);
 	
-	
-/*	time = dev_recv->apdu.apdu_data[10+ptr];
-	time = (time<<8)|dev_recv->apdu.apdu_data[11+ptr];
-	time = time%100;
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Year,(rt_uint8_t*)&time,1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Month,&dev_recv->apdu.apdu_data[12+ptr],1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Day,&dev_recv->apdu.apdu_data[13+ptr],1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Hour,&dev_recv->apdu.apdu_data[14+ptr],1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Minute,&dev_recv->apdu.apdu_data[15+ptr],1);
-	Int_toBCD(&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Second,&dev_recv->apdu.apdu_data[16+ptr],1);*/
-	
 	rt_kprintf("[bluetooth]: TimeStamp:");
 	my_printf((char*)&stBLE_Charge_Apply.PlanUnChg_TimeStamp.Second,data_len,MY_HEX,1," ");
 		
@@ -1038,9 +1027,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	rt_kprintf("[bluetooth]: Token:");
 	my_printf((char*)&stBLE_Charge_Apply.Token[1],data_len,MY_HEX,1," ");
 	
-//	BLE_strategy_event_send(Cmd_StartChg);
+	BLE_strategy_event_send(Cmd_StartChg);
 	
-	g_BLE_Send_to_Strategy_event |= (0x00000001<<Cmd_ChgRequest);
+	g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequest); //测试用
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
 }
@@ -1512,6 +1501,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	
 	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	ptr++; //apdu cmd
 
 	res = BLE_698_Data_Package(dev_recv,ptr,stData);
 
@@ -1686,6 +1677,10 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	{
 		case Cmd_ChgRequestAck:
 			BLE_698_Action_Request_Charge_Apply_Response(&_698_ble_frame,&stBLE_Comm);
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);  //测试用
+		break;
+		case Cmd_ChgRequestReportAPP:
+			BLE_698_Charge_Apply_Event_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		default:
 			break;
