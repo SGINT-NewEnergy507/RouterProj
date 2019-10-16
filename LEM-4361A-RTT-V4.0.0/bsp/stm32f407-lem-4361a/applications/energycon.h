@@ -73,8 +73,10 @@ typedef struct
 	STR_SYSTEM_TIME FinishTimestamp;	//  事件结束时间  
 	unsigned char OccurSource;			//	事件发生源    NULL     
 	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态
-	char RequestNO[17];					//	充电申请单号   （SIZE(16)）
+	
 	char cUserID[65];   				//	用户id  visible-string（SIZE(64)）
+	
+	char RequestNO[17];					//	充电申请单号   （SIZE(16)）
 	char AssetNO[23];					//	路由器资产编号 visible-string（SIZE(22)）
 	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
 	unsigned long ChargeReqEle;			//	充电需求电量（单位：kWh，换算：-2）

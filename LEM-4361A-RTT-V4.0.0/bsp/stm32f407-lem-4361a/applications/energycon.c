@@ -44,7 +44,12 @@ struct rt_semaphore rx_sem_adjpower;
 CTL_CHARGE Ctrl_Start;
 CTL_CHARGE Ctrl_Stop;
 CTL_CHARGE Ctrl_PowerAdj;
+
+CHARGE_EXE_STATE Chg_ExeState;
+
 CTL_CHARGE_EVENT CtrlCharge_Event;
+CHARGE_EXE_EVENT ChgExe_Event;
+CHG_ORDER_EVENT ChgOrder_Event;
 
 //指令标志
 static rt_bool_t startchg_flag;
@@ -412,6 +417,7 @@ static void PileData_RecProcess(void)
 static void TimeSolt_PilePowerCtrl(void)
 {
 	rt_uint8_t i;
+	rt_uint8_t c_rst;
 	
 	//定位当前所属计划单起始时间段
 	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
@@ -429,6 +435,10 @@ static void TimeSolt_PilePowerCtrl(void)
 			if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
 			{
 				ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
+				
+				
+				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//上报充电计划执行事件
+				
 				Chg_ExeState.exeState = EXE_ING;
 				SetPowerFinishFlag[i] = TRUE;
 				count = i;
@@ -437,9 +447,20 @@ static void TimeSolt_PilePowerCtrl(void)
 			break;
 		}
 	}
-	
-	if(count == Chg_Strategy.ucTimeSlotNum)
-		memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));//新旧保持一致，不再给桩发送功率设定帧
+	if(c_rst !=0 )
+		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//上报充电计划执行事件
+		
+	if(count == Chg_Strategy.ucTimeSlotNum)//检测到执行完计划
+	{
+		memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));//不再给桩发送功率设定帧
+		
+		ChgOrder_Event.OrderNum++;
+		
+		//还未填值
+		
+		CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//上报充电订单
+	}
+
 }
 
 

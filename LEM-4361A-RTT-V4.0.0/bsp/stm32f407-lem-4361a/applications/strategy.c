@@ -60,15 +60,22 @@ static struct rt_thread strategy;
 ChargPilePara_TypeDef ChargePilePara_Set;
 ChargPilePara_TypeDef ChargePilePara_Get;
 
+
 CHARGE_STRATEGY Chg_Strategy;
 CHARGE_STRATEGY_RSP Chg_StrategyRsp;
 CHARGE_STRATEGY Adj_Chg_Strategy;
 CHARGE_STRATEGY_RSP Adj_Chg_StrategyRsp;
-CHARGE_EXE_STATE Chg_ExeState;
 
 CHARGE_APPLY Chg_Apply;
 CHARGE_APPLY_RSP Chg_Apply_Rsp;
-CHARGE_APPLY_EVENT Chg_Apply_Event;//（上送）
+
+//上送事件
+PLAN_OFFER_EVENT Plan_Offer_Event;
+CHARGE_APPLY_EVENT Chg_Apply_Event;
+
+
+
+
 
 //超时结果
 static rt_timer_t ChgReqReportRsp;
@@ -81,7 +88,7 @@ static rt_timer_t ChgReqReportRsp;
 static void ChgReqReportResp_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgReqReportResp event is timeout!\n");
-//	ChargepileDataGetSet(Cmd_ChargeStartResp,0);[改成记录事件]
+	//本地存储
 	SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
 }
 /**************************************************************
@@ -119,6 +126,7 @@ static void ChgPlan_RecProcess(void)
 		case ChgPlanIssue_EVENT:
 		{
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//取值
+			
 			if((Chg_Strategy.ucChargeMode == 1)&&(Chg_Strategy.ucDecType == 1))
 				rt_sem_release(&rx_sem_setpower);
 			
@@ -126,6 +134,21 @@ static void ChgPlan_RecProcess(void)
 			Chg_StrategyRsp.cSucIdle = 0;
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssueAck,&Chg_StrategyRsp,0);//回复	
+			memcpy(&Plan_Offer_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//记录上报时间
+			
+			if(c_rst == 0)
+			{
+				SetStorageData(Cmd_PlanOfferWr,&Plan_Offer_Event,sizeof(PLAN_OFFER_EVENT));
+				//回复成功上送事件
+				Plan_Offer_Event.OrderNum++;
+				
+				memcpy(&Plan_Offer_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+				Plan_Offer_Event.ChannelState = 0;//通道状态
+				memcpy(&Plan_Offer_Event.Chg_Strategy,&Chg_Strategy,sizeof(CHARGE_STRATEGY));
+				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);
+				
+				//缺等待确认		
+			}
 			break;
 		}
 		//收到充电计划调整
@@ -141,7 +164,7 @@ static void ChgPlan_RecProcess(void)
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanAdjustAck,&Adj_Chg_StrategyRsp,0);//回复	
 			break;
 		}
-		//收到查询工作状态的命令
+		//收到控制器抄读路由器工作状态
 		case AskState_EVENT:
 		{
 			rt_lprintf("[strategy]  (%s)  收到查询工作状态的命令  \n",__func__);  
@@ -174,7 +197,7 @@ static void ChgPlan_RecProcess(void)
 			}
 			
 			
-			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeStateAck,&Chg_ExeState,0);//回复			   	
+			c_rst = CtrlUnit_RecResp(Cmd_RouterExeStateAck,&Chg_ExeState,0);//回复			   	
 			break;
 		}
 		//收到充电申请确认
@@ -297,6 +320,7 @@ int strategy_thread_init(void)
 	
 	
 	Chg_ExeState.exeState = EXE_NULL;
+	memset(&Plan_Offer_Event,0,sizeof(PLAN_OFFER_EVENT));
 	memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));
 	
 	/* 初始化定时器 */

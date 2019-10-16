@@ -196,10 +196,15 @@ extern ROUTER_FAULT Fault;
 typedef enum {
 	Cmd_ChgPlanIssue=0, 					//充电计划下发
 	Cmd_ChgPlanIssueAck,                 	//充电计划下发应答
+	Cmd_ChgPlanOffer, 						//充电计划事件上报
+	Cmd_ChgPlanOfferAck,                 	//充电计划上报事件应答
+	Cmd_ChgPlanExeState,                    //充电计划执行状态事件上报
+	Cmd_ChgPlanExeStateAck,                 //充电计划执行状态事件上报应答
+	
 	Cmd_ChgPlanAdjust,                 		//充电计划调整
 	Cmd_ChgPlanAdjustAck,                 	//充电计划调整应答
-	Cmd_ChgPlanExeState,                    //充电计划执行状态查询
-	Cmd_ChgPlanExeStateAck,                 //充电计划执行应答
+	Cmd_RouterExeState,                    	//路由器执行状态查询
+	Cmd_RouterExeStateAck,                 	//路由器执行状态应答
 
 	Cmd_ChgRequest,							//蓝牙充电申请
 	Cmd_ChgRequestAck,						//蓝牙充电申请应答

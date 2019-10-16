@@ -373,7 +373,7 @@ rt_uint32_t BLE_698_Data_Package(struct _698_BLE_FRAME *dev_recv,rt_uint8_t user
 	lenth = _698_ble_addr.S_ADDR.B.uclenth+1;
 	
 	for(i = 0; i< lenth; i++)
-	_698_ble_addr.addr[lenth-i]					= stBLE_meter_addr.addr[i];								
+	_698_ble_addr.addr[lenth-1-i]					= stBLE_meter_addr.addr[i];								
 	
 	for(i=0;i<lenth;i++)
 		stData->Tx_data[ptr++] 						= _698_ble_addr.addr[i];//服务器 地址
@@ -1027,11 +1027,13 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	rt_kprintf("[bluetooth]: Token:");
 	my_printf((char*)&stBLE_Charge_Apply.Token[1],data_len,MY_HEX,1," ");
 	
-	BLE_strategy_event_send(Cmd_StartChg);
+	BLE_strategy_event_send(Cmd_ChgRequest);
 	
-	g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequest); //测试用
+	g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestAck); //测试用
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n",__func__);
+	
+	return RT_EOK;
 }
 
 
@@ -1302,7 +1304,77 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	rt_uint8_t i,ptr,lenth;
 	rt_err_t res;
 	struct _698_DATE_S date_time_s;
+	
+	
+	stBLE_Charge_Apply_Event.actSOC = 0x1122;
+	stBLE_Charge_Apply_Event.aimSOC = 0x1122;
+	stBLE_Charge_Apply_Event.AssetNO[0] = 6;
+	stBLE_Charge_Apply_Event.AssetNO[1] = 0x00;
+	stBLE_Charge_Apply_Event.AssetNO[2] = 0x00;
+	stBLE_Charge_Apply_Event.AssetNO[3] = 0x00;
+	stBLE_Charge_Apply_Event.AssetNO[4] = 0x00;
+	stBLE_Charge_Apply_Event.AssetNO[5] = 0x00;
+	stBLE_Charge_Apply_Event.AssetNO[6] = 0x01;
+	
+	stBLE_Charge_Apply_Event.CellCapacity = 0x1122;
+	stBLE_Charge_Apply_Event.ChannelState = 0x00;
+	stBLE_Charge_Apply_Event.ChargeMode = 0x00;
+	
+	stBLE_Charge_Apply_Event.ChargeReqEle = 0x1122;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Year = 0x19;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Month = 0x10;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Day = 0x16;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Hour = 0x18;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Minute = 0x18;
+	stBLE_Charge_Apply_Event.FinishTimestamp.Second = 0x18;
+	
+	
+	stBLE_Charge_Apply_Event.GunNum = 0x01;
+	stBLE_Charge_Apply_Event.OccurSource = 0x00;
+	stBLE_Charge_Apply_Event.OrderNum = 0x00000004;
+	
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Year = 0x19;
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Month = 0x10;
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Day = 0x16;
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Hour = 0x18;
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Minute = 0x18;
+	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Second = 0x18;
+	
+
+	stBLE_Charge_Apply_Event.RequestNO[0] = 8;
+	stBLE_Charge_Apply_Event.RequestNO[1] = 0x00;
+	stBLE_Charge_Apply_Event.RequestNO[2] = 0x11;
+	stBLE_Charge_Apply_Event.RequestNO[3] = 0x91;
+	stBLE_Charge_Apply_Event.RequestNO[4] = 0x01;
+	stBLE_Charge_Apply_Event.RequestNO[5] = 0x61;
+	stBLE_Charge_Apply_Event.RequestNO[6] = 0x65;
+	stBLE_Charge_Apply_Event.RequestNO[7] = 0x34;
+	stBLE_Charge_Apply_Event.RequestNO[8] = 0x20;
+	
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Year = 0x19;
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Month = 0x10;
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Day = 0x16;
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Hour = 0x18;
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Minute = 0x18;
+	stBLE_Charge_Apply_Event.RequestTimeStamp.Second = 0x18;
+	
+	stBLE_Charge_Apply_Event.StartTimestamp.Year = 0x19;
+	stBLE_Charge_Apply_Event.StartTimestamp.Month = 0x10;
+	stBLE_Charge_Apply_Event.StartTimestamp.Day = 0x16;
+	stBLE_Charge_Apply_Event.StartTimestamp.Hour = 0x18;
+	stBLE_Charge_Apply_Event.StartTimestamp.Minute = 0x18;
+	stBLE_Charge_Apply_Event.StartTimestamp.Second = 0x18;
+	
+	
+	stBLE_Charge_Apply_Event.Token[0] = 32;     //34 39 36 42 39 45 38 41 46 43 45 37 34 41 38 42 39 35 30 43 32 46 41 45 39 32 39 31 38 38 38 30
+	memcpy(&stBLE_Charge_Apply_Event.Token[1],&stBLE_Charge_Apply.Token[1],0x20);
 		
+	stBLE_Charge_Apply_Event.UserAccount[0] = 0x03;
+	stBLE_Charge_Apply_Event.UserAccount[1] = 0x31;
+	stBLE_Charge_Apply_Event.UserAccount[2] = 0x32;
+	stBLE_Charge_Apply_Event.UserAccount[3] = 0x33;
+	
+	
 	ptr = 0;
 	dev_recv->apdu.apdu_cmd    = REPORT_RESPONSE |0x80;//充电申请记录时间返回
 	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//若干个记录性对象
@@ -1329,7 +1401,7 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x10;// len
+	dev_recv->apdu.apdu_data[ptr++]    = 0x11;// len
 	
 	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI 事件记录序号 属性2
 	dev_recv->apdu.apdu_data[ptr++]    = 0x22;//
@@ -1376,8 +1448,9 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	}
 	
 	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x10;//长度16
+	dev_recv->apdu.apdu_data[ptr++]    = 0x11;//长度16
 	
+
 	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//类型 06//事件记录序号
 	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum>>24)&0xff;
 	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Apply_Event.OrderNum>>16)&0xff;
@@ -1386,8 +1459,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	
 	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.StartTimestamp,(struct _698_DATE_S*)&date_time_s);	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;//类型
-	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
@@ -1396,8 +1469,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	
 	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.FinishTimestamp,(struct _698_DATE_S*)&date_time_s);	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////类型
-	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
@@ -1430,11 +1503,12 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.RequestNO[1+i];//
 	}
 	dev_recv->apdu.apdu_data[ptr++]    = Data_visible_string;//
-	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.AssetNO[0];//长度
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.AssetNO[0]*2;//长度
 	
 	for(i = 0; i < stBLE_Charge_Apply_Event.AssetNO[0];i++)
 	{
-		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Apply_Event.AssetNO[1+i];//
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_Apply_Event.AssetNO[1+i]>>4)&0x0f)+0x30);//
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_Apply_Event.AssetNO[1+i]&0x0f)+0x30);//
 	}
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
@@ -1442,8 +1516,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	
 	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.RequestTimeStamp,(struct _698_DATE_S*)&date_time_s);	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////类型
-	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
@@ -1472,8 +1546,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	
 	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp,(struct _698_DATE_S*)&date_time_s);	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////类型
-	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
 	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
@@ -1526,7 +1600,33 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 {
 	rt_uint8_t i,ptr,lenth,apdu[100];
 	rt_err_t res;
-		
+	
+	stBLE_Charge_Apply_RSP.cSucIdle = 0;
+	stBLE_Charge_Apply_RSP.cRequestNO[0] = 8;
+	stBLE_Charge_Apply_RSP.cRequestNO[1] = 0x00;
+	stBLE_Charge_Apply_RSP.cRequestNO[2] = 0x11;
+	stBLE_Charge_Apply_RSP.cRequestNO[3] = 0x91;
+	stBLE_Charge_Apply_RSP.cRequestNO[4] = 0x01;
+	stBLE_Charge_Apply_RSP.cRequestNO[5] = 0x61;
+	stBLE_Charge_Apply_RSP.cRequestNO[6] = 0x65;
+	stBLE_Charge_Apply_RSP.cRequestNO[7] = 0x34;
+	stBLE_Charge_Apply_RSP.cRequestNO[8] = 0x20;
+	
+	stBLE_Charge_Apply_RSP.cAssetNO[0] = 0x0c;
+	stBLE_Charge_Apply_RSP.cAssetNO[1] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[2] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[3] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[4] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[5] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[6] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[7] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[8] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[9] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[10] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[11] = 0x30;
+	stBLE_Charge_Apply_RSP.cAssetNO[12] = 0x30;
+	
+
 	ptr = 0;
 	apdu[ptr++]    = ACTION_REQUEST |0x80;
 	apdu[ptr++]    = 0x01;
@@ -1543,12 +1643,13 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	apdu[ptr++]    = 0x02;   //结构体成员2
 	apdu[ptr++]    = 0x09;   //类型
 	
-	lenth = stBLE_Charge_Apply_RSP.cRequestNO[0];   //长度
+//	lenth = stBLE_Charge_Apply_RSP.cRequestNO[0];   //长度
+lenth = stBLE_Charge_Apply.cRequestNO[0];
 	apdu[ptr++]    = lenth;
 	
 	for(i = 0;i < lenth;i++)
 	{
-		apdu[ptr++] = stBLE_Charge_Apply_RSP.cRequestNO[1+i];//申请单号
+		apdu[ptr++] = stBLE_Charge_Apply_RSP.cRequestNO[1+i];//申请单号   00 11 91 01 61 65 34 20
 	}
 	apdu[ptr++]    = 0x0A;   //类型
 	
@@ -1557,7 +1658,7 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	
 	for(i = 0;i < lenth;i++)
 	{
-		apdu[ptr++] = stBLE_Charge_Apply_RSP.cAssetNO[1+i];//资产编号
+		apdu[ptr++] = stBLE_Charge_Apply_RSP.cAssetNO[1+i];//资产编号  31 32 33
 	}
 	
 	apdu[ptr++]    = 0x00;
@@ -1677,7 +1778,8 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	{
 		case Cmd_ChgRequestAck:
 			BLE_698_Action_Request_Charge_Apply_Response(&_698_ble_frame,&stBLE_Comm);
-			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);  //测试用
+		
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);//测试用
 		break;
 		case Cmd_ChgRequestReportAPP:
 			BLE_698_Charge_Apply_Event_Response(&_698_ble_frame,&stBLE_Comm);
@@ -1706,11 +1808,18 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 		break;
 		case Cmd_ChgRequestAck:
 			memcpy(&stBLE_Charge_Apply_RSP,STR_SetPara,sizeof(CHARGE_APPLY_RSP));
-			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_StartChgAck);
+//			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestAck);
+			
+			rt_kprintf("[bluetooth]: RequestNO:");
+			my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1," ");
+			rt_kprintf("[bluetooth]: AssetNO:");
+			my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,1," ");
+			rt_kprintf("[bluetooth]: SucIdle: %d",stBLE_Charge_Apply_RSP.cSucIdle);
+		
 		break;
 		case Cmd_ChgRequestReportAPP:
 			memcpy(&stBLE_Charge_Apply_Event,STR_SetPara,sizeof(CHARGE_APPLY_EVENT));
-			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);
+//			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);
 		break;
 			
 		
@@ -1800,7 +1909,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 			BLE_RecvData_Process(bluetooth_serial,g_ucProtocol,BLE_ATCmd,&stBLE_Comm);
 		}
 		
-//		BLE_event_get();
+		BLE_event_get();
 
 		if(g_ucProtocol == AT_MODE)
 		{
