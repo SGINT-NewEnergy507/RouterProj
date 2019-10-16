@@ -82,6 +82,7 @@ static void ChgReqReportResp_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgReqReportResp event is timeout!\n");
 //	ChargepileDataGetSet(Cmd_ChargeStartResp,0);[改成记录事件]
+	SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
 }
 /**************************************************************
  * 函数名称: timer_create_init 
