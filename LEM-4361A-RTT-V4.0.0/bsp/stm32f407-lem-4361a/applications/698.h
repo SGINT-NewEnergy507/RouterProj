@@ -931,7 +931,6 @@ int oi_parameter_get_addr(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE 
 int get_data_class(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data,enum Data_T data_type);
 int send_event(void);
 
-int STR_SYSTEM_TIME_to__date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s);
 int my_strcpy_char(char *dst,char *src,int startSize,int size);
 int action_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx);
@@ -976,7 +975,10 @@ int _698_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data);
 int _698_visible_octet_string(unsigned char data_type,int len,unsigned char * array,struct CharPointDataManage * hplc_data);
 
 
+/******时间格式转换*******/
+int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s);
 
+int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char * array);
 
-
+int unsigned_char_to_int(unsigned long *intNo,unsigned char * array);
 

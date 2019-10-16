@@ -1597,7 +1597,7 @@ int get_data_class(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 int get_date_time_s(struct _698_date_time_s *date_time_s){
 	//从接口获取，获取后再赋值给date_time_s
 
-//STR_SYSTEM_TIME_to__date_time_s(&priv_struct->StartTimestamp,&date_time_s);
+//STR_SYSTEM_TIME_to_date_time_s(&priv_struct->StartTimestamp,&date_time_s);
 		date_time_s->data[0]=20;//20年
 		date_time_s->data[1]=(System_Time_STR.Year>>4)*10+System_Time_STR.Year&0x0f;//年	
 		date_time_s->data[2]=(System_Time_STR.Month>>4)*10+System_Time_STR.Year&0x0f;//月
@@ -1663,7 +1663,10 @@ int action_response_charge_StartStop(CHARGE_STRATEGY * charge_strategy,struct  _
 }
 
 
-/*****存过去时第一个字节是长度*******/
+/*****
+存串型数据时
+第一个字节是长度
+*******/
 
 int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _698_FRAME  *_698_frame_rev){
 	int i=0,j=0,count,len=0,position;
@@ -1693,16 +1696,12 @@ int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _6
 	charge_strategy->ucDecType=_698_frame_rev->usrData[i];
 	
 	//决策时间
-	i+=3;//跳过上面的位，一个类型,和年的第一位
-	charge_strategy->strDecTime.Year=_698_frame_rev->usrData[i];//年
-	charge_strategy->strDecTime.Month=_698_frame_rev->usrData[i++];//月
-	charge_strategy->strDecTime.Day=_698_frame_rev->usrData[i++];//日	
-	charge_strategy->strDecTime.Hour=_698_frame_rev->usrData[i++];//时
-	charge_strategy->strDecTime.Minute=_698_frame_rev->usrData[i++];//分	
-	charge_strategy->strDecTime.Second=_698_frame_rev->usrData[i++];//秒
+	i+=2;//跳过上面的位，一个类型,
+	date_time_s_to_STR_SYSTEM_TIME(&charge_strategy->strDecTime,(_698_frame_rev->usrData+i));
+
 	
 	//路由器资产编号  visible-string（SIZE(22)）	
-	i+=2;//跳过上面的位，一个类型,
+	i+=7+1;//跳过上面的位，一个类型,
 	len=_698_frame_rev->usrData[i]+1;//	
 	my_strcpy_char(charge_strategy->cAssetNO,(char *)_698_frame_rev->usrData,i,len);
 
@@ -1713,51 +1712,38 @@ int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _6
 
 	//充电需求电量（单位：kWh，换算：-2）double-long-unsigned
 	i+=len+1;//跳过上面的位，一个类型,
-	charge_strategy->ulChargeReqEle=_698_frame_rev->usrData[i]<<24;
-	charge_strategy->ulChargeReqEle+=_698_frame_rev->usrData[i++]<<16;
-	charge_strategy->ulChargeReqEle+=_698_frame_rev->usrData[i++]<<8;
-	charge_strategy->ulChargeReqEle+=_698_frame_rev->usrData[i++];
+	unsigned_char_to_int(&charge_strategy->ulChargeReqEle,_698_frame_rev->usrData+i);	
+
 	//充电额定功率  double-long（单位：kW，换算：-4），//不用判断负数原样转发就可以了
-	i+=2;//跳过上面的位，一个类型,
-	charge_strategy->ulChargeRatePow=_698_frame_rev->usrData[i]<<24;
-	charge_strategy->ulChargeRatePow+=_698_frame_rev->usrData[i++]<<16;
-	charge_strategy->ulChargeRatePow+=_698_frame_rev->usrData[i++]<<8;
-	charge_strategy->ulChargeRatePow+=_698_frame_rev->usrData[i++];	
+	i+=4+1;//跳过上面的位，一个类型,
+	unsigned_char_to_int(&charge_strategy->ulChargeRatePow,_698_frame_rev->usrData+i);
+
+	//充电模式      enum{正常（0），有序（1）}
+	i+=4+1;//跳过上面的位，一个类型,
+	charge_strategy->ucChargeMode=_698_frame_rev->usrData[i];
+
 	//充电时段  array时段充电功率		
 	i+=2;//跳过上面的位，一个类型,
 	count=_698_frame_rev->usrData[i];//个数
 	charge_strategy->ucTimeSlotNum=count;
-	i++;//跳过上面的位
+	i+=3;//跳过上面的位,再跳过结构体类型,一个数量，
 	for(j=0;j<count;j++){
 		//开始时间    date_time_s
-		i+=3;//跳过一个结构体类型,一个数量，再一个类型
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Year=(_698_frame_rev->usrData[i]*256+_698_frame_rev->usrData[i+1])%2000;//年
-		i++;
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Month=_698_frame_rev->usrData[i++];//月
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Day=_698_frame_rev->usrData[i++];//日	
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Hour=_698_frame_rev->usrData[i++];//时
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Minute=_698_frame_rev->usrData[i++];//分	
-		charge_strategy->strChargeTimeSolts[j].strDecStartTime.Second=_698_frame_rev->usrData[i++];//秒		
+		i+=1;//跳过一个类型
+		date_time_s_to_STR_SYSTEM_TIME(&charge_strategy->strChargeTimeSolts[j].strDecStartTime,_698_frame_rev->usrData+i);
 		//结束时间    date_time_s，
-		i+=8;//跳过上面的位，一个类型,
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Year=(_698_frame_rev->usrData[i]*256+_698_frame_rev->usrData[i+1])%2000;//年
-		i++;
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Month=_698_frame_rev->usrData[i++];//月
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Day=_698_frame_rev->usrData[i++];//日	
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Hour=_698_frame_rev->usrData[i++];//时
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Minute=_698_frame_rev->usrData[i++];//分	
-		charge_strategy->strChargeTimeSolts[j].strDecStopTime.Second=_698_frame_rev->usrData[i++];//秒		
+		i+=7+1;//跳过上面的位，一个类型,
+		date_time_s_to_STR_SYSTEM_TIME(&charge_strategy->strChargeTimeSolts[j].strDecStopTime,_698_frame_rev->usrData+i);
 		//充电功率    double-long（单位：kW，换算：-4）
-		i+=8;//跳过上面的位，一个类型,
-		charge_strategy->strChargeTimeSolts[j].ulChargePow=_698_frame_rev->usrData[i]<<24;
-		charge_strategy->strChargeTimeSolts[j].ulChargePow+=_698_frame_rev->usrData[i++]<<16;
-		charge_strategy->strChargeTimeSolts[j].ulChargePow+=_698_frame_rev->usrData[i++]<<8;
-		charge_strategy->strChargeTimeSolts[j].ulChargePow+=_698_frame_rev->usrData[i++];			
+		i+=7+1;//跳过上面的位，一个类型,
+		unsigned_char_to_int(&charge_strategy->strChargeTimeSolts[j].ulChargePow,_698_frame_rev->usrData+i);
+		i+=4;//跳过上面的位
 	}
-	
-	
 	return 0;
 }
+
+
+
 
 
 int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataManage * hplc_data){
@@ -1794,7 +1780,7 @@ int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataMan
 	temp_char=Data_date_time_s;//
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
 
-	STR_SYSTEM_TIME_to__date_time_s(&priv_struct->StartTimestamp,&date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&priv_struct->StartTimestamp,&date_time_s);
 	
 	save_char_point_data(hplc_data,hplc_data->dataSize,date_time_s.data,7);	
 
@@ -1802,7 +1788,7 @@ int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataMan
 	temp_char=Data_date_time_s;//
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
 
-	STR_SYSTEM_TIME_to__date_time_s(&priv_struct->FinishTimestamp,&date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&priv_struct->FinishTimestamp,&date_time_s);
 	
 	save_char_point_data(hplc_data,hplc_data->dataSize,date_time_s.data,7);	
 
@@ -2101,7 +2087,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPoi
 	temp_char=Data_date_time_s;//
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
 
-	STR_SYSTEM_TIME_to__date_time_s(&priv_struct_STRATEGY->strDecTime,&date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&priv_struct_STRATEGY->strDecTime,&date_time_s);
 	
 	save_char_point_data(hplc_data,hplc_data->dataSize,date_time_s.data,7);			
 
@@ -2178,14 +2164,14 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPoi
 		temp_char=Data_date_time_s;//
 		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
 
-		STR_SYSTEM_TIME_to__date_time_s(&priv_struct_TIMESOLT->strDecStartTime,&date_time_s);
+		STR_SYSTEM_TIME_to_date_time_s(&priv_struct_TIMESOLT->strDecStartTime,&date_time_s);
 		
 		save_char_point_data(hplc_data,hplc_data->dataSize,date_time_s.data,7);					
 		//结束时间    date_time_s，
 		temp_char=Data_date_time_s;//
 		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 		
-		STR_SYSTEM_TIME_to__date_time_s(&priv_struct_TIMESOLT->strDecStopTime,&date_time_s);
+		STR_SYSTEM_TIME_to_date_time_s(&priv_struct_TIMESOLT->strDecStopTime,&date_time_s);
 		
 		save_char_point_data(hplc_data,hplc_data->dataSize,date_time_s.data,7);		
 
@@ -2554,31 +2540,23 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 
 
 					
-					//充电申请单号 octet-string（SIZE(16)）
-//					temp_char=Data_octet_string;//
-//					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-//					
- 					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量
-//					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-//					
+					//充电申请单号 octet-string（SIZE(16)）				
+ 					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量				
 					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cRequestNO+1);
-//					save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
-
 					_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
 
 
 					//路由器资产编号  visible-string（SIZE(22)）
 					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量					
 					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cAssetNO+1);
-
 					_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);					
+
 
 					temp_char=Data_enum;//
 					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 					
-					temp_char=ChgPlanIssue_rsp.cAssetNO;//
+					temp_char=0;//枪号 需要改的地方
 					save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-
 
 					result=0;
 				
@@ -5104,32 +5082,31 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	switch(cmd){							//可加策略	
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
-			prive_struct=(CHARGE_STRATEGY *)STR_SetPara;			
-			copy_charge_strategy(prive_struct,&charge_strategy_ChgPlanIssue);
-//			*prive_struct=charge_strategy_ChgPlanIssue;
+			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanIssue;
 		
 			//拷贝给他,指针结构体直接赋值不成功！？
 			result=0;										
 			break;
 
+		case(Cmd_ChgPlanIssueAck)://计划单完成，返回应答帧
+			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
+			ChgPlanIssue_rsp=*((CHARGE_STRATEGY_RSP *)STR_SetPara);//可以用
+			hplc_event=hplc_event|event;
+			result=0;								
+			break;				
+		
+		
+		
+		
+
  		case(Cmd_ChgPlanAdjust)://变更充电计划,应用层得到数据，处理完后才下一步
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanAdjust  \n",__func__);
-	
-			prive_struct=(CHARGE_STRATEGY *)STR_SetPara;
-			//copy_charge_strategy(prive_struct,&charge_strategy_ChgPlanAdjust);
-			*prive_struct=charge_strategy_ChgPlanAdjust;//拷贝给他
+			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanAdjust;//拷贝给他
 			result=0;													
 			break; 		
 
 		
-		case(Cmd_ChgPlanIssueAck)://计划单完成，返回应答帧
-			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
-			prive_struct_RSP=(CHARGE_STRATEGY_RSP *)STR_SetPara;
-			ChgPlanIssue_rsp=*prive_struct_RSP;//可以用
-			//copy_ChgPlanIssue_rsp(&ChgPlanIssue_rsp,prive_struct_RSP);
-			hplc_event=hplc_event|event;
-			result=0;								
-			break;		
+
 		
 	
 		case(Cmd_ChgPlanAdjustAck)://变更充电计划,以处理完
@@ -5708,17 +5685,45 @@ int init_698_state(struct _698_STATE  * priv_698_state){
 	return 0;
 	
 }
-int STR_SYSTEM_TIME_to__date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s){
+int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char * array){
+	unsigned char year;
+	year=((array[0]*256+array[1]))%100;
 
-	date_time_s->data[0]=2000>>4;//20年
-	date_time_s->data[1]=(SYSTEM_TIME->Year>>4)*10+SYSTEM_TIME->Year&0x0f+(2000&0x00ff);//年	
-	date_time_s->data[2]=(SYSTEM_TIME->Month>>4)*10+SYSTEM_TIME->Year&0x0f;//月
-	date_time_s->data[3]=(SYSTEM_TIME->Day>>4)*10+SYSTEM_TIME->Day&0x0f;//日	
+	Int_toBCD(&SYSTEM_TIME->Year,(rt_uint8_t*)&year,1);
+	Int_toBCD(&SYSTEM_TIME->Month,(array+2),1);
+	Int_toBCD(&SYSTEM_TIME->Day,array+3,1);
+	Int_toBCD(&SYSTEM_TIME->Hour,array+4,1);
+	Int_toBCD(&SYSTEM_TIME->Minute,array+5,1);
+	Int_toBCD(&SYSTEM_TIME->Second,array+6,1);	
+
+	return 0;
+}
+int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s){
+
+	date_time_s->year[0]=date_time_s->data[0]=2000>>4;//20年
+	date_time_s->year[1]=date_time_s->data[1]=(SYSTEM_TIME->Year>>4)*10+SYSTEM_TIME->Year&0x0f+(2000&0x00ff);//年	
+	date_time_s->month=date_time_s->data[2]=(SYSTEM_TIME->Month>>4)*10+SYSTEM_TIME->Month&0x0f;//月
+	date_time_s->day=date_time_s->data[3]=(SYSTEM_TIME->Day>>4)*10+SYSTEM_TIME->Day&0x0f;//日	
 	date_time_s->hour=date_time_s->data[4]=(SYSTEM_TIME->Hour>>4)*10+SYSTEM_TIME->Hour&0x0f;//时
 	date_time_s->minute=date_time_s->data[5]=(SYSTEM_TIME->Minute>>4)*10+SYSTEM_TIME->Minute&0x0f;//分	
 	date_time_s->second=date_time_s->data[6]=(SYSTEM_TIME->Second>>4)*10+SYSTEM_TIME->Second&0x0f;//秒	
 	return 0;
+
+
 }
+
+int unsigned_char_to_int(unsigned long *intNo,unsigned char * array){
+	*intNo=0;
+	*intNo=array[0]<<24;
+	*intNo+=array[1]<<16;
+	*intNo+=array[2]<<8;
+	*intNo+=array[3];	
+	return 0;
+}
+
+
+
+
 
 
 int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state){
@@ -6111,7 +6116,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *APPLY_EVENT,struct _698_STAT
 	temp_char=Data_date_time_s;//开始时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->StartTimestamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&APPLY_EVENT->StartTimestamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 	
 
@@ -6120,7 +6125,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *APPLY_EVENT,struct _698_STAT
 	temp_char=Data_date_time_s;//结束时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->FinishTimestamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&APPLY_EVENT->FinishTimestamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 
 
@@ -6201,7 +6206,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *APPLY_EVENT,struct _698_STAT
 	temp_char=Data_date_time_s;//充电申请时间
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->RequestTimeStamp,&priv_date_time_s);
+	STR_SYSTEM_TIME_to_date_time_s(&APPLY_EVENT->RequestTimeStamp,&priv_date_time_s);
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 
 
@@ -6227,7 +6232,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *APPLY_EVENT,struct _698_STAT
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 
-	STR_SYSTEM_TIME_to__date_time_s(&APPLY_EVENT->PlanUnChg_TimeStamp,&priv_date_time_s);//计划用车时间  date_time_s，	
+	STR_SYSTEM_TIME_to_date_time_s(&APPLY_EVENT->PlanUnChg_TimeStamp,&priv_date_time_s);//计划用车时间  date_time_s，	
 	save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);		
 
 
@@ -6477,7 +6482,7 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 ////	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
 
 ////  struct _698_date_time_s priv__date_time_s;
-////	STR_SYSTEM_TIME_to__date_time_s(&hplc_CHARGE_APPLY_EVENT->PlanUnChg_TimeStamp,&priv__date_time_s);
+////	STR_SYSTEM_TIME_to_date_time_s(&hplc_CHARGE_APPLY_EVENT->PlanUnChg_TimeStamp,&priv__date_time_s);
 ////	
 ////	save_char_point_data(hplc_data,hplc_data->dataSize,priv__date_time_s.data,7);		
 
