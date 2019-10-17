@@ -953,7 +953,7 @@ int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDat
 int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev);
-int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+//int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 
 /************…œ±®*****************/
 int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state);
