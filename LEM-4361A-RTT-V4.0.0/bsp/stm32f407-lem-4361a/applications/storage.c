@@ -3174,38 +3174,38 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		// 充电申请单号（SIZE(16)）
 		sprintf((char*)buffer,"RequestNO=");
 		char bytebuf[] = "FF";
-		for(int i=0;i<sizeof(pPlan_Offer->RequestNO);i++)
+		for(int i=0;i<sizeof(pPlan_Offer->Chg_Strategy.cRequestNO);i++)
 		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->RequestNO[i]);
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->Chg_Strategy.cRequestNO[i]);
 			strcat((char*)buffer,(const char*)bytebuf);
 		}
 		strcat((char*)buffer,(const char*)"\n");
 		
 		// 用户id  visible-string（SIZE(64)）
 		sprintf((char*)buffer,"cUserID=");
-		for(int i=0;i<sizeof(pPlan_Offer->cUserID);i++)
+		for(int i=0;i<sizeof(pPlan_Offer->Chg_Strategy.cUserID);i++)
 		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->cUserID[i]);
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->Chg_Strategy.cUserID[i]);
 			strcat((char*)buffer,(const char*)bytebuf);
 		}
 		strcat((char*)buffer,(const char*)"\n");
 	
 		//	路由器资产编号 visible-string（SIZE(22)）
 		sprintf((char*)buffer,"AssetNO=");
-		for(int i=0;i<sizeof(pPlan_Offer->AssetNO);i++)
+		for(int i=0;i<sizeof(pPlan_Offer->Chg_Strategy.cAssetNO);i++)
 		{
-			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->AssetNO[i]);
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pPlan_Offer->Chg_Strategy.cAssetNO[i]);
 			strcat((char*)buffer,(const char*)bytebuf);
 		}
 		strcat((char*)buffer,(const char*)"\n");	
 	
 		//	充电需求电量（单位：kWh，换算：-2）
-		sprintf((char*)buffer,"ChargeReqEle=%08u\n",(rt_uint32_t)pPlan_Offer->ChargeReqEle);
+		sprintf((char*)buffer,"ChargeReqEle=%08u\n",(rt_uint32_t)pPlan_Offer->Chg_Strategy.ulChargeReqEle);
 		strcat((char*)Para_Buff,(const char*)buffer);	
 			
 
 		//	充电模式 {正常（0），有序（1）}
-		sprintf((char*)buffer,"ChargeMode=%08u\n",(rt_uint32_t)pPlan_Offer->ChargeMode);
+		sprintf((char*)buffer,"ChargeMode=%08u\n",(rt_uint32_t)pPlan_Offer->Chg_Strategy.ucChargeMode);
 		strcat((char*)Para_Buff,(const char*)buffer);
 	
 
@@ -3426,8 +3426,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->RequestNO,sizeof(pPlan_Offer->RequestNO));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->RequestNO);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Chg_Strategy.cRequestNO,sizeof(pPlan_Offer->Chg_Strategy.cRequestNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->Chg_Strategy.cRequestNO);
 			}
 			else
 			{
@@ -3446,8 +3446,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->cUserID,sizeof(pPlan_Offer->cUserID));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->cUserID);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Chg_Strategy.cUserID,sizeof(pPlan_Offer->Chg_Strategy.cUserID));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->Chg_Strategy.cUserID);
 			}
 			else
 			{
@@ -3466,8 +3466,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->AssetNO,sizeof(pPlan_Offer->AssetNO));//返回当前文件读指针
-				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->AssetNO);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Chg_Strategy.cAssetNO,sizeof(pPlan_Offer->Chg_Strategy.cAssetNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pPlan_Offer->Chg_Strategy.cAssetNO);
 			}
 			else
 			{
@@ -3486,8 +3486,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->ChargeReqEle,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->ChargeReqEle);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Chg_Strategy.ulChargeReqEle,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->Chg_Strategy.ulChargeReqEle);
 			}
 			else
 			{
@@ -3506,8 +3506,8 @@ static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t or
 		{
 			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->ChargeMode,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->ChargeMode);
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pPlan_Offer->Chg_Strategy.ucChargeMode,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pPlan_Offer->Chg_Strategy.ucChargeMode);
 			}
 			else
 			{

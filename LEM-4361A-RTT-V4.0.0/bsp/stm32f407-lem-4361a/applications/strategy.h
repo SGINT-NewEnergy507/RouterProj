@@ -51,11 +51,12 @@ typedef struct
 {
 	char cRequestNO[17];			//申请单号  octet-string（SIZE(16)）
 	char cAssetNO[23];				//路由器资产编号  visible-string（SIZE(22)）
-	char cUserID[65];   			//用户id  visible-string（SIZE(64)）
 	unsigned char GunNum;			//枪序号	{A枪（1）、B枪（2）}
+	char cUserID[65];   			//用户id  visible-string（SIZE(64)）	
 	unsigned char ucDecMaker;		//决策者  {主站（1）、控制器（2）}
 	unsigned char ucDecType; 		//决策类型{生成（1） 、调整（2）}
 	STR_SYSTEM_TIME strDecTime;		//决策时间	
+	
 	unsigned long ulChargeReqEle;	//充电需求电量（单位：kWh，换算：-2）
 	unsigned long ulChargeRatePow;	//充电额定功率 （单位：kW，换算：-4）
 	unsigned char ucChargeMode;		//充电模式 {正常（0），有序（1）}
@@ -132,23 +133,8 @@ typedef struct
 	STR_SYSTEM_TIME FinishTimestamp;	//  事件结束时间  
 //	unsigned char Reason;				//  事件发生原因
 	unsigned char OccurSource;			//	事件发生源    NULL 		
-	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态
-	char RequestNO[17];					//	充电申请单号   （SIZE(16)）
-	char cUserID[65];   				//	用户id  （SIZE(64)）
-	unsigned char DecideUnit;			//	决策单元		{主站（1）、控制器（2）}
-	unsigned char DecideType;			//	决策类型		{生成 （1）、调整（2）}
-	STR_SYSTEM_TIME DecideTimestamp;	//	决策时间	date_time_s
-	char AssetNO[23];					//	路由器资产编号 visible-string（SIZE(22)）
-	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
-	unsigned long ChargeReqEle;			//	充电需求电量（单位：kWh，换算：-2）
-//	STR_SYSTEM_TIME RequestTimeStamp;	//	充电申请时间
-//	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
-	unsigned long ulChargeRatePow;		//	充电额定功率 （单位：kW，换算：-4） 
-	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
-	unsigned char ucTimeSlotNum;		//	时间段数量
-	CHARGE_TIMESOLT strChargeTimeSolts[50];// 时间段内容，最大50段
-//	char Token[39];   					//	用户登录令牌  visible-string（SIZE(38)）
-//	char UserAccount[10];				//  充电用户账号  visible-string（SIZE(9)） 
+	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态	
+	CHARGE_STRATEGY Chg_Strategy; 
 }PLAN_OFFER_EVENT;/*充电计划上报记录单元*/
 
 typedef struct

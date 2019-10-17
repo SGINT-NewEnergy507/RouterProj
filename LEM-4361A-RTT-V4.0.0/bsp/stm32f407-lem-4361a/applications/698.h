@@ -86,6 +86,7 @@ typedef struct
 #define object_RouterkeyInformationUnit 0x9008  //路由器秘钥信息单元
 #define object_PeriodloadUnit 0x9009        //时段负荷单元 英语
 
+
 #define object_OnlineStatusChangeEvent   0x311D              //表计在线状态变化事件
 #define object_StatusChangeUnit  0x3317    //表计在线状态变化事件单元
 
@@ -97,10 +98,17 @@ typedef struct
 #define object_ChargeApplicationEvent  0x3403   //充电申请事件
 
 #define object_ChargeExecutionEvent   0x3404   //充电执行事件
-#define object_ChargingPlanOfferEvent   0x3404   //充电执行事件
+#define object_ChargingPlanOfferEvent   0x3405   //充电执行事件
+
+
+
+
+
+
 
 
 #define object_CollectionFileCT 0x6000  //采集档案配置表
+#define object_TaskConfigureTable 0x6012
 **/
 //GET-Request∷=CHOICE
 //读取一个对象属性请求 [1] ;读取若干个对象属性请求 [2] ;读取一个记录型对象属性请求 [3] 
