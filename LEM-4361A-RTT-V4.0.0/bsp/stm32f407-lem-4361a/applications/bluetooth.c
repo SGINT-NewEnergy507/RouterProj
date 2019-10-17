@@ -8,6 +8,7 @@
 #include <storage.h>
 #include <esam.h>
 #include "energycon.h"
+#include "chargepile.h"
 
 
 #define FUNC_PRINT_RX	"[bluetooth]:RX:"
@@ -1250,6 +1251,18 @@ void BLE_RecvData_Process(rt_device_t dev,PROTOCOL_MODE protocol,BLE_AT_CMD at_c
 {
 	if(dev == RT_NULL)
 		return;
+	
+	if(strstr((char*)(stData->Rx_data),"start"))
+	{
+		ChargepileDataGetSet(Cmd_ChargeStart,NULL);
+	}
+	else if(strstr((char*)(stData->Rx_data),"stop"))
+	{
+		ChargepileDataGetSet(Cmd_ChargeStop,NULL);
+	}
+	
+	
+	
 	switch(protocol)
 	{
 		case AT_MODE:
@@ -2430,9 +2443,9 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 		break;
 		case Cmd_ChgRequestReportAPP:
 			BLE_698_Charge_Apply_Event_Response(&_698_ble_frame,&stBLE_Comm);
-			rt_thread_mdelay(1000);
+//			rt_thread_mdelay(1000);
 //			BLE_698_Charge_Exe_Event_Response(&_698_ble_frame,&stBLE_Comm);
-		BLE_698_Charge_State_Response(&_698_ble_frame,&stBLE_Comm);
+//		BLE_698_Charge_State_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		case Cmd_ChgPlanExeState:
 			BLE_698_Charge_Exe_Event_Response(&_698_ble_frame,&stBLE_Comm);
