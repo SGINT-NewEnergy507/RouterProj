@@ -36,16 +36,16 @@ char* AT_CmdDef[]={
 
 	"ATE0\r\n",		//关闭回显功能
 	"AT+BLEINIT=2\r\n",			//BLE 初始化，设置为Server模式
-	"AT+BLENAME=\"LN000000000001\"\r\n",	//设置 BLE 设备名称
-//	"AT+BLENAME=\"[NR000000000001]\"\r\n",	//设置 BLE 设备名称
+//	"AT+BLENAME=\"LN000000000001\"\r\n",	//设置 BLE 设备名称
+	"AT+BLENAME=\"[NR000000000001]\"\r\n",	//设置 BLE 设备名称
 	"AT+BLEADDR=1,\"f1:f2:f3:f4:f5:f6\"\r\n",
 	
 	"AT+BLEGATTSSRVCRE\r\n",	//创建GATTS 服务
 	"AT+BLEGATTSSRVSTART\r\n",	//开启GATTS 服务
 	
 	"AT+BLEADVPARAM=32,64,0,1,7\r\n",							//配置广播参数
-	"AT+BLEADVDATA=\"0201060F094C4E3030303030303030303030310303E0FF\"\r\n",//配置扫描响应数据
-//	"AT+BLEADVDATA=\"02010611095B4E523030303030303030303030315D0303E0FF\"\r\n",//配置扫描响应数据		
+//	"AT+BLEADVDATA=\"0201060F094C4E3030303030303030303030310303E0FF\"\r\n",//配置扫描响应数据
+	"AT+BLEADVDATA=\"02010611095B4E523030303030303030303030315D0303E0FF\"\r\n",//配置扫描响应数据		
 	"AT+BLEADVSTART\r\n",		//开始广播
 	
 	"AT+BLESPPCFG=1,1,1,1,1\r\n",	//配置BLE透传模式
@@ -973,11 +973,17 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	rt_uint8_t ptr,data_len;
 	rt_uint32_t power;
 	rt_uint16_t time;
+	rt_uint16_t gun_oneortwo;
 	
 	struct _698_DATE_S _698_date_s;
 	
 	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
 	
+	if(dev_recv->apdu.apdu_data[7] == 0x08)
+		gun_oneortwo = 2;//双枪版本
+//	else
+//		gun_oneortwo = 1;//单枪版本
+		
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9];//充电申请单号
 	stBLE_Charge_Apply.cRequestNO[0] = data_len;
@@ -1001,6 +1007,14 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	
 	rt_kprintf("[bluetooth]: AssetNO:");
 	my_printf((char*)&stBLE_Charge_Apply.cAssetNO[1],data_len,MY_HEX,1," ");
+	
+	if(gun_oneortwo == 2)
+	{
+		ptr += data_len+1;
+		data_len = 1;
+		stBLE_Charge_Apply.GunNum = dev_recv->apdu.apdu_data[10+ptr];
+		rt_kprintf("[bluetooth]: GUNNUM: %d\n",stBLE_Charge_Apply.GunNum);
+	}
 	
 	ptr += data_len+1;
 	data_len = 4;
@@ -2038,6 +2052,15 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 		
 		dev_recv->apdu.apdu_cmd				=	SECURITY_REQUEST |0x80;    
 		dev_recv->apdu.apdu_data[ptr++]		= 0x01;//  00 明文  01  密文
+		if(lenth >0x7f)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= 0x81;  //密文长度
+		}
+		else if(lenth>0xff)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= 0x82;  //密文长度
+		}
+		
 		dev_recv->apdu.apdu_data[ptr++]		= lenth;  //密文长度
 		for(i = 0;i < lenth;i++)
 		{
@@ -2124,163 +2147,160 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	
 
 	ptr = 0;
-	dev_recv->apdu.apdu_cmd    = GET_REQUEST |0x80;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x90;		//oad 90027f00
-	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x02;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	apdu[ptr++]    = GET_REQUEST |0x80;
+	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x90;		//oad 90027f00
+	apdu[ptr++]    = 0x03;
+	apdu[ptr++]    = 0x02;
+	apdu[ptr++]    = 0x00;
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;  //optional
-	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //optional
-	dev_recv->apdu.apdu_data[ptr++]    = 0x0D;   //结构体成员2
+	apdu[ptr++]    = 0x01;  //optional
+	apdu[ptr++]    = 0x02;  //optional
+	apdu[ptr++]    = 0x0D;   //结构体成员2
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_octet_string;   //类型
+	apdu[ptr++]    = Data_octet_string;   //类型
 	
 	lenth = stBLE_Charge_State.cRequestNO[0];   //长度
-	dev_recv->apdu.apdu_data[ptr++]    = lenth;
+	apdu[ptr++]    = lenth;
 	
 	for(i = 0;i < lenth;i++)
 	{
-		dev_recv->apdu.apdu_data[ptr++] = stBLE_Charge_State.cRequestNO[1+i];//申请单号   00 11 91 01 61 65 34 20
+		apdu[ptr++] = stBLE_Charge_State.cRequestNO[1+i];//申请单号   00 11 91 01 61 65 34 20
 	}
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x0A;   //类型
+	apdu[ptr++]    = 0x0A;   //类型
 	
-	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_State.cAssetNO[0]*2;//长度
+	apdu[ptr++]    = stBLE_Charge_State.cAssetNO[0]*2;//长度
 	
 	for(i = 0; i < stBLE_Charge_State.cAssetNO[0];i++)
 	{
-		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_State.cAssetNO[1+i]>>4)&0x0f)+0x30);//
-		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_State.cAssetNO[1+i]&0x0f)+0x30);//
+		apdu[ptr++]    = (rt_uint8_t)(((stBLE_Charge_State.cAssetNO[1+i]>>4)&0x0f)+0x30);//
+		apdu[ptr++]    = (rt_uint8_t)((stBLE_Charge_State.cAssetNO[1+i]&0x0f)+0x30);//
 	}
-	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	apdu[ptr++]    = Data_enum;//枪号
+	apdu[ptr++]    = 0x01;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	apdu[ptr++]    = Data_enum;//枪号
+	apdu[ptr++]    = 0x01;//
 	
-		dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0])&0xff;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = 0x04;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0])&0xff;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = 0x04;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0])&0xff;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = 0x04;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[0])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[1])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[2])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3])&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeEle[3])&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime)&0xff;//
+	apdu[ptr++]    = Data_double_long_unsigned;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeTime>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeTime>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeTime>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucChargeTime)&0xff;//
 	
 	
-		dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower)&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucPlanPower>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucPlanPower>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucPlanPower>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucPlanPower)&0xff;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower)&0xff;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucActualPower>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucActualPower>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucActualPower>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucActualPower)&0xff;//
 	
-			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucVoltage>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucVoltage)&0xff;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = Data_long_unsigned;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage)&0xff;//
 	
-			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
-			dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent)&0xff;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = 0x01;//
+	apdu[ptr++]    = Data_double_long;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent)&0xff;//
 	
-		dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
-	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	apdu[ptr++]    = Data_enum;//枪号
+	apdu[ptr++]    = 0x02;//
 	
-	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
-	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
-	ptr++;
+	apdu[ptr++]    = 0x00;
+	apdu[ptr++]    = 0x00;
 	
-	BLE_698_Data_Package(dev_recv,ptr,stData);
-/*	
 	memcpy(stBLE_Esam_Comm.Tx_data,Esam_KEY_DATA,32);
 	memcpy(stBLE_Esam_Comm.Tx_data+32,apdu,ptr);
 	stBLE_Esam_Comm.DataTx_len = 32+ptr;
@@ -2293,22 +2313,32 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 		
 		dev_recv->apdu.apdu_cmd				=	SECURITY_REQUEST |0x80;    
 		dev_recv->apdu.apdu_data[ptr++]		= 0x01;//  00 明文  01  密文
+		if(lenth >0x7f)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= 0x81;  //密文长度
+		}
+		else if(lenth>0xff)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= 0x82;  //密文长度
+		}
+	
 		dev_recv->apdu.apdu_data[ptr++]		= lenth;  //密文长度
 		for(i = 0;i < lenth;i++)
 		{
 			dev_recv->apdu.apdu_data[ptr++]		= stBLE_Esam_Comm.Rx_data[4+i];
 		}
-		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //mac optional
 		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  //
-		dev_recv->apdu.apdu_data[ptr++]		= 0x04;  //
-		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
-		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
-		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
-		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //mac optional
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x04;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+//		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
 		ptr++;
 		
 		res = BLE_698_Data_Package(dev_recv,ptr,stData);
-	}*/
+	}
 	if(stData->DataTx_len)
 	{
 		BLE_Trans_Send(bluetooth_serial,0,0,stData);
@@ -2325,13 +2355,13 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 
 rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//发送事件到策略
 {
-	rt_kprintf("\n\n[bluetooth]:--------------%s---start-------------\n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
 	g_BLE_Send_to_Strategy_event |= (0x00000001<<cmd);
 	
 	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Send_to_Strategy_event);
 	
-	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\n\n",__func__);
+	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 		
 	return 0;	
 }
@@ -2345,7 +2375,7 @@ rt_uint32_t Strategy_get_BLE_event(void)
 	if(g_BLE_Send_to_Strategy_event == 0)   //无事件发生  直接返回
 		return 0;
 	
-	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
@@ -2366,7 +2396,7 @@ rt_uint32_t Strategy_get_BLE_event(void)
 	}
 	g_BLE_Send_to_Strategy_event &= (0xfffffffe<<cmd); //清除事件标志
 	
-	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
+	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 	
 	return event;
 }
@@ -2378,7 +2408,7 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	if(g_BLE_Get_Strategy_event == 0)//无事件发生
 		return 0;
 	
-	rt_kprintf("\r\n[bluetooth]:--------------%s---start-------------\r\n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]:--------------%s---start-------------\n",__func__);
 	
 	rt_kprintf("[bluetooth]: Recv Strategy_event = 0x%04X\n",g_BLE_Get_Strategy_event);
 	
@@ -2413,7 +2443,7 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	g_BLE_Get_Strategy_event &= (0xfffffffe<<cmd);
 	
 	
-	rt_kprintf("\r\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
+	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 	
 	return 0;
 }
@@ -2421,10 +2451,11 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 {
 	rt_uint8_t result=1;
+	
+	rt_kprintf("\r\n\r\n[bluetooth]:--------------%s---start-------------\n",__func__);
 
 	switch(cmd){					
-		case Cmd_ChgRequest:	//启动充电 申请单  CHARGE_APPLY stBLE_Charge_Apply;
-			rt_kprintf("[hplc] (%s) Cmd_StartChg \n",__func__);	
+		case Cmd_ChgRequest:	//启动充电 申请单  CHARGE_APPLY stBLE_Charge_Apply;	
 			STR_SetPara=(CHARGE_APPLY *)&stBLE_Charge_Apply;			
 			result=0;										
 		break;
@@ -2446,10 +2477,11 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			
 		
 		default:
-			rt_kprintf("[hplc]  (%s)   not  \n",__func__);
 			return 1;
 			break;	
 	}
+	
+	rt_kprintf("\n[bluetooth]:--------------%s---stop-------------\r\n\r\n",__func__);
 
 	return result;			
 }
