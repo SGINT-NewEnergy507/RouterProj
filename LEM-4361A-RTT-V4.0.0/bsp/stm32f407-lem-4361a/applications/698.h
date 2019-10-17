@@ -946,7 +946,6 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 int package_for_test(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 int hplc_tx(struct CharPointDataManage *hplc_data);
 int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPointDataManage * hplc_data);
-int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataManage * hplc_data);	
 int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataManage * hplc_data);
 int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 
@@ -960,7 +959,7 @@ int report_notification_package(COMM_CMD_C  report_type,void *report_struct,stru
 
 int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
 int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int Report_Cmd_ChgRecord(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+
 int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
 
 
