@@ -3,12 +3,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <global.h>
-//#include <meter.h>
-//#include <analog.h>
 #include <board.h>
 #include <698.h>
 #include <storage.h>
 #include <esam.h>
+#include "energycon.h"
 
 
 #define FUNC_PRINT_RX	"[bluetooth]:RX:"
@@ -37,16 +36,16 @@ char* AT_CmdDef[]={
 
 	"ATE0\r\n",		//关闭回显功能
 	"AT+BLEINIT=2\r\n",			//BLE 初始化，设置为Server模式
-//	"AT+BLENAME=\"LN000000000001\"\r\n",	//设置 BLE 设备名称
-	"AT+BLENAME=\"[NR000000000001]\"\r\n",	//设置 BLE 设备名称
+	"AT+BLENAME=\"LN000000000001\"\r\n",	//设置 BLE 设备名称
+//	"AT+BLENAME=\"[NR000000000001]\"\r\n",	//设置 BLE 设备名称
 	"AT+BLEADDR=1,\"f1:f2:f3:f4:f5:f6\"\r\n",
 	
 	"AT+BLEGATTSSRVCRE\r\n",	//创建GATTS 服务
 	"AT+BLEGATTSSRVSTART\r\n",	//开启GATTS 服务
 	
 	"AT+BLEADVPARAM=32,64,0,1,7\r\n",							//配置广播参数
-//	"AT+BLEADVDATA=\"0201060F094C4E3030303030303030303030310303E0FF\"\r\n",//配置扫描响应数据
-	"AT+BLEADVDATA=\"02010611095B4E523030303030303030303030315D0303E0FF\"\r\n",//配置扫描响应数据		
+	"AT+BLEADVDATA=\"0201060F094C4E3030303030303030303030310303E0FF\"\r\n",//配置扫描响应数据
+//	"AT+BLEADVDATA=\"02010611095B4E523030303030303030303030315D0303E0FF\"\r\n",//配置扫描响应数据		
 	"AT+BLEADVSTART\r\n",		//开始广播
 	
 	"AT+BLESPPCFG=1,1,1,1,1\r\n",	//配置BLE透传模式
@@ -101,9 +100,11 @@ CCMRAM static ScmEsam_Comm stBLE_Esam_Comm;
 CCMRAM static rt_uint8_t BLE_698_data_buf[4][255];
 
 
-CCMRAM CHARGE_APPLY stBLE_Charge_Apply;//充电申请
-CHARGE_APPLY_RSP	stBLE_Charge_Apply_RSP;//充电申请响应
-CHARGE_APPLY_EVENT stBLE_Charge_Apply_Event;//充电申请事件单上报
+CCMRAM CHARGE_APPLY 			stBLE_Charge_Apply;//充电申请
+CCMRAM CHARGE_APPLY_RSP		stBLE_Charge_Apply_RSP;//充电申请响应
+CCMRAM CHARGE_APPLY_EVENT stBLE_Charge_Apply_Event;//充电申请事件单上报
+CCMRAM CHARGE_EXE_EVENT 	stBLE_Charge_Exe_Event;//充电执行事件上报
+CCMRAM CHARGE_EXE_STATE		stBLE_Charge_State;//充电状态上送
 
 
 static rt_uint8_t	Esam_KEY_R1[16];//R1数据
@@ -150,6 +151,9 @@ rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd);//发送事件到策略
 rt_uint32_t Strategy_get_BLE_event(void);
 rt_uint32_t BLE_Event_get(void);
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
+
+
+rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData);
 
 /********************************************************************  
 *	函 数 名: Uart_Recv_Data
@@ -355,7 +359,7 @@ rt_err_t Sys_time_to_date_time_s(STR_SYSTEM_TIME * sys_time,struct _698_DATE_S *
 }
 
 
-rt_uint32_t BLE_698_Data_Package(struct _698_BLE_FRAME *dev_recv,rt_uint8_t user_data_len,ScmUart_Comm* stData)
+rt_uint32_t BLE_698_Data_Package(struct _698_BLE_FRAME *dev_recv,rt_uint16_t user_data_len,ScmUart_Comm* stData)
 {
 //		rt_uint8_t i,lenth,size;
 	rt_uint16_t i,total_lenth,lenth,ptr;
@@ -563,6 +567,11 @@ rt_err_t BLE_698_Get_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,Scm
 		case 0x40010200:				//会话协商
 		{
 			BLE_698_Get_METER_ADDR_Package(dev_recv,stData);
+			break;
+		}
+		case 0x90030200:
+		{
+			BLE_698_Charge_State_Response(dev_recv,stData);
 			break;
 		}
 	}
@@ -1141,7 +1150,7 @@ rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 ********************************************************************/
 void BLE_Trans_Send(rt_device_t dev,rt_uint32_t cmd,rt_uint8_t reason,ScmUart_Comm* stData)
 {
-	rt_uint8_t size;
+	rt_uint16_t size;
 
 	if(stData->DataTx_len)
 	{
@@ -1596,6 +1605,360 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 *	形    参: 无
 *	返 回 值: 无
 ********************************************************************/
+rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint16_t i,ptr,lenth;
+	rt_err_t res;
+	struct _698_DATE_S date_time_s;
+	
+	
+	stBLE_Charge_Exe_Event.OrderNum = 0x00000004;
+	
+	stBLE_Charge_Exe_Event.StartTimestamp.Year = 0x19;
+	stBLE_Charge_Exe_Event.StartTimestamp.Month = 0x10;
+	stBLE_Charge_Exe_Event.StartTimestamp.Day = 0x16;
+	stBLE_Charge_Exe_Event.StartTimestamp.Hour = 0x18;
+	stBLE_Charge_Exe_Event.StartTimestamp.Minute = 0x18;
+	stBLE_Charge_Exe_Event.StartTimestamp.Second = 0x18;
+	
+	stBLE_Charge_Exe_Event.FinishTimestamp.Year = 0x19;
+	stBLE_Charge_Exe_Event.FinishTimestamp.Month = 0x10;
+	stBLE_Charge_Exe_Event.FinishTimestamp.Day = 0x16;
+	stBLE_Charge_Exe_Event.FinishTimestamp.Hour = 0x18;
+	stBLE_Charge_Exe_Event.FinishTimestamp.Minute = 0x18;
+	stBLE_Charge_Exe_Event.FinishTimestamp.Second = 0x18;
+	
+	stBLE_Charge_Exe_Event.OccurSource = 0x00;
+	stBLE_Charge_Exe_Event.ChannelState = 0x00;
+	
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0] = 8;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[1] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[2] = 0x11;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[3] = 0x91;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[4] = 0x01;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[5] = 0x61;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[6] = 0x65;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[7] = 0x34;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[8] = 0x20;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0] = 6;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[2] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[3] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[4] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[5] = 0x00;
+	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[6] = 0x01;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.GunNum = 0x01;
+	stBLE_Charge_Exe_Event.Chg_ExeState.exeState = 0x01;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4] = 0;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4] = 0;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3] = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[4] = 0;
+	
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime = 0;		//已充时间（单位：s）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower  = 0x1000;		//计划充电功率（单位：W，换算：-1）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower = 0x1000;	//当前充电功率（单位：W，换算：-1）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage = 0x0891;		//当前充电电压（单位：V，换算：-1）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent = 0x0111;			//当前充电电流（单位：A，换算：-3）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）
+
+	
+	ptr = 0;
+	dev_recv->apdu.apdu_cmd    = REPORT_RESPONSE |0x80;//充电执行状态返回
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//若干个记录性对象
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;  //piid-acd
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;		//长度
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x60;//OAD 60120300
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //len 长度
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;  //csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;		//OAD 202A0200
+	dev_recv->apdu.apdu_data[ptr++]    = 0x2A;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x34;//OAD 34040200充电执行记录单元
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;// len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI 事件记录序号 属性2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x22;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI 事件发生时间 属性2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x1E;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI 事件结束时间 属性2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI 事件发生源 属性2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x24;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x33;//OI 通道上报状态 属性2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	for(i = 0; i< 13; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = 0x35;//OI 3505充电申请事件 属性2 序号6~16
+		dev_recv->apdu.apdu_data[ptr++]    = 0x06;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x06+i;//
+	}
+
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//结果类型
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_TSA;// 0x85 tsa类型
+	dev_recv->apdu.apdu_data[ptr++]    = 0x07;//长度
+	dev_recv->apdu.apdu_data[ptr++]    = 0x05;//
+	for(i = 0; i < 6; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_meter_addr.addr[i];//电表地址
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;//长度16
+	
+
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//类型 06//事件记录序号
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.OrderNum>>24)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.OrderNum>>16)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.OrderNum>>8)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.OrderNum)&0xff;
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Exe_Event.StartTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;//类型
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Charge_Exe_Event.FinishTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////类型
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.g_year.c_year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//事件源
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;// 相数
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_OAD;//OAD 81
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0xF2;//OI F209 载波无线接口
+	dev_recv->apdu.apdu_data[ptr++]    = 0x09;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_unsigned;//类型 08 值 00
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_octet_string;//类型
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0];//长度
+	
+	for(i = 0; i < stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[1+i];//
+	}
+	dev_recv->apdu.apdu_data[ptr++]    = Data_visible_string;//
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0]*2;//长度
+	
+	for(i = 0; i < stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1+i]>>4)&0x0f)+0x30);//
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1+i]&0x0f)+0x30);//
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//执行状态
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3])&0xff;//
+	
+		dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime)&0xff;//
+	
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower)&0xff;//
+	
+			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage)&0xff;//
+	
+			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+			dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//执行状态
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	ptr++; //apdu cmd
+
+	res = BLE_698_Data_Package(dev_recv,ptr,stData);
+
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+	return res;
+}
+
+/********************************************************************  
+*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
+*	功能说明: 698 Security Request 解析
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
 rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
 {
 	rt_uint8_t i,ptr,lenth,apdu[100];
@@ -1643,8 +2006,7 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	apdu[ptr++]    = 0x02;   //结构体成员2
 	apdu[ptr++]    = 0x09;   //类型
 	
-//	lenth = stBLE_Charge_Apply_RSP.cRequestNO[0];   //长度
-lenth = stBLE_Charge_Apply.cRequestNO[0];
+	lenth = stBLE_Charge_Apply_RSP.cRequestNO[0];   //长度
 	apdu[ptr++]    = lenth;
 	
 	for(i = 0;i < lenth;i++)
@@ -1692,6 +2054,261 @@ lenth = stBLE_Charge_Apply.cRequestNO[0];
 		
 		res = BLE_698_Data_Package(dev_recv,ptr,stData);
 	}
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+}
+
+
+/********************************************************************  
+*	函 数 名: BLE_698_Charge_State_Response
+*	功能说明: 698 Security Request 解析
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint8_t i,ptr,lenth,apdu[200];
+	rt_err_t res;
+	
+	stBLE_Charge_State.cAssetNO[0] = 6;
+	stBLE_Charge_State.cAssetNO[1] = 0x00;
+	stBLE_Charge_State.cAssetNO[2] = 0x00;
+	stBLE_Charge_State.cAssetNO[3] = 0x00;
+	stBLE_Charge_State.cAssetNO[4] = 0x00;
+	stBLE_Charge_State.cAssetNO[5] = 0x00;
+	stBLE_Charge_State.cAssetNO[6] = 0x01;
+	
+	stBLE_Charge_State.cRequestNO[0] = 8;
+	stBLE_Charge_State.cRequestNO[1] = 0x00;
+	stBLE_Charge_State.cRequestNO[2] = 0x11;
+	stBLE_Charge_State.cRequestNO[3] = 0x91;
+	stBLE_Charge_State.cRequestNO[4] = 0x01;
+	stBLE_Charge_State.cRequestNO[5] = 0x61;
+	stBLE_Charge_State.cRequestNO[6] = 0x65;
+	stBLE_Charge_State.cRequestNO[7] = 0x34;
+	stBLE_Charge_State.cRequestNO[8] = 0x20;
+	
+	stBLE_Charge_State.GunNum = 0x01;			//枪序号	{A枪（1）、B枪（2）}
+	stBLE_Charge_State.exeState = 0x01;			//执行状态 {1：正常执行 2：执行结束 3：执行失败}
+	stBLE_Charge_State.ucTimeSlotNum = 0x01;	//时间段数量
+	stBLE_Charge_State.ulEleBottomValue[0]=0x100; 	//电能示值底值（充电首次执行时示值）（单位：kWh，换算：-2）
+	stBLE_Charge_State.ulEleBottomValue[1]=0x100;
+	stBLE_Charge_State.ulEleBottomValue[2]=0x100;
+	stBLE_Charge_State.ulEleBottomValue[3]=0x100;
+	stBLE_Charge_State.ulEleBottomValue[4]=0x100;
+	
+	stBLE_Charge_State.ulEleActualValue[0]= 0x110; 	//当前电能示值（单位：kWh，换算：-2）
+	stBLE_Charge_State.ulEleActualValue[1]= 0x110;
+	stBLE_Charge_State.ulEleActualValue[2]= 0x110;
+	stBLE_Charge_State.ulEleActualValue[3]= 0x110;
+	stBLE_Charge_State.ulEleActualValue[4]= 0x110;
+	
+	stBLE_Charge_State.ucChargeEle[0] = 0x01;		//已充电量（单位：kWh，换算：-2）
+	stBLE_Charge_State.ucChargeEle[1] = 0x01;
+	stBLE_Charge_State.ucChargeEle[2] = 0x01;
+	stBLE_Charge_State.ucChargeEle[3] = 0x01;
+	stBLE_Charge_State.ucChargeEle[4] = 0x01;
+	
+
+	stBLE_Charge_State.ucChargeTime = 0x100;		//已充时间（单位：s）
+	stBLE_Charge_State.ucPlanPower =0x1234;		//计划充电功率（单位：W，换算：-1）
+	stBLE_Charge_State.ucActualPower = 0x1234;	//当前充电功率（单位：W，换算：-1）
+	stBLE_Charge_State.ucVoltage=0x891;		//当前充电电压（单位：V，换算：-1）
+	stBLE_Charge_State.ucCurrent = 0x33;			//当前充电电流（单位：A，换算：-3）
+	stBLE_Charge_State.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）
+	
+
+	ptr = 0;
+	dev_recv->apdu.apdu_cmd    = GET_REQUEST |0x80;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x90;		//oad 90027f00
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;  //optional
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //optional
+	dev_recv->apdu.apdu_data[ptr++]    = 0x0D;   //结构体成员2
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_octet_string;   //类型
+	
+	lenth = stBLE_Charge_State.cRequestNO[0];   //长度
+	dev_recv->apdu.apdu_data[ptr++]    = lenth;
+	
+	for(i = 0;i < lenth;i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++] = stBLE_Charge_State.cRequestNO[1+i];//申请单号   00 11 91 01 61 65 34 20
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x0A;   //类型
+	
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Charge_State.cAssetNO[0]*2;//长度
+	
+	for(i = 0; i < stBLE_Charge_State.cAssetNO[0];i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_State.cAssetNO[1+i]>>4)&0x0f)+0x30);//
+		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_State.cAssetNO[1+i]&0x0f)+0x30);//
+	}
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+		dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleBottomValue[3])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ulEleActualValue[3])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x04;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[0])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[1])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[2])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3]>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeEle[3])&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucChargeTime)&0xff;//
+	
+	
+		dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucPlanPower)&0xff;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucActualPower)&0xff;//
+	
+			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucVoltage>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucVoltage)&0xff;//
+	
+			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+			dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_State.ucCurrent)&0xff;//
+	
+		dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//枪号
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	ptr++;
+	
+	BLE_698_Data_Package(dev_recv,ptr,stData);
+/*	
+	memcpy(stBLE_Esam_Comm.Tx_data,Esam_KEY_DATA,32);
+	memcpy(stBLE_Esam_Comm.Tx_data+32,apdu,ptr);
+	stBLE_Esam_Comm.DataTx_len = 32+ptr;
+	
+	ESAM_Communicattion(APP_SESS_CALC_MAC_A4,&stBLE_Esam_Comm);
+	if((stBLE_Esam_Comm.Rx_data[0] == 0x90)&&(stBLE_Esam_Comm.Rx_data[1] == 0x00))
+	{
+		ptr = 0;
+		lenth = stBLE_Esam_Comm.Rx_data[3];
+		
+		dev_recv->apdu.apdu_cmd				=	SECURITY_REQUEST |0x80;    
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;//  00 明文  01  密文
+		dev_recv->apdu.apdu_data[ptr++]		= lenth;  //密文长度
+		for(i = 0;i < lenth;i++)
+		{
+			dev_recv->apdu.apdu_data[ptr++]		= stBLE_Esam_Comm.Rx_data[4+i];
+		}
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //mac optional
+		dev_recv->apdu.apdu_data[ptr++]		= 0x00;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x04;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		dev_recv->apdu.apdu_data[ptr++]		= 0x01;  //
+		ptr++;
+		
+		res = BLE_698_Data_Package(dev_recv,ptr,stData);
+	}*/
 	if(stData->DataTx_len)
 	{
 		BLE_Trans_Send(bluetooth_serial,0,0,stData);
@@ -1783,7 +2400,12 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 		break;
 		case Cmd_ChgRequestReportAPP:
 			BLE_698_Charge_Apply_Event_Response(&_698_ble_frame,&stBLE_Comm);
+			rt_thread_mdelay(1000);
+//			BLE_698_Charge_Exe_Event_Response(&_698_ble_frame,&stBLE_Comm);
+		BLE_698_Charge_State_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
+		case Cmd_ChgPlanExeState:
+			BLE_698_Charge_Exe_Event_Response(&_698_ble_frame,&stBLE_Comm);
 		default:
 			break;
 	}
@@ -1899,7 +2521,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 	stBLE_meter_addr.addr[5] = 0x01;
 	stBLE_meter_addr.optional = 0x00;
 	stBLE_meter_addr.time = 0x00;
-	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////	
 		
 	while (1)
 	{
