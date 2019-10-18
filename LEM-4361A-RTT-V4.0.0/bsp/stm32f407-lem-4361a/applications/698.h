@@ -978,10 +978,12 @@ void hplc_PWR_OFF(void);
 
 /***************保存制定数据类型的函数***************/
 int _698_double_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data);
+int _698_double_long(unsigned int num,struct CharPointDataManage * hplc_data);
+
 int _698_long_unsigned(unsigned int num,struct CharPointDataManage * hplc_data);
 
 int _698_visible_octet_string(unsigned char data_type,int len,unsigned char * array,struct CharPointDataManage * hplc_data);
-
+int _698_oad_omd(unsigned int oa_om,unsigned int ob_attribute,struct CharPointDataManage * hplc_data);
 
 /******时间格式转换*******/
 int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s);
