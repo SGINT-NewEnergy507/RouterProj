@@ -46,6 +46,15 @@ typedef struct
 }_698_CHARGE_STRATEGY;
 
 
+typedef struct
+{
+	int array_size;
+	CHARGE_EXE_STATE *charge_exe_state;
+
+}_698_CHARGE_EXE_STATE;
+
+
+
 //事件
 
 #define  link_request	1
@@ -962,7 +971,14 @@ int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE
 
 int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
 
+/**
 
+
+
+
+
+
+**/
 
 /************跟用户交互*****************/
 rt_uint32_t my_strategy_event_get(void);
@@ -990,4 +1006,3 @@ int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_dat
 int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char * array);
 
 int unsigned_char_to_int(unsigned long *intNo,unsigned char * array);
-
