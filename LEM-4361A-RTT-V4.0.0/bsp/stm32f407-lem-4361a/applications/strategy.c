@@ -57,28 +57,29 @@ static char *err_strfault[] =
 static rt_uint8_t strategy_stack[THREAD_STRATEGY_STACK_SIZE];//线程堆栈
 static struct rt_thread strategy;
 
-ChargPilePara_TypeDef ChargePilePara_Set;
-ChargPilePara_TypeDef ChargePilePara_Get;
+CCMRAM ChargPilePara_TypeDef ChargePilePara_Set;
+CCMRAM ChargPilePara_TypeDef ChargePilePara_Get;
 
+CCMRAM CHARGE_EXE_STATE_ASK ChgExeStateAsk;
 
-CHARGE_STRATEGY Chg_Strategy;
-CHARGE_STRATEGY_RSP Chg_StrategyRsp;
-CHARGE_STRATEGY Adj_Chg_Strategy;
-CHARGE_STRATEGY_RSP Adj_Chg_StrategyRsp;
+CCMRAM CHARGE_STRATEGY Chg_Strategy;
+CCMRAM CHARGE_STRATEGY_RSP Chg_StrategyRsp;
+CCMRAM CHARGE_STRATEGY Adj_Chg_Strategy;
+CCMRAM CHARGE_STRATEGY_RSP Adj_Chg_StrategyRsp;
 
-CHARGE_APPLY Chg_Apply;
-CHARGE_APPLY_RSP Chg_Apply_Rsp;
+CCMRAM CHARGE_APPLY Chg_Apply;
+CCMRAM CHARGE_APPLY_RSP Chg_Apply_Rsp;
 
 //上送事件
-PLAN_OFFER_EVENT Plan_Offer_Event;
-CHARGE_APPLY_EVENT Chg_Apply_Event;
+CCMRAM PLAN_OFFER_EVENT Plan_Offer_Event;
+CCMRAM CHARGE_APPLY_EVENT Chg_Apply_Event;
 
 
 
 
 
 //超时结果
-static rt_timer_t ChgReqReportRsp;
+CCMRAM static rt_timer_t ChgReqReportRsp;
 /**************************************************************
  * 函数名称: ChgReqReportResp_Timeout 
  * 参    数: 
@@ -134,18 +135,17 @@ static void ChgPlan_RecProcess(void)
 			Chg_StrategyRsp.cSucIdle = 0;
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssueAck,&Chg_StrategyRsp,0);//回复	
-			memcpy(&Plan_Offer_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//记录上报时间
 			
 			if(c_rst == 0)
 			{
+				memcpy(&Plan_Offer_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//记录上报时间
 				SetStorageData(Cmd_PlanOfferWr,&Plan_Offer_Event,sizeof(PLAN_OFFER_EVENT));
 				//回复成功上送事件
-				Plan_Offer_Event.OrderNum++;
-				
-				memcpy(&Plan_Offer_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+				Plan_Offer_Event.OrderNum++;		
 				Plan_Offer_Event.ChannelState = 0;//通道状态
 				memcpy(&Plan_Offer_Event.Chg_Strategy,&Chg_Strategy,sizeof(CHARGE_STRATEGY));
-				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);
+				memcpy(&Plan_Offer_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);//上报充电计划时间
 				
 				//缺等待确认		
 			}
@@ -169,8 +169,7 @@ static void ChgPlan_RecProcess(void)
 		{
 			rt_lprintf("[strategy]  (%s)  收到查询工作状态的命令  \n",__func__);  
 				
-			if((memcmp(Chg_ExeState.cRequestNO,Chg_Strategy.cRequestNO,sizeof(Chg_ExeState.cRequestNO)) == 0)
-				||(memcpy(Chg_ExeState.cRequestNO,Adj_Chg_Strategy.cRequestNO,sizeof(Chg_ExeState.cRequestNO)) == 0))
+			if(memcmp(ChgExeStateAsk.cAssetNO,RouterIfo.AssetNum,sizeof(ChgExeStateAsk.cAssetNO)) == 0)
 			{
 				memcpy(Chg_ExeState.cAssetNO,RouterIfo.AssetNum,sizeof(Chg_ExeState.cRequestNO));
 				
@@ -185,8 +184,8 @@ static void ChgPlan_RecProcess(void)
 				ScmMeter_Analog stgMeter_Analog;
 				cmMeter_get_data(EMMETER_ANALOG,&stgMeter_Analog);
 				Chg_ExeState.ucActualPower = stgMeter_Analog.ulAcPwr;
-				Chg_ExeState.ucVoltage = stgMeter_Analog.ulVol;
-				Chg_ExeState.ucCurrent = stgMeter_Analog.ulCur;
+				Chg_ExeState.ucVoltage.A = stgMeter_Analog.ulVol;
+				Chg_ExeState.ucCurrent.A = stgMeter_Analog.ulCur;
 				
 				ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 				Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;
