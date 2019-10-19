@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "global.h"
 #include "chargepile.h"
-
+#include "strategy.h"
 
 extern struct rt_semaphore rt_sem_bluetoothfau;
 
@@ -64,13 +64,14 @@ typedef struct
 	CHARGE_TIMESOLT strChargeTimeSolts[50];//时间段内容，最大50段
 
 }CHARGE_STRATEGY;/*充电计划单*/
-extern CHARGE_STRATEGY Chg_Strategy;//下发计划单
-extern CHARGE_STRATEGY Adj_Chg_Strategy;//变更计划单
+CCMRAM extern CHARGE_STRATEGY Chg_Strategy;//下发计划单
+CCMRAM extern CHARGE_STRATEGY Adj_Chg_Strategy;//变更计划单
 
 typedef struct
 {
 	char cRequestNO[17];	//申请单号  octet-string（SIZE(16)）
 	char cAssetNO[23];		//路由器资产编号  visible-string（SIZE(22)）
+	unsigned char GunNum;	//枪序号	{A枪（1）、B枪（2）}
 	unsigned char cSucIdle;	//成功或失败原因:{0：成功 1：失败 255：其他}
 }CHARGE_STRATEGY_RSP;/*充电计划单响应*/
 
@@ -92,6 +93,7 @@ typedef struct
 {
 	char cRequestNO[17];	//申请单号  octet-string（SIZE(16)）
 	char cAssetNO[23];		//路由器资产编号  visible-string（SIZE(22)）
+	unsigned char GunNum;	//枪序号	{A枪（1）、B枪（2）}
 	unsigned char cSucIdle;	//成功或失败原因:{0：成功 1：失败 255：其他}
 }CHARGE_APPLY_RSP;/*充电申请单响应*/
 
@@ -136,6 +138,7 @@ typedef struct
 	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态	
 	CHARGE_STRATEGY Chg_Strategy; 
 }PLAN_OFFER_EVENT;/*充电计划上报记录单元*/
+CCMRAM extern PLAN_OFFER_EVENT Plan_Offer_Event;
 
 typedef struct
 {
@@ -159,7 +162,7 @@ typedef struct
 	char Token[39];   					//	用户登录令牌  visible-string（SIZE(38)）
 	char UserAccount[10];				//  充电用户账号  visible-string（SIZE(9)）
 }CHARGE_APPLY_EVENT;/*充电申请事件记录单元*/
-
+CCMRAM extern CHARGE_APPLY_EVENT Chg_Apply_Event;
 
 
 typedef struct

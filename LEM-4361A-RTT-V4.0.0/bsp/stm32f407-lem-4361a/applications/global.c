@@ -14,6 +14,7 @@ CCMRAM char Printf_Buffer[1024];
 CCMRAM char Srintf_Buffer[1024];
 //rt_mq_t storage_mq;
 ROUTER_IFO_UNIT RouterIfo;
+PILE_IFO_UNIT PileIfo;
 ROUTER_FAULT Fault;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -9,6 +9,7 @@
 #include "698.h"
 #include "meter.h"
 #include "storage.h"
+#include "time.h"
 #include <board.h>
 
 #define KC1_PIN     GET_PIN(F, 4)
@@ -292,6 +293,13 @@ static void PileData_RecProcess(void)
 			Ctrl_Start.cSucIdle = SUCCESSFUL;
 			c_rst = CtrlUnit_RecResp(Cmd_StartChgAck,&Ctrl_Start,0);
 			
+			//记录表底值			
+			ScmMeter_HisData engMeter_HisData;
+			cmMeter_get_data(EMMETER_HISDATA,&engMeter_HisData);
+			memcpy(&ChgOrder_Event.StartMeterValue[0],&engMeter_HisData.ulMeter_Day,5*sizeof(long));
+			//记录时间
+			memcpy(&ChgOrder_Event.ChgStartTime,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+			
 			if(c_rst != SUCCESSFUL)
 			{
 				
@@ -334,6 +342,13 @@ static void PileData_RecProcess(void)
 			
 			Ctrl_Stop.cSucIdle = SUCCESSFUL;
 			c_rst = CtrlUnit_RecResp(Cmd_StopChgAck,&Ctrl_Stop,0);
+			
+			//记录表底值			
+			ScmMeter_HisData engMeter_HisData;
+			cmMeter_get_data(EMMETER_HISDATA,&engMeter_HisData);
+			memcpy(&ChgOrder_Event.StopMeterValue[0],&engMeter_HisData.ulMeter_Day,5*sizeof(long));
+			//记录时间
+			memcpy(&ChgOrder_Event.ChgStopTime,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 						
 			if(c_rst != SUCCESSFUL)
 			{
@@ -437,9 +452,13 @@ static void TimeSolt_PilePowerCtrl(void)
 			
 			if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
 			{
+				if(count == 0)
+					memcpy(&ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
 				ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
 				
-				
+				ChgExe_Event.OrderNum++;
+				memcpy(&ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+				memcpy(&ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
 				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//上报充电计划执行事件
 				
 				Chg_ExeState.exeState = EXE_ING;
@@ -451,19 +470,49 @@ static void TimeSolt_PilePowerCtrl(void)
 		}
 	}
 	if(c_rst !=0 )
-		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//上报充电计划执行事件
+		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//若失败再上报一次
 		
 	if(count == Chg_Strategy.ucTimeSlotNum)//检测到执行完计划
 	{
 		memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));//不再给桩发送功率设定帧
+	}
+	
+	if(PileIfo.WorkState == ChgSt_Finished)//检测到充电完成
+	{
+		memcpy(&ChgOrder_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
 		
-		ChgOrder_Event.OrderNum++;
+		ChgOrder_Event.OrderNum++;	
 		
-		//还未填值
+		memcpy(&ChgOrder_Event.cUserID,&Plan_Offer_Event.Chg_Strategy.cUserID,sizeof(Chg_Strategy.cUserID));
+		memcpy(&ChgOrder_Event.RequestNO,&Plan_Offer_Event.Chg_Strategy.cRequestNO,41);//连续三个字段
+		ChgOrder_Event.ChargeReqEle = Plan_Offer_Event.Chg_Strategy.ulChargeReqEle;
+		memcpy(&ChgOrder_Event.RequestTimeStamp,&Chg_Apply_Event.RequestTimeStamp,sizeof(STR_SYSTEM_TIME));
+		memcpy(&ChgOrder_Event.FinishTimestamp,&Chg_Apply_Event.FinishTimestamp,sizeof(STR_SYSTEM_TIME));
+		ChgOrder_Event.ChargeMode = Plan_Offer_Event.Chg_Strategy.ucChargeMode;
+		//计算已充电量
+		for(i=0;i<5;i++)
+			ChgOrder_Event.ucChargeEle[i] = ChgOrder_Event.StopMeterValue[i] - ChgOrder_Event.StartMeterValue[i]; 
+		//计算已充时间
+		time_t start_time = 0;
+		struct tm* timep;
+		timep->tm_sec = ChgOrder_Event.ChgStartTime.Second;
+		timep->tm_min = ChgOrder_Event.ChgStartTime.Minute;
+		timep->tm_hour = ChgOrder_Event.ChgStartTime.Hour;
+		timep->tm_mday = ChgOrder_Event.ChgStartTime.Day;
+		timep->tm_year = ChgOrder_Event.ChgStartTime.Year;
+		start_time = mktime(timep);
+		time_t stop_time = 0;
+		timep->tm_sec = ChgOrder_Event.ChgStopTime.Second;
+		timep->tm_min = ChgOrder_Event.ChgStopTime.Minute;
+		timep->tm_hour = ChgOrder_Event.ChgStopTime.Hour;
+		timep->tm_mday = ChgOrder_Event.ChgStopTime.Day;
+		timep->tm_year = ChgOrder_Event.ChgStopTime.Year;
+		stop_time = mktime(timep);
+		ChgOrder_Event.ucChargeTime = stop_time - start_time;
 		
+		memcpy(&ChgOrder_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
 		CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//上报充电订单
 	}
-
 }
 
 

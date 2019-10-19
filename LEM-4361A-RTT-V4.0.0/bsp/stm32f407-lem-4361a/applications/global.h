@@ -93,6 +93,7 @@ typedef enum
 {
 	ChgSt_Standby=0,            //正常待机
 	ChgSt_InCharging,           //充电中
+	ChgSt_Finished,				//充电完成
 	ChgSt_Fault,            	//故障
 }PILE_WORKSTATE;/*充电桩状态*/
 
@@ -147,7 +148,7 @@ typedef struct
 	rt_uint8_t AwakeSupport;			//是否支持唤醒    {0:不支持 1：支持}
 	rt_uint8_t WorkState;				//运行状态
 }PILE_IFO_UNIT;/*充电桩信息单元*/
-
+extern PILE_IFO_UNIT PileIfo;
 /******************************** 故障信息 ***********************************/		//zcx190710
 typedef enum 
 {
