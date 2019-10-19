@@ -11,6 +11,9 @@
 #include "storage.h"
 #include <board.h>
 
+#define KC1_PIN     GET_PIN(F, 4)
+#define KC2_PIN     GET_PIN(F, 5)
+#define KC3_PIN     GET_PIN(F, 6)
 
 #define THREAD_ENERGYCON_PRIORITY     18
 #define THREAD_ENERGYCON_STACK_SIZE   1024
@@ -41,30 +44,30 @@ struct rt_thread energycon;
 struct rt_semaphore rx_sem_setpower;     //用于接收数据的信号量
 struct rt_semaphore rx_sem_adjpower;
 
-CTL_CHARGE Ctrl_Start;
-CTL_CHARGE Ctrl_Stop;
-CTL_CHARGE Ctrl_PowerAdj;
+CCMRAM CTL_CHARGE Ctrl_Start;
+CCMRAM CTL_CHARGE Ctrl_Stop;
+CCMRAM CTL_CHARGE Ctrl_PowerAdj;
 
-CHARGE_EXE_STATE Chg_ExeState;
+CCMRAM CHARGE_EXE_STATE Chg_ExeState;
 
-CTL_CHARGE_EVENT CtrlCharge_Event;
-CHARGE_EXE_EVENT ChgExe_Event;
-CHG_ORDER_EVENT ChgOrder_Event;
+CCMRAM CTL_CHARGE_EVENT CtrlCharge_Event;
+CCMRAM CHARGE_EXE_EVENT ChgExe_Event;
+CCMRAM CHG_ORDER_EVENT ChgOrder_Event;
 
 //指令标志
-static rt_bool_t startchg_flag;
-static rt_bool_t stopchg_flag;
-static rt_bool_t adjpower_flag;
+CCMRAM static rt_bool_t startchg_flag;
+CCMRAM static rt_bool_t stopchg_flag;
+CCMRAM static rt_bool_t adjpower_flag;
 
 //超时结果
-static rt_timer_t StartChgResp;
-static rt_timer_t StopChgResp;
-static rt_timer_t PowerAdjResp;
+CCMRAM static rt_timer_t StartChgResp;
+CCMRAM static rt_timer_t StopChgResp;
+CCMRAM static rt_timer_t PowerAdjResp;
 
-static unsigned char count;
-static unsigned char SetPowerFinishFlag[50];
-static char cRequestNO_Old[17];
-static char cRequestNO_New[17];
+CCMRAM static unsigned char count;
+CCMRAM static unsigned char SetPowerFinishFlag[50];
+CCMRAM static char cRequestNO_Old[17];
+CCMRAM static char cRequestNO_New[17];
 
 
 
@@ -500,8 +503,12 @@ static void energycon_thread_entry(void *parameter)
 			TimeSolt_PilePowerCtrl(); 
 		}
 		
-
+		if(rt_pin_read(KC3_PIN) == PIN_LOW)
+			ChargepileDataGetSet(Cmd_ChargeStart,0);
+//			strategy_event_send(StartChg_EVENT);
 		
+		if(rt_pin_read(KC2_PIN) == PIN_LOW)
+			ChargepileDataGetSet(Cmd_ChargeStop,0);
 		rt_thread_mdelay(1000);
 	}
 }
@@ -525,6 +532,8 @@ int energycon_thread_init(void)
 											THREAD_ENERGYCON_STACK_SIZE,
 											THREAD_ENERGYCON_PRIORITY,
 											THREAD_ENERGYCON_TIMESLICE);
+	
+	rt_lprintf("[energycon] : EnergyControl Initialized!\n");
 	if (res == RT_EOK) 
 	{
 		rt_thread_startup(&energycon);
