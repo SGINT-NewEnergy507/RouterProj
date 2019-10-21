@@ -1867,7 +1867,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 
 	for(j=0;j<1;j++){
 		len=5;
-  //len=priv_struct->ucCurrent;
+		//len=priv_struct->ucCurrent;
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
 	
