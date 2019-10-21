@@ -5464,9 +5464,12 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
+
 			
 			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
 			result=security_get_package(1,priv_698_state,data_tx);
+			
+			
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}				
