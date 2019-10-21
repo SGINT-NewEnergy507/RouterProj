@@ -1,0 +1,27 @@
+2019-10-21 10:47:10: ----- ：任务 'LEM-4361A'：计算机 'HARD-PC' 上的分析操作已由 User 所启动 (GoodSync v 9.4.0.5) -----
+2019-10-21 10:47:10: E:\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications <-> E:\LEM-4361A\LEM-4361A-RTT-V4.0.0\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications
+2019-10-21 10:47:10: 左侧: State file does not exist: E:\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications\_gsdata_\_file_state._gs
+2019-10-21 10:47:10: 左侧: 未发现状态文件，新建状态文件
+2019-10-21 10:47:10: 左侧：文件： 26 (已排除 )。文件夹：  (已排除 )。 E: NTFS, 可用空间：62.6 GB，总计空间：142 GB
+2019-10-21 10:47:10: 右侧: State file does not exist: E:\LEM-4361A\LEM-4361A-RTT-V4.0.0\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications\_gsdata_\_file_state._gs
+2019-10-21 10:47:10: 右侧: 未发现状态文件，新建状态文件
+2019-10-21 10:47:10: 右侧：文件： 26 (已排除 )。文件夹：  (已排除 )。 E: NTFS, 可用空间：62.6 GB，总计空间：142 GB
+2019-10-21 10:47:10: /bluetooth.c: 冲突: 新文件有变化
+2019-10-21 10:47:10: /global.h: 冲突: 新文件有变化
+2019-10-21 10:47:10: /storage.h: 冲突: 新文件有变化
+2019-10-21 10:47:10: 分析完毕并发现冲突情况。如需解决冲突请选择正常的同步方向。
+2019-10-21 10:47:10: 变更：3， 冲突：3， 复制时间：， 复制状态：/23， 错误： 
+2019-10-21 10:47:10: ----- ：分析已结束。 历时 00:00:00， 速度： Many 个文件/秒 -----
+2019-10-21 10:47:10: 
+2019-10-21 10:47:12: Done.
+2019-10-21 10:47:15: Done.
+2019-10-21 10:47:28: New _gsdata_ folder(s) created, so rescan all job folders for their ghosts
+2019-10-21 10:47:28: ===== ：任务 'LEM-4361A'：同步已被 User 所启动，位于计算机 'HARD-PC' =====
+2019-10-21 10:47:28: E:\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications <-> E:\LEM-4361A\LEM-4361A-RTT-V4.0.0\LEM-4361A-RTT-V4.0.0\bsp\stm32f407-lem-4361a\applications
+2019-10-21 10:47:28: /bluetooth.c: unresolved conflict results in No Copy
+2019-10-21 10:47:28: /global.h: unresolved conflict results in No Copy
+2019-10-21 10:47:28: /storage.h: unresolved conflict results in No Copy
+2019-10-21 10:47:28: 同步完成，未解决的冲突数为 3 。点击冲突按钮即可查看未解决的冲突情况。
+2019-10-21 10:47:28: 项目同步未必： 23，错误： 
+2019-10-21 10:47:28: ===== ：同步完毕。时间：00:00:00，速度：  =====
+2019-10-21 10:47:28: 
