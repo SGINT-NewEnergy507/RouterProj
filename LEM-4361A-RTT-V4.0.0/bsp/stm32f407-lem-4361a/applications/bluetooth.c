@@ -607,7 +607,7 @@ rt_err_t BLE_698_Get_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,Scm
 			BLE_698_Get_METER_ADDR_Package(dev_recv,stData);
 			break;
 		}
-		case 0x90030200:
+		case 0x90030200:   //90030200 单枪   90030201 枪1状态  90030202 枪2状态
 		{
 			BLE_698_Charge_State_Response(dev_recv,stData);
 			break;
@@ -661,7 +661,7 @@ rt_err_t BLE_698_Security_Request_CipherText_Analysis(struct _698_BLE_FRAME *dev
 	rt_uint8_t i,ptr;
 //	rt_uint32_t apdu_oad;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	ptr = 0;
 	cipherdata_lenth = dev_recv->apdu.apdu_data[1];
@@ -742,7 +742,7 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	
 	stBLE_Esam_Comm.DataTx_len = 0;
@@ -895,7 +895,7 @@ rt_err_t BLE_698_ESAM_SESS_KEY_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	Esam_Keydata_len = dev_recv->apdu.apdu_data[7]-2;
 	
@@ -1020,7 +1020,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	
 	struct _698_DATE_S _698_date_s;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	if(dev_recv->apdu.apdu_data[7] == 0x08)
 		gun_oneortwo = 2;//双枪版本
@@ -1067,7 +1067,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	power = (power<<8) | dev_recv->apdu.apdu_data[13+ptr];//充电功率
 	stBLE_Charge_Apply.ulChargeReqEle = power;
 	
-	rt_kprintf("[bluetooth]: ChargeReqEle = %04X \n",stBLE_Charge_Apply.ulChargeReqEle);
+	rt_kprintf("[bluetooth]: ChargeReqEle = %08X \n",stBLE_Charge_Apply.ulChargeReqEle);
 
 	ptr += data_len+1;
 	data_len = 7;
@@ -1115,7 +1115,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	
 	struct _698_DATE_S _698_date_s;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9];//充电申请单号
@@ -1172,7 +1172,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	power = (power<<8) | dev_recv->apdu.apdu_data[13+ptr];//充电功率
 	stBLE_Charge_Plan.ulChargeReqEle = power;
 	
-	rt_kprintf("[bluetooth]: ChargeReqEle = %04X \n",stBLE_Charge_Plan.ulChargeReqEle);
+	rt_kprintf("[bluetooth]: ChargeReqEle = %08X \n",stBLE_Charge_Plan.ulChargeReqEle);
 	
 	ptr += data_len+1;
 	data_len = 4;
@@ -1182,7 +1182,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	power = (power<<8) | dev_recv->apdu.apdu_data[13+ptr];//充电额定功率
 	stBLE_Charge_Plan.ulChargeRatePow = power;
 	
-	rt_kprintf("[bluetooth]: ChargeRatePow = %04X \n",stBLE_Charge_Plan.ulChargeReqEle);
+	rt_kprintf("[bluetooth]: ChargeRatePow = %08X \n",stBLE_Charge_Plan.ulChargeReqEle);
 
 	ptr += data_len+1;
 	data_len = 1;
@@ -1222,7 +1222,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 		power = (power<<8) | dev_recv->apdu.apdu_data[13+ptr];//充电额定功率
 		stBLE_Charge_Plan.strChargeTimeSolts[i].ulChargePow = power;
 		
-		rt_kprintf("[bluetooth]: ChargePow = %04X \n",stBLE_Charge_Plan.strChargeTimeSolts[i].ulChargePow);
+		rt_kprintf("[bluetooth]: ChargePow = %08X \n",stBLE_Charge_Plan.strChargeTimeSolts[i].ulChargePow);
 		
 	}
 
@@ -1273,7 +1273,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Stop(struct _698_BLE_FRAME *dev_re
 {
 	rt_uint8_t i,ptr,data_len;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9+ptr];
@@ -1666,9 +1666,9 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	stBLE_Charge_Apply_Event.UserAccount[3] = 0x33;
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
-	rt_kprintf("[bluetooth]: OrderNum: %04X \n",stBLE_Charge_Apply_Event.OrderNum);
+	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Apply_Event.OrderNum);
 	
 	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Apply_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Apply_Event.StartTimestamp.Month,\
@@ -1727,23 +1727,23 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
 	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
 
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
 	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: EleActualValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: EleActualValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: EleActualValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: EleActualValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: EleActualValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ChargeEle[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ChargeEle[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ChargeEle[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ChargeEle[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ChargeEle[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ChargeEle[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: ChargeEle[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: ChargeEle[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: ChargeEle[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: ChargeEle[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 
 	
 	
@@ -2040,14 +2040,14 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime = 0;		//已充时间（单位：s）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower  = 0x1000;		//计划充电功率（单位：W，换算：-1）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower = 0x1000;	//当前充电功率（单位：W，换算：-1）
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage = 0x0891;		//当前充电电压（单位：V，换算：-1）
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent = 0x0111;			//当前充电电流（单位：A，换算：-3）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A = 0x0891;		//当前充电电压（单位：V，换算：-1）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A = 0x0111;			//当前充电电流（单位：A，换算：-3）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
-	rt_kprintf("[bluetooth]: OrderNum: %04X \n",stBLE_Charge_Exe_Event.OrderNum);
+	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Exe_Event.OrderNum);
 	
 	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Exe_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Exe_Event.StartTimestamp.Month,\
@@ -2085,23 +2085,23 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
 	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
 
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
 	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: EleActualValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: EleActualValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: EleActualValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: EleActualValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: EleActualValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ChargeEle[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ChargeEle[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ChargeEle[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ChargeEle[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ChargeEle[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ChargeEle[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: ChargeEle[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: ChargeEle[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: ChargeEle[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: ChargeEle[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
 
 	
@@ -2366,16 +2366,16 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A)&0xff;//
 	
 			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 			dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A)&0xff;//
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//执行状态
 	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
@@ -2434,7 +2434,7 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	stBLE_Charge_Apply_RSP.cAssetNO[12] = 0x30;
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	rt_kprintf("[bluetooth]: RequestNO:");
 	my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1," ");
 	rt_kprintf("[bluetooth]: AssetNO:");
@@ -2583,12 +2583,12 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	stBLE_Charge_State.ucChargeTime = 0x100;		//已充时间（单位：s）
 	stBLE_Charge_State.ucPlanPower =0x1234;		//计划充电功率（单位：W，换算：-1）
 	stBLE_Charge_State.ucActualPower = 0x1234;	//当前充电功率（单位：W，换算：-1）
-	stBLE_Charge_State.ucVoltage=0x891;		//当前充电电压（单位：V，换算：-1）
-	stBLE_Charge_State.ucCurrent = 0x33;			//当前充电电流（单位：A，换算：-3）
+	stBLE_Charge_State.ucVoltage.A=0x891;		//当前充电电压（单位：V，换算：-1）
+	stBLE_Charge_State.ucCurrent.A = 0x33;			//当前充电电流（单位：A，换算：-3）
 	stBLE_Charge_State.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）
 	
 
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	rt_kprintf("[bluetooth]: RequestNO:");
 	my_printf((char*)&stBLE_Charge_State.cRequestNO[1],stBLE_Charge_State.cRequestNO[0],MY_HEX,1," ");
 	rt_kprintf("[bluetooth]: AssetNO:");
@@ -2606,35 +2606,36 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_State.exeState);
 	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_State.ucTimeSlotNum);
 
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %04X kwh \n",stBLE_Charge_State.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %04X kwh \n",stBLE_Charge_State.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %04X kwh \n",stBLE_Charge_State.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %04X kwh \n",stBLE_Charge_State.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %04X kwh \n",stBLE_Charge_State.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[4]);
 	
-	rt_kprintf("[bluetooth]: ulEleActualValue[0]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[1]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[2]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[3]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[4]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ulEleActualValue[0]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: ulEleActualValue[1]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: ulEleActualValue[2]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: ulEleActualValue[3]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: ulEleActualValue[4]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ucChargeEle[0]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ucChargeEle[1]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ucChargeEle[2]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ucChargeEle[3]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ucChargeEle[4]: %04X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ucChargeEle[0]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: ucChargeEle[1]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: ucChargeEle[2]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: ucChargeEle[3]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: ucChargeEle[4]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
 	
 
 	ptr = 0;
 	apdu[ptr++]    = GET_REQUEST |0x80;
 	apdu[ptr++]    = 0x01;
-	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x0E;
 	apdu[ptr++]    = 0x90;		//oad 90027f00
 	apdu[ptr++]    = 0x03;
 	apdu[ptr++]    = 0x02;
-	apdu[ptr++]    = 0x00;
+	apdu[ptr++]    = 0x00;     
 	
-	apdu[ptr++]    = 0x01;  //optional
+	apdu[ptr++]    = 0x01;
+	apdu[ptr++]    = 0x01;
 	apdu[ptr++]    = 0x02;  //optional
 	apdu[ptr++]    = 0x0D;   //结构体成员2
 	
@@ -2781,16 +2782,16 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	apdu[ptr++]    = 0x01;//
 	apdu[ptr++]    = 0x01;//
 	apdu[ptr++]    = Data_long_unsigned;//
-	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage>>8)&0xff;//当前SOC
-	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage.A>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucVoltage.A)&0xff;//
 	
 	apdu[ptr++]    = 0x01;//
 	apdu[ptr++]    = 0x01;//
 	apdu[ptr++]    = Data_double_long;//
-	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>24)&0xff;//充电需求电量
-	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>16)&0xff;//
-	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent>>8)&0xff;//当前SOC
-	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent.A>>24)&0xff;//充电需求电量
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent.A>>16)&0xff;//
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent.A>>8)&0xff;//当前SOC
+	apdu[ptr++]    = (stBLE_Charge_State.ucCurrent.A)&0xff;//
 	
 	apdu[ptr++]    = Data_enum;//枪号
 	apdu[ptr++]    = 0x02;//
@@ -2995,7 +2996,8 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	
 	stBLE_Charge_Record.GunNum = 0x01;
 	
-	stBLE_Charge_Record.StartMeterValue = 0;
+//	stBLE_Charge_Record.StartMeterValue. = 0;
+	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0] = 0;
 	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1] = 0;
 	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2] = 0;
 	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3] = 0;
@@ -3016,14 +3018,14 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime = 0;		//已充时间（单位：s）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower  = 0x1000;		//计划充电功率（单位：W，换算：-1）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower = 0x1000;	//当前充电功率（单位：W，换算：-1）
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage = 0x0891;		//当前充电电压（单位：V，换算：-1）
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent = 0x0111;			//当前充电电流（单位：A，换算：-3）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A = 0x0891;		//当前充电电压（单位：V，换算：-1）
+	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A = 0x0111;			//当前充电电流（单位：A，换算：-3）
 	stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
-	rt_kprintf("[bluetooth]: OrderNum: %04X \n",stBLE_Charge_Exe_Event.OrderNum);
+	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Exe_Event.OrderNum);
 	
 	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Exe_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Exe_Event.StartTimestamp.Month,\
@@ -3061,23 +3063,23 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
 	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
 
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
 	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: EleActualValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: EleActualValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: EleActualValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: EleActualValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: EleActualValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ChargeEle[0]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ChargeEle[1]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ChargeEle[2]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ChargeEle[3]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ChargeEle[4]: %04X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ChargeEle[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: ChargeEle[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: ChargeEle[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: ChargeEle[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: ChargeEle[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
 
 	
@@ -3342,16 +3344,16 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = Data_long_unsigned;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A)&0xff;//
 	
 			dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
 			dev_recv->apdu.apdu_data[ptr++]    = Data_double_long;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>24)&0xff;//充电需求电量
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>16)&0xff;//
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent>>8)&0xff;//当前SOC
-	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>24)&0xff;//充电需求电量
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>16)&0xff;//
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A>>8)&0xff;//当前SOC
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A)&0xff;//
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//执行状态
 	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
@@ -3382,7 +3384,7 @@ rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//发送事件到策略
 {
 	g_BLE_Send_to_Strategy_event |= (0x00000001<<cmd);
 	
-	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%04X\n",cmd,g_BLE_Send_to_Strategy_event);	
+	rt_kprintf("[bluetooth]: Send cmd = %d      Strategy_event = 0x%08X\n",cmd,g_BLE_Send_to_Strategy_event);	
 	return 0;	
 }
 
@@ -3404,8 +3406,8 @@ rt_uint32_t Strategy_get_BLE_event(void)
 		}
 	}
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
-	rt_kprintf("[bluetooth]: evnet: \033[31m%s\033[0m",_698_event_char[cmd]);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: evnet: \033[32m%s\033[0m",_698_event_char[cmd]);
 	
 	switch(cmd)
 	{
@@ -3437,8 +3439,8 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 			break;
 		}
 	}
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
-	rt_kprintf("[bluetooth]: cmd: \033[31m%s\033[0m\n",_698_event_char[cmd]);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: cmd: \033[32m%s\033[0m\n",_698_event_char[cmd]);
 	
 	switch(cmd)
 	{
@@ -3453,6 +3455,8 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 		break;
 		case Cmd_ChgPlanExeState:
 			BLE_698_Charge_Exe_Event_Response(&_698_ble_frame,&stBLE_Comm);
+			rt_thread_mdelay(1000);
+			BLE_698_Charge_State_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		case Cmd_ChgPlanIssueAck:
 				BLE_698_Action_Request_Charge_Plan_Response(&_698_ble_frame,&stBLE_Comm);//未测试
@@ -3465,11 +3469,11 @@ rt_uint32_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	
 	if((g_BLE_Get_Strategy_event&(0x00000001<<cmd)) == (0x00000001<<cmd))
 	{
-		rt_kprintf("\n[bluetooth]: \033[31m%s\033[0m clear fail \n",_698_event_char[cmd]);
+		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear fail \n",_698_event_char[cmd]);
 	}
 	else
 	{
-		rt_kprintf("\n[bluetooth]: \033[31m%s\033[0m clear sucess \n",_698_event_char[cmd]);
+		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear sucess \n",_698_event_char[cmd]);
 	}
 	return 0;
 }
@@ -3478,9 +3482,9 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 {
 	rt_uint8_t result=1;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
-	rt_kprintf("[bluetooth]: cmd: \033[31m%s[033[0m \n",_698_event_char[cmd]);
+	rt_kprintf("[bluetooth]: cmd: \033[32m%s\033[0m \n",_698_event_char[cmd]);
 
 	switch(cmd){					
 		case Cmd_ChgRequest:	//启动充电 申请单  CHARGE_APPLY stBLE_Charge_Apply;	
@@ -3549,7 +3553,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 	rt_device_set_rx_indicate(bluetooth_serial, bluetooth_rx_ind);
 	
 	rt_pin_mode(BLE_PIN, PIN_MODE_OUTPUT);
-	BLE_PWR_OFF()	//模块上电
+	BLE_PWR_ON()	//模块上电
 	
 	
 	rt_thread_mdelay(3000);
