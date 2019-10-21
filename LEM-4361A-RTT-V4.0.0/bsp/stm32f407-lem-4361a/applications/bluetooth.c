@@ -3549,7 +3549,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 	rt_device_set_rx_indicate(bluetooth_serial, bluetooth_rx_ind);
 	
 	rt_pin_mode(BLE_PIN, PIN_MODE_OUTPUT);
-	BLE_PWR_ON()	//模块上电
+	BLE_PWR_OFF()	//模块上电
 	
 	
 	rt_thread_mdelay(3000);

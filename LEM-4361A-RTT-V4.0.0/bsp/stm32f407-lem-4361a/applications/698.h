@@ -889,7 +889,7 @@ static unsigned short fcstab[256]={
 */
 
 extern rt_uint32_t Strategy_get_BLE_event(void);
-
+int save_meter_no_backward(struct CharPointDataManage *hplc_data,int position,unsigned char *Res,int size);
 
 unsigned short pppfcs16(unsigned short fcs, unsigned char *cp, int len);
 int tryfcs16(unsigned char *cp, int len);
@@ -956,7 +956,7 @@ int package_for_test(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * pr
 int hplc_tx(struct CharPointDataManage *hplc_data);
 int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPointDataManage * hplc_data);
 int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataManage * hplc_data);
-int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+int security_get_package(int security_style,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
 
 int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
@@ -1006,3 +1006,4 @@ int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_dat
 int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char * array);
 
 int unsigned_char_to_int(unsigned long *intNo,unsigned char * array);
+unsigned char bcd_to_hex(unsigned char data);

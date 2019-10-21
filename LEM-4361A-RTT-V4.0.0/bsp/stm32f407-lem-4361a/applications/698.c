@@ -146,7 +146,7 @@ rt_device_t blue_tooth_serial; 	// 串口设备句柄
 struct _698_STATE hplc_698_state;
 
 void hplc_thread_entry(void * parameter){
-	int result,i=0,j=0;
+	int result,i=0,j=0,time=0,time_past=0;
 	struct CharPointDataManage hplc_data_rev,hplc_data_tx;
 	struct CharPointDataManage hplc_data_wait_list;//用不能超过2个，实际位客户机接收帧最大窗口尺寸
 	
@@ -161,7 +161,7 @@ void hplc_thread_entry(void * parameter){
 	init_698_state(&hplc_698_state);
 	rt_memset(hplc_698_state.last_link_requset_time.data,0,10);	//将时间减去
 
-
+	time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
 	test_report=1;
 	while(1){
 		
@@ -170,32 +170,49 @@ void hplc_thread_entry(void * parameter){
 //		test_dis_check=1;
 	
 
-    if(test_report){		
+    if(test_report){
+			
+			time_past=((bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second))-time;
+			if(System_Time_STR.Minute==0){
+				rt_kprintf("[hplc]  (%s)  Minute==0  \n",__func__);
+				time_past=bcd_to_hex(System_Time_STR.Second)+time-59*60;
+				time=bcd_to_hex(System_Time_STR.Second);
+			
+			}
 
-			j=i%4;
-			if(j==0)
-			{
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState \n",__func__);
-				CtrlUnit_RecResp(Cmd_ChgPlanExeState,&hplc_CHG_ORDER_EVENT,0);
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState out \n",__func__);
-				
-			}else if (j==1)
-			{
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgRequestReport \n",__func__);
-				CtrlUnit_RecResp(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,0);
-			}else if(j==2)
-			{
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord \n",__func__);
-				CtrlUnit_RecResp(Cmd_ChgRecord,&hplc_CHG_ORDER_EVENT,0);
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord out \n",__func__);
-			}	else if(j==3)
-			{
-				rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanOffer \n",__func__);
-				CtrlUnit_RecResp(Cmd_ChgPlanOffer,&hplc_PLAN_OFFER_EVENT,0);	
+			rt_kprintf("[hplc]  (%s)  time_past=%d  \n",__func__,time_past);
+			if(time_past>=15){//调发送时间
+				rt_kprintf("[hplc]  (%s)  time_past=%d >=40 \n",__func__,time_past);				
+				time_past=0;
+				time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
+				j=i%4;
+				if(j==0)
+				{
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRequestReport \n",__func__);//充电申请事件上送
+					CtrlUnit_RecResp(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,0);
+
+					
+				}else if (j==1)
+				{
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanOffer \n",__func__);//充电计划事件上报
+					CtrlUnit_RecResp(Cmd_ChgPlanOffer,&hplc_PLAN_OFFER_EVENT,0);	
+
+				}else if(j==2)
+				{
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState \n",__func__);//充电计划执行状态事件上报
+					CtrlUnit_RecResp(Cmd_ChgPlanExeState,&hplc_CHG_ORDER_EVENT,0);
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState out \n",__func__);
+				}	else if(j==3)
+
+				{
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord \n",__func__);//上送充电订单
+					CtrlUnit_RecResp(Cmd_ChgRecord,&hplc_CHG_ORDER_EVENT,0);
+					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord out \n",__func__);
+
+
+				}	
+				i++;
 			}	
-			
-			
-			i++;
 		}
 
 
@@ -232,7 +249,6 @@ void hplc_thread_entry(void * parameter){
 					}else{//下面是需要回复的情况
 						rt_kprintf("[hplc]  (%s)  TX:\n",__func__);
 //					printmy(&hplc_data_tx._698_frame);
-						rt_kprintf("[hplc]  (%s)  time = %0x:%0x:%0x\n",__func__,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 						hplc_tx_frame(&hplc_698_state,hplc_serial,&hplc_data_tx);//发送数据
 					}					
 				}					
@@ -401,7 +417,7 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 			rt_thread_mdelay(200);						
 	
 			times++;
-			if(times==200){//10秒判断超时,全清空
+			if(times==40){//10秒判断超时,全清空
 
 				times=0;
 				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d over time! \n",__func__,priv_698_state->len_left);				
@@ -3167,7 +3183,6 @@ int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STAT
 			result=-1;
 			rt_kprintf("[hplc]  (%s)     oi_electrical_energy \n",__func__);
 			result=get_response_electrical_oia(_698_frame_rev,priv_698_state,hplc_data);
-
 			break;
 		
 		
@@ -3175,7 +3190,6 @@ int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STAT
 			result=-1;
 			rt_kprintf("[hplc]  (%s)     oi_variable \n",__func__);
 			result=get_response_variable_oia(_698_frame_rev,priv_698_state,hplc_data);
-
 			break;		
 		
 		
@@ -3184,22 +3198,19 @@ int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STAT
 			result=-1;
 			rt_kprintf("[hplc]  (%s)     oi_parameter \n",__func__);
 			result=get_response_parameter_oia(_698_frame_rev,priv_698_state,hplc_data);
-
 			break;
 
 		case(9)://9 充电的类型,
 			result=-1;
 			rt_kprintf("[hplc]  (%s)     chargepile \n",__func__);
 			result=get_response_charge_oia(_698_frame_rev,priv_698_state,hplc_data);
-
 			break;
 
 		case(0xf)://获取esam信息
 			result=-1;
 			rt_kprintf("[hplc]  (%s)    esam \n",__func__);
 //			for(i=0;i<0;i++){
-			
-				result=get_response_esam_oia(_698_frame_rev,priv_698_state,hplc_data);		
+							result=get_response_esam_oia(_698_frame_rev,priv_698_state,hplc_data);		
 //			}
 
 
@@ -3238,7 +3249,7 @@ int unpatch_ScmEsam_Comm(struct CharPointDataManage * hplc_data,ScmEsam_Comm* l_
 		rt_kprintf("[hplc]  (%s)  [1]!=1\n",__func__);	
 	}
 	
-	if(hplc_data->_698_frame.usrData[2]==0x81){//超过7f，在长度前面会加0x81
+	if((hplc_data->_698_frame.usrData[2]==0x81)||(hplc_data->_698_frame.usrData_len==0x82)){//超过7f，在长度前面会加0x81
 		rt_kprintf("[hplc]  (%s) length more then 1024   \n",__func__);
 		len_data=hplc_data->_698_frame.usrData[3]*256+hplc_data->_698_frame.usrData[4];//data长度
 
@@ -3306,7 +3317,7 @@ int unpatch_ScmEsam_Comm(struct CharPointDataManage * hplc_data,ScmEsam_Comm* l_
   密文传输
 
 */
-int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+int security_get_package(int security_style,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
 	int result=0,len_data=0,len_mac=0;//不发送返回1,如果发送，result=0;
 	unsigned char temp_char;
 	//return -1;//没有实现
@@ -3315,8 +3326,13 @@ int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDat
 
 	hplc_ScmEsam_Comm.DataTx_len=hplc_data->_698_frame.usrData_len;
 	my_strcpy(hplc_ScmEsam_Comm.Tx_data,hplc_data->_698_frame.usrData,0,hplc_data->_698_frame.usrData_len);
+	if(security_style){//密文
+			hplc_current_ESAM_CMD=HOST_SESS_CALC_MAC_A7;
+	}else{
+			hplc_current_ESAM_CMD=HOST_SESS_CALC_MAC_11;
+	}
+
 	
-	hplc_current_ESAM_CMD=HOST_SESS_CALC_MAC_11;
 	ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);
 
 
@@ -3333,7 +3349,7 @@ int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDat
 	temp_char=security_response;//
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
-	temp_char=1;//密文
+	temp_char=security_style;//密文
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	if((len_data)>0x7f){//
@@ -3347,6 +3363,15 @@ int security_get_package(struct _698_STATE  * priv_698_state,struct CharPointDat
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 		
 	
+	}else if((len_data)>0xff){
+		temp_char=0x82;//
+		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+			
+		temp_char=len_data%256;//长度
+		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+			
+		temp_char=len_data/256;//长度
+		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	}else{
 		temp_char=len_data;//长度
 		save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -3470,33 +3495,86 @@ int report_response_notice_user_Record(struct  _698_FRAME  *_698_frame_rev,struc
 	
 	
 	num=_698_frame_rev->usrData[3];//一个report_response  一个类型，一个piid  , 一个 长度
-	
-				
-				
-				
-	if(num==17){//充电申请事件有应答
+		
+	if(num==0x11){//充电申请事件有应答
 		for(i=0;i<num;i++){
 			oad_package(&priv_698_state->oad_omd,_698_frame_rev,(4+4*i));//跟oad复用		
-
 			if(priv_698_state->oad_omd.oi[0]==CHARGE_APPLY_oad_array[4*i]){
 				if(priv_698_state->oad_omd.oi[1]==CHARGE_APPLY_oad_array[4*i+1]){
 					if(priv_698_state->oad_omd.attribute_id==CHARGE_APPLY_oad_array[4*i+2]){
 						if(priv_698_state->oad_omd.attribute_index==CHARGE_APPLY_oad_array[4*i+3]){
-
-//							strategy_event_send();//通知周，上报的充电申请事件有应答
-								
-						}	
+								rt_kprintf("[hplc]  (%s)   the %d oad is right \n",__func__,i);
+							  if(i==(num-1)){
+//								strategy_event_send();//通知周，上报的充电申请事件有应答										
+								}						
+						}else{
+							break;
+							rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+						}		
+					}else{
+						break;
+						rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
 					}	
-				}	
-			}
-
-
-
-			
+				}else{
+					break;
+					rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+				}		
+			}else{
+				break;
+				rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+			}		
 		}
-
 	}
-		
+
+//	if(num==0x11){//充电计划事件上报有应答
+//		for(i=0;i<num;i++){
+//			oad_package(&priv_698_state->oad_omd,_698_frame_rev,(4+4*i));//跟oad复用		
+//			if(priv_698_state->oad_omd.oi[0]==[4*i]){
+//				if(priv_698_state->oad_omd.oi[1]==[4*i+1]){
+//					if(priv_698_state->oad_omd.attribute_id==[4*i+2]){
+//						if(priv_698_state->oad_omd.attribute_index==[4*i+3]){
+//								rt_kprintf("[hplc]  (%s)   the %d oad is right \n",__func__,i);
+//							  if(i==(num-1)){
+////								strategy_event_send();//通知周，上报的充电申请事件有应答										
+//								}						
+//						}else{
+//							break;
+//							rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+//						}		
+//					}else{
+//						break;
+//						rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+//					}	
+//				}else{
+//					break;
+//					rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+//				}		
+//			}else{
+//				break;
+//				rt_kprintf("[hplc]  (%s)   not CHARGE_APPLY \n",__func__); 				
+//			}		
+//		}
+//	}
+
+
+
+
+	
+
+
+
+
+	
+	
+	
+
+
+
+
+
+
+
+	
 	return result;	
 
 }
@@ -4357,23 +4435,49 @@ result==1，不需要发送
 int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev){
 	int i,result=1,usr_data_size=0;//不发送返回1,如果发送，result=0;
 	unsigned char temp_char;
-	int security_flag=0;
+	int security_flag=0,needEsam_flag=0,position_data=0;
 	if(data_rev->_698_frame.usrData[0]==security_request){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
 		rt_kprintf("[hplc]  (%s)  security_request \n",__func__);
     //结构体赋值，共同部分
-		
-		unpatch_ScmEsam_Comm(data_rev,&hplc_ScmEsam_Comm);
-		
-		hplc_current_ESAM_CMD=HOST_SESS_VERI_MAC;//主站会话解密验证MAC
-		ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);//spi会打印结果
 
-		if(data_rev->_698_frame.usrData[2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1])){
-			rt_kprintf("[hplc]  (%s)  [2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256 \n",__func__);		
+		if(data_rev->_698_frame.usrData[1]==1){//密文+mac
+			unpatch_ScmEsam_Comm(data_rev,&hplc_ScmEsam_Comm);
+			
+			hplc_current_ESAM_CMD=HOST_SESS_VERI_MAC;//主站会话解密验证MAC
+			ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);//spi会打印结果
+
+			if(data_rev->_698_frame.usrData[2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1])){
+				rt_kprintf("[hplc]  (%s)  [2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256 \n",__func__);		
+			}
+
+			data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
+			my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,4,data_rev->_698_frame.usrData_len);//	
+			
+			needEsam_flag=1;
+		}else if(data_rev->_698_frame.usrData[1]==0){//明文
+
+				if((data_rev->_698_frame.usrData_len==0x81)||(data_rev->_698_frame.usrData_len==0x82)){//超过7f，在长度前面会加0x81 抄255是82
+					rt_kprintf("[hplc]  (%s) length more then 1024   \n",__func__);
+					data_rev->_698_frame.usrData_len=data_rev->_698_frame.usrData[3]*256+data_rev->_698_frame.usrData[4];//data长度
+
+					position_data=(4+1);//开始位置就是2+1=3   1是数据类型	
+				}else{
+					data_rev->_698_frame.usrData_len=data_rev->_698_frame.usrData[2];//data长度
+
+					position_data=(2+1);//开始位置就是2+1=3   1是数据类型	
+				}
+			
+			data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
+			my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,position_data,data_rev->_698_frame.usrData_len);//	
+			
+
+			
 		}
 
-		data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
-		my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,0,data_rev->_698_frame.usrData_len);//	
-
+		
+		
+		
+		
 		rt_kprintf("[hplc]  (%s)  after unsecurity : \n",__func__);
 		for(i=0;i<data_rev->_698_frame.usrData_len;i++){
 			rt_kprintf("%0x ",data_rev->_698_frame.usrData[i]);
@@ -4474,9 +4578,14 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 	
 	if((security_flag==1)&&(result==0)){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
 		//将用户数据整个地加密，然后重新打包
+		security_flag=0;
 		rt_kprintf("[hplc]  (%s)  security_flag==1  \n",__func__);
-		data_tx->dataSize=usr_data_size;
-		result=security_get_package(priv_698_state,data_tx);
+
+
+			data_tx->dataSize=usr_data_size;
+			result=security_get_package(needEsam_flag,priv_698_state,data_tx);		
+			needEsam_flag=0;		
+
 	}	
 	
 	
@@ -4785,6 +4894,41 @@ int array_deflate(unsigned char *data, int size,int de_size){
 	data = p;
 	return -1;	*/
 }
+
+
+/*
+
+
+
+*/
+
+int save_meter_no_backward(struct CharPointDataManage *hplc_data,int position,unsigned char *Res,int size){
+	int i=0;
+	if(size<0){
+		return -1;
+	
+	}	
+	//rt_kprintf("[hplc]  (%s)  save_char_point_data  get inside hplc_data->size=%d !\n",__func__,hplc_data->size);
+	
+	if(hplc_data->size > (position+size)){//空间还有
+		
+		for(i=0;i<size;i++){
+			hplc_data->priveData[position+i]=Res[size-1-i];
+			
+		}
+		
+		hplc_data->dataSize+=size;//不一定等于position,用户多帧响应的情况
+		//rt_kprintf("[hplc]  (%s)  save_char_point_data  hplc_data->dataSize = %d!\n",__func__,hplc_data->dataSize);
+	}else{
+		rt_kprintf("[hplc]  (%s)  hplc_data->size=%d < !position+size %d  and return -1\n",__func__,hplc_data->size,position+size);		
+		return -1;
+
+	}		
+	
+	return 0;	
+}
+
+
 /*
 
 
@@ -5230,8 +5374,8 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 //			if(security_flag==1){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
 				//将用户数据整个地加密，然后重新打包
 
-				data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-				result=security_get_package(priv_698_state,data_tx);
+//				data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+//				result=security_get_package(priv_698_state,data_tx);
 //			}	
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}		
@@ -5247,8 +5391,8 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
 			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
+//			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+//			result=security_get_package(priv_698_state,data_tx);
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}		
@@ -5263,8 +5407,8 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 			rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
 			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
+//				data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+//			result=security_get_package(priv_698_state,data_tx);
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据
 			//printmy(&data_tx->_698_frame);
@@ -5283,8 +5427,8 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 			rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
 			
-			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
+//			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
+//			result=security_get_package(_698_RouterExeState.usrData[?],priv_698_state,data_tx);
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据
 			//printmy(&data_tx->_698_frame);
@@ -5305,7 +5449,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 			
 			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
+			result=security_get_package(1,priv_698_state,data_tx);
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}		
@@ -5322,7 +5466,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 			
 			data_tx->dataSize=9+data_tx->_698_frame.usrData[4];
-			result=security_get_package(priv_698_state,data_tx);
+			result=security_get_package(1,priv_698_state,data_tx);
 			
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}				
@@ -5450,6 +5594,7 @@ int hplc_tx_frame(struct _698_STATE  * priv_698_state,rt_device_t serial,struct 
 	rt_device_write(hplc_serial, 0, &buf, 4);
 	rt_device_write(hplc_serial, 0, data_tx->priveData, data_tx->dataSize);//必须用dma的方式，要不然会消耗太多时间	
 	rt_kprintf("[hplc]  (%s) :\n",__func__);
+	rt_kprintf("[hplc]  (%s)  time = %0x:%0x:%0x\n",__func__,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 	for(i=0;i<data_tx->dataSize;i++){
 		rt_kprintf("%02x ",data_tx->priveData[i]);	
 	}
@@ -5549,7 +5694,7 @@ int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 
 int get_meter_addr(unsigned char * addr){//需要别人提供接口
 unsigned char tmp_addr[6];
-	addr[0]=0x55;
+	addr[0]=0x11;
 	addr[1]=0x00;	
 	addr[2]=0x00;
 	addr[3]=0x00;
@@ -5674,6 +5819,17 @@ int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_dat
 
 
 }
+
+unsigned char bcd_to_hex(unsigned char data)
+{
+    unsigned char temp;
+ 
+    temp = ((data>>4)*10 + (data&0x0f));
+    return temp;
+}
+
+
+
 
 int unsigned_char_to_int(unsigned long *intNo,unsigned char * array){
 	*intNo=0;
@@ -5949,7 +6105,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 
-	_698_oad_omd(0x3408,0x0200,hplc_data);	// 充电计划上报事件
+	_698_oad_omd(0x3408,0x0200,hplc_data);	// 上报充电订单结算事件
 
 	temp_char=0x13;//len
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
@@ -5990,9 +6146,10 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 	temp_char=(priv_698_state->addr.s_addr_len-1);//数据长度
-	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
+	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
+	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
+//	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
 
 	temp_char=Data_array;//所有的oad看做是array
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -6207,14 +6364,14 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	_698_oad_omd(0x2a02,0x0200,hplc_data);	// 第1列OAD
+	_698_oad_omd(0x202a,0x0200,hplc_data);	// 第1列OAD
 
 
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 
-	_698_oad_omd(0x3404,0x0200,hplc_data);	// 充电计划上报事件
+	_698_oad_omd(0x3404,0x0200,hplc_data);	// 上报充电计划执行事件
 
 	temp_char=0x12;//len
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
@@ -6256,7 +6413,8 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	temp_char=(priv_698_state->addr.s_addr_len-1);//数据长度
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 	
-	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
+	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
+//	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
 
 	temp_char=Data_array;//所有的oad看做是array
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -6463,7 +6621,7 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	_698_oad_omd(0x2a02,0x0200,hplc_data);	// 第1列OAD
+	_698_oad_omd(0x202a,0x0200,hplc_data);	// 第1列OAD
 
 
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
@@ -6509,9 +6667,10 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 	temp_char=(priv_698_state->addr.s_addr_len-1);//数据长度
-	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
+	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
+	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
+//	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
 
 	temp_char=Data_array;//所有的oad看做是array
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -6720,7 +6879,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	_698_oad_omd(0x2a02,0x0200,hplc_data);// 第1列OAD	
+	_698_oad_omd(0x202a,0x0200,hplc_data);// 第1列OAD	
 	
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
@@ -6751,7 +6910,8 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 	temp_char=(priv_698_state->addr.s_addr_len-1);//地址长度
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 	
-	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
+	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);
+//	save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
 
 	temp_char=Data_array;//所有的oad看做是array
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -6969,10 +7129,10 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 	}else if(report_type==Cmd_ChgPlanOffer){ //充电计划事件上报
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanOffer   \n",__func__);
 		result=report_PLAN_OFFER_package((PLAN_OFFER_EVENT *)report_struct,priv_698_state,hplc_data);		
-	}else if(report_type==Cmd_ChgPlanExeState){ //充电计划事件上报
+	}else if(report_type==Cmd_ChgPlanExeState){ //
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanExeState   \n",__func__);
 		result=report_CHARGE_EXE_EVENT_package((CHARGE_EXE_EVENT *)report_struct,priv_698_state,hplc_data);		
-	}else if(report_type==Cmd_ChgRecord){ //充电计划事件上报
+	}else if(report_type==Cmd_ChgRecord){ //
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgRecord   \n",__func__);
 		result=report_CHG_ORDER_package((CHG_ORDER_EVENT *)report_struct,priv_698_state,hplc_data);		
 	}else {
