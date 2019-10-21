@@ -91,7 +91,7 @@ _698_PLAN_FAIL_EVENT _698_pile_fail_event;
 _698_CHARGE_EXE_STATE _698_charge_exe_state;
 
 struct  _698_FRAME _698_RouterExeState;////路由器执行状态查询Cmd_RouterExeState
-unsigned char _698_RouterExeState_data[100];
+unsigned char _698_RouterExeState_data[200];
 
 
 
@@ -2784,7 +2784,8 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}										
 					
-					copy_698_frame(&_698_RouterExeState,_698_frame_rev);//拷贝698帧
+					_698_RouterExeState=*_698_frame_rev;
+					
 					strategy_event_send(AskState_EVENT);
 					return 2;//发送事件	
 				}
@@ -3345,7 +3346,7 @@ int security_get_package(int security_style,struct _698_STATE  * priv_698_state,
 		rt_kprintf("[hplc]  (%s)  len_mac=%d\n",__func__,len_mac);
 	}
 
-	
+//	data_tx->dataSize=	
 	temp_char=security_response;//
 	save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
@@ -4436,6 +4437,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 	int i,result=1,usr_data_size=0;//不发送返回1,如果发送，result=0;
 	unsigned char temp_char;
 	int security_flag=0,needEsam_flag=0,position_data=0;
+	
 	if(data_rev->_698_frame.usrData[0]==security_request){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
 		rt_kprintf("[hplc]  (%s)  security_request \n",__func__);
     //结构体赋值，共同部分
@@ -4454,7 +4456,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 			my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,4,data_rev->_698_frame.usrData_len);//	
 			
 			needEsam_flag=1;
-		}else if(data_rev->_698_frame.usrData[1]==0){//明文
+		}else if(data_rev->_698_frame.usrData[1]==0){//明文+mac
 
 				if((data_rev->_698_frame.usrData_len==0x81)||(data_rev->_698_frame.usrData_len==0x82)){//超过7f，在长度前面会加0x81 抄255是82
 					rt_kprintf("[hplc]  (%s) length more then 1024   \n",__func__);
@@ -4468,7 +4470,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 				}
 			
 			data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
-			my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,position_data,data_rev->_698_frame.usrData_len);//	
+			my_strcpy(data_rev->_698_frame.usrData,data_rev->_698_frame.usrData,position_data,data_rev->_698_frame.usrData_len);//	
 			
 
 			
@@ -4483,7 +4485,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 			rt_kprintf("%0x ",data_rev->_698_frame.usrData[i]);
 		}
 		rt_kprintf("\n");	
-		usr_data_size=data_tx->dataSize;
+
 		
 		security_flag=1;
 	}
@@ -4582,7 +4584,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		rt_kprintf("[hplc]  (%s)  security_flag==1  \n",__func__);
 
 
-			data_tx->dataSize=usr_data_size;
+			data_tx->dataSize=usr_data_size;//暂时没用
 			result=security_get_package(needEsam_flag,priv_698_state,data_tx);		
 			needEsam_flag=0;		
 
