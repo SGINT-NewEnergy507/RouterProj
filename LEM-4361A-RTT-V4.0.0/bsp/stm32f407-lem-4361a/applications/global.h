@@ -59,7 +59,7 @@ typedef enum {
 	RtSt_StandbyOK,          	// 待机正常
 	RtSt_InCharging,           	// 充电中
 	RtSt_DisCharging,          	// 放电中
-	RtSt_Charged,				// 充放电完成（3秒回待机）
+	RtSt_Finished,				// 充放电完成（3秒回待机）
 	RtSt_Fault,           		// 故障
 	RtSt_Update,				// 升级中
 }ROUTER_WORKSTATE;/*路由器状态*/

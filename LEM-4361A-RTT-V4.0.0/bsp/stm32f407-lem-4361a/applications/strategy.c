@@ -94,6 +94,7 @@ static void ChgReqReportResp_Timeout(void *parameter)
     rt_lprintf("[strategy] : ChgReqReportResp event is timeout!\n");
 	//本地存储
 	SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
+	rt_timer_stop(ChgReqReportRsp);
 }
 /**************************************************************
  * 函数名称: ChgReqReportResp_Timeout 
@@ -104,6 +105,8 @@ static void ChgReqReportResp_Timeout(void *parameter)
 static void ChgPileStateGet_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgPileStateGet event is timeout!\n");
+	//查询充电桩状态
+	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 }
 /**************************************************************
  * 函数名称: timer_create_init 
@@ -113,18 +116,21 @@ static void ChgPileStateGet_Timeout(void *parameter)
  **************************************************************/
 static void timer_create_init()
 {
-    /* 创建充电申请上送回复定时器 */
+    /* 创建 充电申请上送回复 定时器 */
 	 ChgReqReportRsp = rt_timer_create("ChgReqReportRsp",  /* 定时器名字是 ChgReqReportRsp */
 									ChgReqReportResp_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
 									5000, /* 定时长度，以OS Tick为单位，即5000个OS Tick */
 									RT_TIMER_FLAG_ONE_SHOT); /* 一次性定时器 */
-	
+	/* 创建 充电桩状态查询 定时器 */
 	ChgPileStateGet = rt_timer_create("ChgPileStateGet",  /* 定时器名字是 ChgPileStateGet */
 									ChgPileStateGet_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
 									1000, /* 定时长度，以OS Tick为单位，即5000个OS Tick */
 									RT_TIMER_FLAG_ONE_SHOT); /* 一次性定时器 */
+	/* 启动定时器 */
+	if (ChgPileStateGet != RT_NULL)
+		rt_timer_start(ChgPileStateGet);
 }
 /********************************************************************  
 *	函 数 名: ChgPlan_RecProcess()
@@ -330,14 +336,21 @@ static void ChgPlan_RecProcess(void)
 ********************************************************************/ 
 static void RtState_Judge(void)
 {
-	//查询充电桩状态
-	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 	if(ChargePilePara_Get.ChgPileState == ChgSt_Fault)
 	{
 		Fault.Bit.ChgPile_Fau = TRUE;	
 	}	
+	else if(ChargePilePara_Get.ChgPileState == ChgSt_InCharging)
+	{
+		PileIfo.WorkState = RtSt_InCharging;
+	}
+	else if(ChargePilePara_Get.ChgPileState == ChgSt_Finished)
+	{
+		PileIfo.WorkState = RtSt_Finished;
+	}
 	
-	
+	if(Fault.Total == TRUE)
+		PileIfo.WorkState = RtSt_Fault;	
 }
 
 static void strategy_thread_entry(void *parameter)
@@ -345,6 +358,7 @@ static void strategy_thread_entry(void *parameter)
 	rt_err_t res;
 	
 //	Fault.Total = FALSE;
+	PileIfo.WorkState = RtSt_StandbyOK;//待机正常
 	rt_thread_mdelay(100);
 	
 	while (1)
@@ -360,7 +374,7 @@ int strategy_thread_init(void)
 {
 	rt_err_t res;
 	
-	
+	PileIfo.WorkState = RtSt_Starting;//开机中
 	Chg_ExeState.exeState = EXE_NULL;
 	memset(&Plan_Offer_Event,0,sizeof(PLAN_OFFER_EVENT));
 	memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));
