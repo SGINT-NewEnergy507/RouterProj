@@ -43,7 +43,7 @@ u16 Pro_Version = 0x0110;
 static char CrjPileVersion[8] = {"V1.0.05"}; // 版本号
 u8 software_date[8]={0};//软件生成日期 初始化为空格
 u8 software_time[6]={0};//软件生成时间
-u32 can_heart_count = 0;
+static u32 can_heart_count = 0;
 static char  USARTx_TX_BUF[256] = {0};
 static char Printf_buff[8];
 #define FlashBufLenMax             1024
@@ -487,7 +487,7 @@ static rt_timer_t CAN_250ms_Tx;
 static void CAN_Heart_Tx_callback(void* parameter);
 static void CAN_250ms_Tx_callback(void* parameter);
 
-ChargPilePara_TypeDef STR_ChargPilePara;
+static ChargPilePara_TypeDef STR_ChargPilePara;
 
 void *RetStructADDR[End_cmdListNum];
 /**************************************************************
@@ -541,11 +541,16 @@ rt_uint8_t ChargepileDataGetSet(COMM_CMD_P cmd,void *STR_SetGetPara)
 			result = SUCCESSFUL;
 		
 			break;
-//		case Cmd_GetPower://
-//			((ChargPilePara_TypeDef*)STR_SetGetPara)->PWM_Duty = STR_ChargPilePara.PWM_Duty;
-//			result = SUCCESSFUL;
-//		
-//			break;		
+		case Cmd_SetPowerResp://
+			((ChargPilePara_TypeDef*)STR_SetGetPara)->PWM_Duty = STR_ChargPilePara.PWM_Duty;
+			result = SUCCESSFUL;
+		
+			break;		
+		case Cmd_GetPilePara://
+			memcpy((ChargPilePara_TypeDef*)STR_SetGetPara,&STR_ChargPilePara,sizeof(ChargPilePara_TypeDef));
+			result = SUCCESSFUL;
+		
+			break;		
 		case Cmd_RdVertion://
 			result = SUCCESSFUL;
 		
@@ -609,18 +614,18 @@ static void chargepile_thread_entry(void *parameter)
 	while (1)
 	{
 
-		if((STR_ChargePile_A.ChgState == state_Standby)&&(RunTime%5 == 0x00))
-		{
-			ChargPilePara_TypeDef *STR_CHG_test = NULL;
-			ChargepileDataGetSet(Cmd_ChargeStart,STR_CHG_test);
-			rt_lprintf("[chargepile]:下发启动充电命令\n");
-		}
-		else if((STR_ChargePile_A.ChgState == state_Charging)&&(RunTime%10 == 0x00))
-		{
-			ChargPilePara_TypeDef *STR_CHG_test = NULL;
-			ChargepileDataGetSet(Cmd_ChargeStop,STR_CHG_test);
-			rt_lprintf("[chargepile]:下发停止充电命令\n");
-		}		
+//		if((STR_ChargePile_A.ChgState == state_Standby)&&(RunTime%5 == 0x00))
+//		{
+//			ChargPilePara_TypeDef *STR_CHG_test = NULL;
+//			ChargepileDataGetSet(Cmd_ChargeStart,STR_CHG_test);
+//			rt_lprintf("[chargepile]:下发启动充电命令\n");
+//		}
+//		else if((STR_ChargePile_A.ChgState == state_Charging)&&(RunTime%10 == 0x00))
+//		{
+//			ChargPilePara_TypeDef *STR_CHG_test = NULL;
+//			ChargepileDataGetSet(Cmd_ChargeStop,STR_CHG_test);
+//			rt_lprintf("[chargepile]:下发停止充电命令\n");
+//		}		
 		
 		switch(STR_ChargePile_A.ChgState)
 		{
@@ -678,7 +683,7 @@ static void chargepile_thread_entry(void *parameter)
 			
 				break;
 			case state_WaitStop://等待停止充电应答帧
-				rt_lprintf("chargepile:State_WaitStop\n");
+				rt_lprintf("chargepile:state_WaitStop\n");
 			
 				break;
 			case state_ChargEnd://等待停止充电应答帧
@@ -750,17 +755,27 @@ static void chargepileRev_thread_entry(void *parameter)
 		}
 		else
 		{
-//			rt_lprintf("[chargepileRev]:没有can数据res=%d\n",res);
+
 		}
 
-//        can1RevCycleCount++;
-//		//定时上传
-//		if(can1RevCycleCount >= (1000/can1RevCycle))
-//		{		
-//			Inform_Communicate_Can(HeartSendFrame,FALSE);
-//			can1RevCycleCount = 0;
-//		}
-//		rt_lprintf("[chargepileRev]:没有can数据res=%d\n",res);
+		can1RevCycleCount++;
+		//定时上传
+		if(can1RevCycleCount >= (1000/can1RevCycle))//1000对应1秒
+		{		
+			Inform_Communicate_Can(HeartSendFrame,FALSE);
+			Inform_Communicate_Can(YcSendDataFrame,FALSE);
+			can1RevCycleCount = 0;
+		}
+		
+		can_heart_count++;	
+		if(can_heart_count >= (10000/can1RevCycle))// 10s收不到任何数据 重新连接
+		{
+            STR_ChargePile_A.TotalFau |= PILE_Board_FAULT;
+			can_heart_count = 0x00; //清空心跳包计数
+			STR_ChargePile_A.ChgState = state_WaitVertionCheck;		
+			rt_lprintf("can1_task:NO Receive Heart,Reboot!\r\n"); //
+		}
+
 		rt_thread_mdelay(can1RevCycle);
 	}
 }
@@ -1894,10 +1909,13 @@ void CAN_V110_RecProtocal(void)
 			rt_lprintf("CAN_V110_Rec:Rec ChargeStopFrameAck\n");
 			StrStateSystem.ChargIdent = pCan->data[0];       //充电接口标识
 //			strCharStop.StopChargReson = pCan->data[1];      //停止充电原因0x01-正常停止0x02-故障终止0x03计费单元判断充电控制器故障停止
-			STR_ChargePile_A.ChgState = state_WaitStop;
-			WaitStop_time = 0;
-			rt_lprintf("Waring:State_WaitStop,WaitStop_time\n");
-			
+			if(STR_ChargePile_A.ChgState == state_Charging)
+			{				
+				STR_ChargePile_A.ChgState = state_WaitStop;
+				WaitStop_time = 0;
+				rt_lprintf("Waring:state_WaitStop,WaitStop_time\n");
+			}
+
 			break;
 		}
 		case TimingFrame:	//能源路由器向充电控制器发送对时命令：优先级0x06；PF：0x05。
@@ -2009,33 +2027,7 @@ void CAN_V110_RecProtocal(void)
 			{
 				rt_lprintf("Waring:Receive Double ChargeServeOnOffFrame!\n");
 				break;
-			}				
-			
-//				if(pCan->data[1] == SEVICEOK)
-//				{
-//					strChgSevCtrl.ChargSeveiceCmd = SEVICEOK;
-//					strChgSevCtrl.CtrlState  = CTRLOK;
-//					strChgSevCtrl.Ctrreaon= 0; 
-//				}
-//				else if((STR_ChargePile_A.TotalFau&PILE_Board_FAULT) == PILE_Board_FAULT)	//通信超时
-//				{
-//					strChgSevCtrl.ChargSeveiceCmd = pCan->data[1];
-//					strChgSevCtrl.CtrlState       = CTRLERR;
-//					strChgSevCtrl.Ctrreaon       = 2;		
-//				}
-//				else if((pCan->data[1]<1)||(pCan->data[1]>2))
-//				{
-//					strChgSevCtrl.ChargSeveiceCmd = pCan->data[1];
-//					strChgSevCtrl.CtrlState       = CTRLERR;
-//					strChgSevCtrl.Ctrreaon       = 1;
-//				}
-//				else
-//				{
-//					StrStateSystem.ChgSeviceState =      SEVICESTOP;
-//					strChgSevCtrl.ChargSeveiceCmd = SEVICESTOP;
-//					strChgSevCtrl.CtrlState       = CTRLOK;
-//					strChgSevCtrl.Ctrreaon       = 0;
-//				}
+			}
 
 			Inform_Communicate_Can(ChargeServeOnOffFrameAck,TRUE);//充电服务启停应答
 
@@ -2088,76 +2080,7 @@ void CAN_V110_RecProtocal(void)
 			}					
 			
 			StrStateSystem.ChargIdent = pCan->data[0];    // 充电接口标识
-//				strcapacity.C_capacity_style = pCan->data[1]; // 功率调节类型
-//				strcapacity.C_capacity_value = (pCan->data[3]<<8)|pCan->data[2];			
-//				if(strcapacity.C_capacity_style == 1) // 功率绝对值
-//				{
-//					if(strcapacity.C_capacity_value >=10000)
-//					{
-//						temp = strcapacity.C_capacity_value-10000;
-//						rt_lprintf("CAN_V110_Rec:SetPower=%u.%ukW!\n",temp/10,temp%10);
-//						if(temp<=200)
-//						{
-//							temp = temp*100*5/22/9;   //20 000/220/3 *5/3
-//							if((temp < PWMDUTYRATIOMAX)&&(temp > PWMDUTYRATIOMIN))
-//							{
-//								STR_ChargePile_A.PWM_Duty = temp;
-//								StrStateSystem.ReplyState = SUCCESSFUL;
-//								StrStateSystem.reaonIdent = 0;
-//							}
-//							else
-//							{						 	
-//								STR_ChargePile_A.PWM_Duty = PWMDUTYRATIOMIN;
-//								StrStateSystem.ReplyState = FAILED;
-//								StrStateSystem.reaonIdent = 1;
-//							}
-//							rt_lprintf("CAN_V110_Rec:PWM_Duty1=%d!\n",STR_ChargePile_A.PWM_Duty);	
-//						}
-//						else
-//						{
-//							StrStateSystem.ReplyState = FAILED;
-//							StrStateSystem.reaonIdent = 1;
-//						}
-//					}
-//					else
-//					{
-//						StrStateSystem.ReplyState = FAILED;
-//						StrStateSystem.reaonIdent = 1;
-//					}
-//			    }
-//			    else if(strcapacity.C_capacity_style == 2) // 占空比
-//			    {
-//				  if(strcapacity.C_capacity_value<=100)
-//				  {
-//					  temp =(long) POWERMAX*strcapacity.C_capacity_value*10/132;
-//				 
-//					  if(temp < PWMDUTYRATIOMAX)
-//					  {
-//						 STR_ChargePile_A.PWM_Duty = temp;
-//						 StrStateSystem.ReplyState = SUCCESSFUL;
-//						 StrStateSystem.reaonIdent = 0;
-//					  }
-//					  else
-//					  { 
-//						 STR_ChargePile_A.PWM_Duty =  PWMDUTYRATIOMAX;
-//						 StrStateSystem.ReplyState = FAILED;
-//						 StrStateSystem.reaonIdent = 1;
-
-//					  }
-//					  rt_lprintf("CAN_V110_Rec:PWM_Duty2=%d!\n",STR_ChargePile_A.PWM_Duty);						  
-//				  }
-//				  else
-//				  {
-//					  StrStateSystem.ReplyState = FAILED;
-//					  StrStateSystem.reaonIdent = 1;
-//				  }				  
-//			  }
-//			  else
-//			  {
-//				  StrStateSystem.ReplyState = FAILED;
-//				  StrStateSystem.reaonIdent = 1;
-//			  }
-		  Inform_Communicate_Can(PowerAdjustFrameAck,FALSE); // 功率调节应答
+			Inform_Communicate_Can(PowerAdjustFrameAck,FALSE); // 功率调节应答
 
 		  break;
 		}
@@ -2183,8 +2106,8 @@ void CAN_V110_RecProtocal(void)
 
 			StrStateFrame.ChargeStartStateFrameAckReSendFlag = TRUE;
 			rt_lprintf("CAN_V110_Rec:Receive ChargeStartStateFrame\n");
-//				rt_timer_stop(DownCount_Time);	//关闭定时器	
-//				rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
+//			rt_timer_stop(DownCount_Time);	//关闭定时器	
+//			rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
 
 			break;
 		}		
@@ -2209,8 +2132,8 @@ void CAN_V110_RecProtocal(void)
 
 			StrStateFrame.ChargeStopStateFrameAckReSendFlag = TRUE;
 			rt_lprintf("CAN_V110_Rec:Receive ChargeStopStateFrameAckReSendFlag\n");
-//				rt_timer_stop(DownCount_Time);	//关闭定时器	
-//				rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
+//			rt_timer_stop(DownCount_Time);	//关闭定时器	
+//			rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
 
 			break;
 		}
@@ -2270,7 +2193,7 @@ void CAN_V110_RecProtocal(void)
 			   if(chgYC.Addition == chgYC.TotalCheck)
 			   {
 					rt_lprintf("CAN_V110_Rec:Rec YC,Send YcSendDataFrame!\n");
-//						Inform_Communicate_Can(YcSendDataFrame,FALSE);							
+//					Inform_Communicate_Can(YcSendDataFrame,FALSE);							
 			   }
 			   else
 			   {

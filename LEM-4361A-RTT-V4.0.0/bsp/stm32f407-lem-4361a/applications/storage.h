@@ -23,13 +23,14 @@ typedef enum {
 	Cmd_HistoryRecordRd,	
 	Cmd_OrderChargeWr,                  /*有序充电事件记录单元*/
 	Cmd_OrderChargeRd,		
-	Cmd_PlanOfferWr,                    /*充电计划记录单元*/
+	Cmd_PlanOfferWr,                    /*充电计划上报记录单元*/
 	Cmd_PlanOfferRd,
 	Cmd_PlanFailWr,                     /*充电计划生成失败记录单元*/
 	Cmd_PlanFailRd,	
+	Cmd_ChgExecuteWr,					/*充电执行事件记录单元*/
+	Cmd_ChgExecuteRd,
 	Cmd_OnlineStateWr,                  /*表计在线状态*/
 	Cmd_OnlineStateRd,		
-	
 	
 	
 	End_Sto_cmdListNum,
