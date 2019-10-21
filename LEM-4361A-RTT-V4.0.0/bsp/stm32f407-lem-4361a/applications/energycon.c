@@ -550,8 +550,9 @@ static void energycon_thread_entry(void *parameter)
 			memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));
 			
 		}			
+		
 		PileData_RecProcess();	
-		CtrlData_RecProcess();
+		CtrlData_RecProcess();//
 		
 		if(memcmp(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old)) != 0)
 		{

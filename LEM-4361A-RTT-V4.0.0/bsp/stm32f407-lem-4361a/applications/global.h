@@ -212,7 +212,7 @@ typedef enum {
 	Cmd_ChgRequestReport,					//充电申请事件上送
 	Cmd_ChgRequestReportAck,				//充电申请事件上送应答
 	Cmd_ChgRequestReportAPP,				//充电申请事件告知APP
-	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
+//	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
 	
 	Cmd_StartChg,							//启动充电参数下发
 	Cmd_StartChgAck,						//启动充电应答
