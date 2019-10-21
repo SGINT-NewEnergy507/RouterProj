@@ -272,6 +272,9 @@ static void RtState_Judge(void)
 		
 	}
 	
+	//变位识别
+	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
+	
 //	if(rt_device_find("lcd"))
 //	{
 //		fau |= (1<<(Screen_FAULT-1));				
@@ -301,7 +304,7 @@ static void strategy_thread_entry(void *parameter)
 {
 	rt_err_t res;
 	
-	Fault.Total = FALSE;
+//	Fault.Total = FALSE;
 	rt_thread_mdelay(100);
 	
 	while (1)

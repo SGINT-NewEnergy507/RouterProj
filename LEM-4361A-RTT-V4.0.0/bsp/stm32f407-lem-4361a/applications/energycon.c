@@ -91,8 +91,12 @@ void RELAY_OFF(void)//断开继电器
  **************************************************************/
 static void StartChgResp_Timeout(void *parameter)
 {
-    rt_lprintf("[energycon] : StartChgResp event is timeout!\n");
-	ChargepileDataGetSet(Cmd_ChargeStartResp,0);
+	rt_uint8_t p_rst;
+	rt_lprintf("[energycon] : StartChgResp event is timeout!\n");
+	p_rst = ChargepileDataGetSet(Cmd_ChargeStartResp,0);
+	
+//	if(p_rst != SUCCESSFUL)
+	
 }
 /**************************************************************
  * 函数名称: StopChgResp_Timeout 
@@ -102,8 +106,9 @@ static void StartChgResp_Timeout(void *parameter)
  **************************************************************/
 static void StopChgResp_Timeout(void *parameter)
 {
-    rt_lprintf("[energycon] : StopChgResp event is timeout!\n");
-	ChargepileDataGetSet(Cmd_ChargeStopResp,0);
+    rt_uint8_t p_rst;
+	rt_lprintf("[energycon] : StopChgResp event is timeout!\n");
+	p_rst = ChargepileDataGetSet(Cmd_ChargeStopResp,0);
 }
 /**************************************************************
  * 函数名称: PowAdjResp_Timeout 
@@ -113,8 +118,9 @@ static void StopChgResp_Timeout(void *parameter)
  **************************************************************/
 static void PowAdjResp_Timeout(void *parameter)
 {
-    rt_lprintf("[strategy] : PowerAdjResp event is timeout!\n");
-	ChargepileDataGetSet(Cmd_SetPowerResp,0);
+    rt_uint8_t p_rst;
+	rt_lprintf("[strategy] : PowerAdjResp event is timeout!\n");
+	p_rst = ChargepileDataGetSet(Cmd_SetPowerResp,0);
 }
 /**************************************************************
  * 函数名称: timer_create_init 
@@ -153,7 +159,7 @@ static void timer_create_init()
 ********************************************************************/ 
 static void CtrlData_RecProcess(void)
 {
-	rt_uint8_t c_rst;
+	rt_uint8_t c_rst,p_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t EventCmd;
 	EventCmd = strategy_event_get();
@@ -173,7 +179,7 @@ static void CtrlData_RecProcess(void)
 			{
 				if(memcmp(&RouterIfo.AssetNum,&Ctrl_Start.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
-					ChargepileDataGetSet(Cmd_ChargeStart,0);	
+					p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);	
 				
 					/* 开始启动回复计时 */
 					if (StartChgResp != RT_NULL)
@@ -209,7 +215,7 @@ static void CtrlData_RecProcess(void)
 				if((memcmp(&RouterIfo.AssetNum,&Ctrl_Stop.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 					||(memcmp(&Ctrl_Start.OrderSn,&Ctrl_Stop.OrderSn,sizeof(Ctrl_Start.OrderSn)) == 0))//校验启停单号一致性		
 				{
-					ChargepileDataGetSet(Cmd_ChargeStop,0);	
+					p_rst = ChargepileDataGetSet(Cmd_ChargeStop,0);	
 				
 					/* 开始停机回复计时 */
 					if (StopChgResp != RT_NULL)
@@ -245,7 +251,7 @@ static void CtrlData_RecProcess(void)
 				if(memcmp(&RouterIfo.AssetNum,&Ctrl_PowerAdj.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
 					ChargePilePara_Set.PWM_Duty = Ctrl_PowerAdj.SetPower*10/132;//功率换算: D(含一位小数)=I/60*1000=P/(60*220)*1000
-					ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);	
+					p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);	
 					
 					/* 开始功率调整回复计时 */
 					if (PowerAdjResp != RT_NULL)
@@ -435,7 +441,7 @@ static void PileData_RecProcess(void)
 static void TimeSolt_PilePowerCtrl(void)
 {
 	rt_uint8_t i;
-	rt_uint8_t c_rst;
+	rt_uint8_t c_rst,p_rst;
 	
 	//定位当前所属计划单起始时间段
 	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
@@ -454,7 +460,7 @@ static void TimeSolt_PilePowerCtrl(void)
 			{
 				if(count == 0)
 					memcpy(&ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-				ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
+				p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
 				
 				ChgExe_Event.OrderNum++;
 				memcpy(&ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
@@ -519,7 +525,7 @@ static void TimeSolt_PilePowerCtrl(void)
 
 static void energycon_thread_entry(void *parameter)
 {
-	rt_err_t res;
+	rt_err_t res,p_rst;
 	rt_err_t ret = RT_EOK;
 	rt_uint32_t* r_str;
 	
@@ -553,11 +559,11 @@ static void energycon_thread_entry(void *parameter)
 		}
 		
 		if(rt_pin_read(KC3_PIN) == PIN_LOW)
-			ChargepileDataGetSet(Cmd_ChargeStart,0);
+			p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
 //			strategy_event_send(StartChg_EVENT);
 		
 		if(rt_pin_read(KC2_PIN) == PIN_LOW)
-			ChargepileDataGetSet(Cmd_ChargeStop,0);
+			p_rst = ChargepileDataGetSet(Cmd_ChargeStop,0);
 		rt_thread_mdelay(1000);
 	}
 }
