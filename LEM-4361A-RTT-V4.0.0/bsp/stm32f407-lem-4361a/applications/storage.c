@@ -63,11 +63,12 @@ const char* METER_POWER_PATH=(const char*)"/Meter";
 const char* LOG_PATH=(const char*)"/LOG";
 const char* CHARGE_RECORD_PATH=(const char*)"/ChargeRecord";
 const char* HISTORY_RECORD_PATH=(const char*)"/HistoryRecord";
-
 const char* ORDER_CHARGE_PATH=(const char*)"/Strategy/OrderCharge";
 const char* PLAN_OFFER_PATH=(const char*)"/Strategy/PlanOffer";
 const char* PLAN_FAIL_PATH=(const char*)"/Strategy/PlanFail";
 const char* ONLINE_STATE_PATH=(const char*)"/Strategy/OnlineState";
+const char* CHG_EXECUTE_PATH=(const char*)"/Strategy/ChgExecute";
+const char* CHG_REQUEST_PATH=(const char*)"/Strategy/ChgRequest";
 
 const char* NAND_LOG_PATH_FILE=(const char*)"/LOG/log.txt";
 const char* METER_ANALOG_PATH_FILE=(const char*)"/Meter/analog.txt";
@@ -86,6 +87,11 @@ static int Order_Charge_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd);	
 static int Plan_Fail_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd);
 static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd);
+static int Chg_Execute_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd);
+static int Chg_Request_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd);
+
+
+
 
 static  int Log_Process(void);
 static  int NAND_LogWrite(char* Pnand_Log,rt_uint32_t *nand_LogLen);
@@ -970,9 +976,9 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		strcat((char*)Para_Buff,(const char*)"cAssetNum=");
-		for(int i=0;i<sizeof(RouterIfo.AssetNum);i++)
+		for(int i=0;i<datalen;i++)
 		{
-			sprintf((char*)buffer,"%02X",RouterIfo.AssetNum[i]);// 表号
+			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i));// 表号
 			strcat((char*)Para_Buff,(const char*)buffer);
 		}
 		strcat((char*)Para_Buff,(const char*)"\n");		
@@ -1059,9 +1065,12 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		{
 			if(strcmp((const char*)fpname,(const char*)"cAssetNum")==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&RouterIfo.AssetNum,sizeof(RouterIfo.AssetNum));//返回当前文件读指针
-				rt_lprintf("[storage]:cAssetNum：%s\n",RouterIfo.AssetNum);
-
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)Storage_Para,datalen);//返回当前文件读指针
+				for(int i=0;i<datalen;i++)
+				{
+					rt_lprintf((char*)buffer,"0x%02X",*((char*)Storage_Para+i));// 表号
+				}
+				rt_lprintf("\n");
 			}			
 			else
 			{
@@ -4226,7 +4235,7 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 	int fd = 0;
 	char buffer[48]; 
 	char path_file[64];
-	ONLINE_STATE* pOnline_State = (ONLINE_STATE*)Storage_Para;	
+	ONLINE_STATE* pOnline_State = (ONLINE_STATE*)Storage_Para;
 	
 	if(cmd == WRITE)//保存到本地write
 	{
@@ -4566,6 +4575,1352 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 	return 0;	
 }
 /*********************************************************************************************************
+** Function name:		Chg_Execute_Storage
+** Descriptions:		
+** input parameters:	YMD:20190731 
+** 						
+** return value:		
+** Created by:			LCF		  
+** Created Date:		20170511	  
+**-------------------------------------------------------------------------------------------------------
+** Modified by:		  		
+** Modified date:	  		
+**-------------------------------------------------------------------------------------------------------
+*********************************************************************************************************/
+static int Chg_Execute_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd)	
+{
+	int fd = 0;
+	char buffer[48]; 
+	char path_file[64];
+	CHARGE_EXE_EVENT* pCharge_Exe = (CHARGE_EXE_EVENT*)Storage_Para;	
+	
+	if(cmd == WRITE)//保存到本地write
+	{
+		// 创建文件名
+		int writelen = 0;
+		char path[18];
+		sprintf((char*)path_file,"%s",PATH);
+		sprintf((char*)path,"/%04u-%02X%02X%02X%02X%02X%02X.txt",(rt_uint32_t)pCharge_Exe->OrderNum,\
+																			  pCharge_Exe->StartTimestamp.Second,\
+																			  pCharge_Exe->StartTimestamp.Minute,\
+																			  pCharge_Exe->StartTimestamp.Hour,\
+																			  pCharge_Exe->StartTimestamp.Day,\
+																			  pCharge_Exe->StartTimestamp.Month,\
+																			  pCharge_Exe->StartTimestamp.Year);
+		strcat((char*)path_file,(const char*)path);
+		rt_lprintf("%s:path_file = %s\n",__FUNCTION__,(char*)path_file);		
+		
+		// 准备写的内容
+		strcpy((char*)Para_Buff,"");
+		sprintf((char*)buffer,"Time=%02X-%02X-%02X-%02X-%02X-%02X\n",System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day,\
+																	 System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second); 
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件记录序号
+		sprintf((char*)buffer,"OrderNum=%04u\n",(rt_uint32_t)pCharge_Exe->OrderNum);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件发生时间
+		sprintf((char*)buffer,"StartTimestamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pCharge_Exe->StartTimestamp.Second,\
+																		  (rt_uint8_t)pCharge_Exe->StartTimestamp.Minute,\
+																		  (rt_uint8_t)pCharge_Exe->StartTimestamp.Hour,\
+																		  (rt_uint8_t)pCharge_Exe->StartTimestamp.Day,\
+																		  (rt_uint8_t)pCharge_Exe->StartTimestamp.Month,\
+																		  (rt_uint8_t)pCharge_Exe->StartTimestamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		//事件结束时间
+		sprintf((char*)buffer,"FinishTimestamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pCharge_Exe->FinishTimestamp.Second,\
+																		   (rt_uint8_t)pCharge_Exe->FinishTimestamp.Minute,\
+																		   (rt_uint8_t)pCharge_Exe->FinishTimestamp.Hour,\
+																		   (rt_uint8_t)pCharge_Exe->FinishTimestamp.Day,\
+																		   (rt_uint8_t)pCharge_Exe->FinishTimestamp.Month,\
+																		   (rt_uint8_t)pCharge_Exe->FinishTimestamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件发生源
+		sprintf((char*)buffer,"OccurSource=%03u\n",(rt_uint32_t)pCharge_Exe->OccurSource);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		// 通道状态
+		sprintf((char*)buffer,"ChannelState=%03u\n",(rt_uint8_t)pCharge_Exe->ChannelState);
+		strcat((char*)Para_Buff,(const char*)buffer);
+/////////////////////////////////////////////////////////////////////////////////////////////////		
+		// 充电申请单号
+		sprintf((char*)buffer,"cRequestNO=");
+		char bytebuf[] = "FF";
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.cRequestNO);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint8_t)pCharge_Exe->Chg_ExeState.cRequestNO[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");
+	
+		//	路由器资产编号
+		sprintf((char*)buffer,"cAssetNO=");
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.cAssetNO);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint8_t)pCharge_Exe->Chg_ExeState.cAssetNO[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");	
+		// 枪序号	{A枪（1）、B枪（2）}
+		sprintf((char*)buffer,"GunNum=%03u\n",(rt_uint8_t)pCharge_Exe->Chg_ExeState.GunNum);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//执行状态
+		sprintf((char*)buffer,"exeState=%03u\n",(rt_uint8_t)pCharge_Exe->Chg_ExeState.exeState);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//时间段数量
+		sprintf((char*)buffer,"ucTimeSlotNum=%03u\n",(rt_uint8_t)pCharge_Exe->Chg_ExeState.ucTimeSlotNum);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//电能示值底值
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ulEleBottomValue);i++)
+		{
+			sprintf((char*)buffer,"ulEleBottomValue[%d]=",i);
+			sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ulEleBottomValue[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		//当前电能示值
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ulEleActualValue);i++)
+		{
+			sprintf((char*)buffer,"ulEleActualValue[%d]=",i);
+			sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ulEleActualValue[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}		
+		//已充电量
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ucChargeEle);i++)
+		{
+			sprintf((char*)buffer,"ucChargeEle[%d]=",i);
+			sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucChargeEle[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		//已充时间
+		sprintf((char*)buffer,"ucChargeTime=%03u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucChargeTime);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//计划充电功率
+		sprintf((char*)buffer,"ucPlanPower=%03u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucPlanPower);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		//当前充电功率
+		sprintf((char*)buffer,"ucActualPower=%03u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucActualPower);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		
+		//当前充电电压
+		sprintf((char*)buffer,"ucVoltage.A=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucVoltage.A);
+		strcat((char*)buffer,(const char*)bytebuf);	
+		sprintf((char*)buffer,"ucVoltage.B=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucVoltage.B);
+		strcat((char*)buffer,(const char*)bytebuf);			
+		sprintf((char*)buffer,"ucVoltage.C=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucVoltage.C);
+		strcat((char*)buffer,(const char*)bytebuf);			
+		//当前充电电流
+		sprintf((char*)buffer,"ucCurrent.A=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucCurrent.A);
+		strcat((char*)buffer,(const char*)bytebuf);	
+		sprintf((char*)buffer,"ucCurrent.B=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucCurrent.B);
+		strcat((char*)buffer,(const char*)bytebuf);			
+		sprintf((char*)buffer,"ucCurrent.C=");
+		sprintf((char*)bytebuf,"%08u\n",(rt_uint32_t)pCharge_Exe->Chg_ExeState.ucCurrent.C);
+		strcat((char*)buffer,(const char*)bytebuf);	
+		//充电桩状态	
+		sprintf((char*)buffer,"ChgPileState=%03u\n",(rt_uint8_t)pCharge_Exe->Chg_ExeState.ChgPileState);
+		strcat((char*)Para_Buff,(const char*)buffer);
+/////////////////////////////////////////////////////////////////////////////////////////////////		
+		/****************************************************************************************/
+		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
+		{
+			rt_lprintf("[storage]: Para_Buff overflow=%d\n",strlen((const char*)Para_Buff));
+			
+			return -1;
+		}
+		else
+		{
+			rt_lprintf("[storage]:strlen(Para_Buff)=%d\n",strlen(Para_Buff));
+		}	
+		/************************************************************************************************/			
+		/*O_CREAT: Opens the file, if it is existing. If not, a new file is created. */
+		/*O_TRUNC: Creates a new file. If the file is existing, it is truncated and overwritten. */
+		/*O_EXCL: Creates a new file. The function fails if the file is already existing. */
+		int fd = open(path_file,O_WRONLY | O_CREAT);
+		if(fd >= 0)
+		{
+			rt_lprintf("[storage]:%s文件打开成功\n",path_file);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",path_file,fd);
+			return -2;
+		}		
+		/************************************************************************************/				
+		/**********更新写当天电量************************************************************/				
+		writelen = write(fd,Para_Buff,strlen((const char*)Para_Buff));//写入首部   返回值0：成功	
+		if(writelen > 0)
+		{
+			rt_lprintf("[storage]:%s文件写入成功 writelen=%d\n",(char*)path_file,writelen);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件写入失败 writelen=%d\n",(char*)path_file,writelen);
+		}
+		/*****************************************************************************************/
+		if(close(fd) != UENOERR)
+		{
+			rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+		}			
+	}
+/************************************************************************************************/
+/************************************************************************************************/
+/************************************************************************************************/
+	else if(cmd == READ) //从本地read
+	{
+		int readlen = 0;
+		rt_uint32_t file_num;	
+		Find_path_file(PATH,ordernum,path_file,&file_num);
+
+		fd= open(path_file,O_RDONLY);//打开文件。如果文件不存在，则打开失败。
+		if(fd >= 0)
+		{
+			rt_lprintf("[storage]:%s文件打开成功\n",path_file);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",path_file,fd);
+			return -2;
+		}
+        /***************************************************************************************/			
+		readlen=read(fd,Para_Buff,MAX_MALLOC_NUM);	//读出txt里面的内容	
+		if(readlen > 0) //0
+		{
+			rt_lprintf("[storage]:%s文件读取成功 readlen=%d\n",path_file,readlen);
+		}
+		else
+		{
+			if(close(fd) != UENOERR)
+			{
+				rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+			}
+			rt_lprintf("[storage]:%s文件读取为空 readlen=%d\n",path_file,readlen);
+			return -3;
+		}
+		/***************************************************************************************/	
+		if(close(fd) != UENOERR)
+		{
+			rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+		}
+		/***************************************************************************************/
+		*(Para_Buff+readlen) = '\0';//需要追加结束符
+		if(readlen <= RT_CONSOLEBUF_SIZE)
+		{
+			rt_lprintf("[storage]:%s文件读内容\n%s\n",path_file,Para_Buff);
+		}		
+		/************************************************************************************/			
+		/************************************************************************************/		
+		char *fpoint = Para_Buff;//参数
+		rt_uint8_t namelen = 0;
+		rt_uint8_t fpname[32] = {0,};        //最多记录32个字节
+		rt_uint8_t fpnameRd[32] = {0,};      //最多记录32个字节	
+		strcpy((char*)fpnameRd,"");
+		strcpy((char*)fpname,"");
+/////////////////////////////////////////////////////////////////////////////////////////		
+////////////////////事件记录序号/////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"OrderNum"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->OrderNum,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->OrderNum);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////事件发生时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"StartTimestamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->StartTimestamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pCharge_Exe->StartTimestamp.Year,\
+							pCharge_Exe->StartTimestamp.Month,\
+							pCharge_Exe->StartTimestamp.Day,\
+							pCharge_Exe->StartTimestamp.Hour,\
+							pCharge_Exe->StartTimestamp.Minute,\
+							pCharge_Exe->StartTimestamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}		
+/////////////////////////////////////////////////////////////////////////////////////////		
+////////////////////事件结束时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"FinishTimestamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->FinishTimestamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pCharge_Exe->FinishTimestamp.Year,\
+							pCharge_Exe->FinishTimestamp.Month,\
+							pCharge_Exe->FinishTimestamp.Day,\
+							pCharge_Exe->FinishTimestamp.Hour,\
+							pCharge_Exe->FinishTimestamp.Minute,\
+							pCharge_Exe->FinishTimestamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}
+/////////事件发生源/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"OccurSource"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->OccurSource);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+/////////事件上报状态 = 通道上报状态/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ChannelState"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->ChannelState,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->ChannelState);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////充电申请单号 SIZE(16)/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"cRequestNO"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.cRequestNO,sizeof(pCharge_Exe->Chg_ExeState.cRequestNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pCharge_Exe->Chg_ExeState.cRequestNO);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////路由器资产编号 visible-string（SIZE(22)）////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"cAssetNO"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.cAssetNO,sizeof(pCharge_Exe->Chg_ExeState.cAssetNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pCharge_Exe->Chg_ExeState.cAssetNO);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////枪序号	{A枪（1）、B枪（2）}/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"GunNum"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.GunNum,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.GunNum);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////执行状态//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"exeState"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.exeState,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.exeState);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////时间段数量//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucTimeSlotNum"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucTimeSlotNum,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucTimeSlotNum);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////电能示值底值//////////////////////////////////////////////////////////
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ulEleBottomValue);i++)
+		{
+			sprintf((char*)fpnameRd,"ulEleBottomValue[%d]=",i);
+			fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+			if(namelen)//接收完了
+			{
+				if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+				{
+					fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ulEleBottomValue[i],1);//返回当前文件读指针
+					rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ulEleBottomValue[i]);
+				}
+				else
+				{
+					rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+				}
+				namelen=0;
+			}
+			else
+			{
+				rt_lprintf("namelen=0\n");
+			}
+		}	
+////////////////////当前电能示值//////////////////////////////////////////////////////////
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ulEleActualValue);i++)
+		{
+			sprintf((char*)fpnameRd,"ulEleActualValue[%d]=",i);
+			fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+			if(namelen)//接收完了
+			{
+				if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+				{
+					fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ulEleActualValue[i],1);//返回当前文件读指针
+					rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ulEleActualValue[i]);
+				}
+				else
+				{
+					rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+				}
+				namelen=0;
+			}
+			else
+			{
+				rt_lprintf("namelen=0\n");
+			}
+		}	
+////////////////////已充电量//////////////////////////////////////////////////////////
+		for(int i=0;i<sizeof(pCharge_Exe->Chg_ExeState.ucChargeEle);i++)
+		{
+			sprintf((char*)fpnameRd,"ucChargeEle[%d]=",i);
+			fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+			if(namelen)//接收完了
+			{
+				if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+				{
+					fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucChargeEle[i],1);//返回当前文件读指针
+					rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucChargeEle[i]);
+				}
+				else
+				{
+					rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+				}
+				namelen=0;
+			}
+			else
+			{
+				rt_lprintf("namelen=0\n");
+			}
+		}		
+////////////////////已充时间//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucChargeTime"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucChargeTime,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucChargeTime);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////计划充电功率//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucPlanPower"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucPlanPower,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucPlanPower);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+////////////////////当前充电功率//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucActualPower"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucActualPower,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucActualPower);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+////////////////////当前充电电压//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucVoltage.A"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucVoltage.A,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucVoltage.A);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+		sprintf((char*)fpnameRd,"ucVoltage.B"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucVoltage.B,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucVoltage.B);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+		sprintf((char*)fpnameRd,"ucVoltage.C"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucVoltage.C,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucVoltage.C);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////当前充电电流//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ucCurrent.A"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucCurrent.A,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucCurrent.A);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+		sprintf((char*)fpnameRd,"ucCurrent.B"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucCurrent.B,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucCurrent.B);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+		sprintf((char*)fpnameRd,"ucCurrent.C"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ucCurrent.C,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ucCurrent.C);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////充电桩状态//////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ChgPileState"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pCharge_Exe->Chg_ExeState.ChgPileState,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pCharge_Exe->Chg_ExeState.ChgPileState);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////	
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////			
+	}
+	else
+	{
+		rt_lprintf("[storage]:%s文件无效命令\n",path_file);
+	}
+
+	return 0;
+}
+/*********************************************************************************************************
+** Function name:		Chg_Request_Storage
+** Descriptions:		
+** input parameters:	YMD:20190731 
+** 						
+** return value:		
+** Created by:			LCF		  
+** Created Date:		20170511	  
+**-------------------------------------------------------------------------------------------------------
+** Modified by:		  		
+** Modified date:	  		
+**-------------------------------------------------------------------------------------------------------
+*********************************************************************************************************/
+static int Chg_Request_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd)	
+{
+	int fd = 0;
+	char buffer[48]; 
+	char path_file[64];
+	CHARGE_APPLY_EVENT* pChg_Request = (CHARGE_APPLY_EVENT*)Storage_Para;	
+	
+	if(cmd == WRITE)//保存到本地write
+	{
+		// 创建文件名
+		int writelen = 0;
+		char path[18];
+		sprintf((char*)path_file,"%s",PATH);
+		sprintf((char*)path,"/%04u-%02X%02X%02X%02X%02X%02X.txt",(rt_uint32_t)pChg_Request->OrderNum,\
+																			  pChg_Request->StartTimestamp.Second,\
+																			  pChg_Request->StartTimestamp.Minute,\
+																			  pChg_Request->StartTimestamp.Hour,\
+																			  pChg_Request->StartTimestamp.Day,\
+																			  pChg_Request->StartTimestamp.Month,\
+																			  pChg_Request->StartTimestamp.Year);
+		strcat((char*)path_file,(const char*)path);
+		rt_lprintf("%s:path_file = %s\n",__FUNCTION__,(char*)path_file);		
+		
+		// 准备写的内容
+		strcpy((char*)Para_Buff,"");
+		sprintf((char*)buffer,"Time=%02X-%02X-%02X-%02X-%02X-%02X\n",System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day,\
+																	 System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second); 
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件记录序号
+		sprintf((char*)buffer,"OrderNum=%04u\n",(rt_uint32_t)pChg_Request->OrderNum);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件发生时间
+		sprintf((char*)buffer,"StartTimestamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pChg_Request->StartTimestamp.Second,\
+																		  (rt_uint8_t)pChg_Request->StartTimestamp.Minute,\
+																		  (rt_uint8_t)pChg_Request->StartTimestamp.Hour,\
+																		  (rt_uint8_t)pChg_Request->StartTimestamp.Day,\
+																		  (rt_uint8_t)pChg_Request->StartTimestamp.Month,\
+																		  (rt_uint8_t)pChg_Request->StartTimestamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		//事件结束时间
+		sprintf((char*)buffer,"FinishTimestamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pChg_Request->FinishTimestamp.Second,\
+																		   (rt_uint8_t)pChg_Request->FinishTimestamp.Minute,\
+																		   (rt_uint8_t)pChg_Request->FinishTimestamp.Hour,\
+																		   (rt_uint8_t)pChg_Request->FinishTimestamp.Day,\
+																		   (rt_uint8_t)pChg_Request->FinishTimestamp.Month,\
+																		   (rt_uint8_t)pChg_Request->FinishTimestamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//事件发生源
+		sprintf((char*)buffer,"OccurSource=%03u\n",(rt_uint32_t)pChg_Request->OccurSource);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+		// 通道状态
+		sprintf((char*)buffer,"ChannelState=%03u\n",(rt_uint8_t)pChg_Request->ChannelState);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		
+		// 充电申请单号（SIZE(16)）
+		sprintf((char*)buffer,"RequestNO=");
+		char bytebuf[] = "FF";
+		for(int i=0;i<sizeof(pChg_Request->RequestNO);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pChg_Request->RequestNO[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");
+	
+		//	路由器资产编号 visible-string（SIZE(22)）
+		sprintf((char*)buffer,"AssetNO=");
+		for(int i=0;i<sizeof(pChg_Request->AssetNO);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pChg_Request->AssetNO[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");	
+		// 枪序号	{A枪（1）、B枪（2）}
+		sprintf((char*)buffer,"GunNum=%03u\n",(rt_uint32_t)pChg_Request->GunNum);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//充电申请时间
+		sprintf((char*)buffer,"RequestTimeStamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pChg_Request->RequestTimeStamp.Second,\
+																		    (rt_uint8_t)pChg_Request->RequestTimeStamp.Minute,\
+																		    (rt_uint8_t)pChg_Request->RequestTimeStamp.Hour,\
+																		    (rt_uint8_t)pChg_Request->RequestTimeStamp.Day,\
+																		    (rt_uint8_t)pChg_Request->RequestTimeStamp.Month,\
+																		    (rt_uint8_t)pChg_Request->RequestTimeStamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//当前SOC（单位：%，换算：-2）
+		sprintf((char*)buffer,"actSOC=%03u\n",(rt_uint32_t)pChg_Request->actSOC);
+		strcat((char*)Para_Buff,(const char*)buffer);		
+
+		//目标SOC（单位：%，换算：-2）
+		sprintf((char*)buffer,"aimSOC=%03u\n",(rt_uint32_t)pChg_Request->aimSOC);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		
+		//电池容量（单位：kWh，换算：-2）
+		sprintf((char*)buffer,"CellCapacity=%03u\n",(rt_uint32_t)pChg_Request->CellCapacity);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		
+		//充电需求电量（单位：kWh，换算：-2）		
+		sprintf((char*)buffer,"ChargeReqEle=%03u\n",(rt_uint32_t)pChg_Request->ChargeReqEle);
+		strcat((char*)Para_Buff,(const char*)buffer);	
+		//计划用车时间
+		sprintf((char*)buffer,"PlanUnChg_TimeStamp=%02X%02X%02X%02X%02X%02X\n",(rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Second,\
+																		       (rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Minute,\
+																		       (rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Hour,\
+																		       (rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Day,\
+																		       (rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Month,\
+																		       (rt_uint8_t)pChg_Request->PlanUnChg_TimeStamp.Year);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//充电模式 {正常（0），有序（1）}		
+		sprintf((char*)buffer,"ChargeMode=%03u\n",(rt_uint32_t)pChg_Request->ChargeMode);
+		strcat((char*)Para_Buff,(const char*)buffer);
+		//用户登录令牌  visible-string（SIZE(38)）
+		sprintf((char*)buffer,"Token=");
+		for(int i=0;i<sizeof(pChg_Request->Token);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pChg_Request->Token[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");
+		//充电用户账号  visible-string（SIZE(9)）
+		sprintf((char*)buffer,"UserAccount=");
+		for(int i=0;i<sizeof(pChg_Request->UserAccount);i++)
+		{
+			sprintf((char*)bytebuf,"%02X",(rt_uint32_t)pChg_Request->UserAccount[i]);
+			strcat((char*)buffer,(const char*)bytebuf);
+		}
+		strcat((char*)buffer,(const char*)"\n");		
+		/****************************************************************************************/
+		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
+		{
+			rt_lprintf("[storage]: Para_Buff overflow=%d\n",strlen((const char*)Para_Buff));
+			
+			return -1;
+		}
+		else
+		{
+			rt_lprintf("[storage]:strlen(Para_Buff)=%d\n",strlen(Para_Buff));
+		}	
+		/************************************************************************************************/			
+		/*O_CREAT: Opens the file, if it is existing. If not, a new file is created. */
+		/*O_TRUNC: Creates a new file. If the file is existing, it is truncated and overwritten. */
+		/*O_EXCL: Creates a new file. The function fails if the file is already existing. */
+		int fd = open(path_file,O_WRONLY | O_CREAT);
+		if(fd >= 0)
+		{
+			rt_lprintf("[storage]:%s文件打开成功\n",path_file);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",path_file,fd);
+			return -2;
+		}		
+		/************************************************************************************/				
+		/**********更新写当天电量************************************************************/				
+		writelen = write(fd,Para_Buff,strlen((const char*)Para_Buff));//写入首部   返回值0：成功	
+		if(writelen > 0)
+		{
+			rt_lprintf("[storage]:%s文件写入成功 writelen=%d\n",(char*)path_file,writelen);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件写入失败 writelen=%d\n",(char*)path_file,writelen);
+		}
+		/*****************************************************************************************/
+		if(close(fd) != UENOERR)
+		{
+			rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+		}			
+	}
+/************************************************************************************************/
+/************************************************************************************************/
+/************************************************************************************************/
+	else if(cmd == READ) //从本地read
+	{
+		int readlen = 0;
+		rt_uint32_t file_num;	
+		Find_path_file(PATH,ordernum,path_file,&file_num);
+
+		fd= open(path_file,O_RDONLY);//打开文件。如果文件不存在，则打开失败。
+		if(fd >= 0)
+		{
+			rt_lprintf("[storage]:%s文件打开成功\n",path_file);
+		}
+		else
+		{
+			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",path_file,fd);
+			return -2;
+		}
+        /***************************************************************************************/			
+		readlen=read(fd,Para_Buff,MAX_MALLOC_NUM);	//读出txt里面的内容	
+		if(readlen > 0) //0
+		{
+			rt_lprintf("[storage]:%s文件读取成功 readlen=%d\n",path_file,readlen);
+		}
+		else
+		{
+			if(close(fd) != UENOERR)
+			{
+				rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+			}
+			rt_lprintf("[storage]:%s文件读取为空 readlen=%d\n",path_file,readlen);
+			return -3;
+		}
+		/***************************************************************************************/	
+		if(close(fd) != UENOERR)
+		{
+			rt_lprintf("[storage]:%s文件关闭失败\n",path_file);
+		}
+		/***************************************************************************************/
+		*(Para_Buff+readlen) = '\0';//需要追加结束符
+		if(readlen <= RT_CONSOLEBUF_SIZE)
+		{
+			rt_lprintf("[storage]:%s文件读内容\n%s\n",path_file,Para_Buff);
+		}		
+		/************************************************************************************/			
+		/************************************************************************************/		
+		char *fpoint = Para_Buff;//参数
+		rt_uint8_t namelen = 0;
+		rt_uint8_t fpname[32] = {0,};        //最多记录32个字节
+		rt_uint8_t fpnameRd[32] = {0,};      //最多记录32个字节	
+		strcpy((char*)fpnameRd,"");
+		strcpy((char*)fpname,"");
+/////////////////////////////////////////////////////////////////////////////////////////		
+////////////////////事件记录序号/////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"OrderNum"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->OrderNum,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->OrderNum);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////事件发生时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"StartTimestamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->StartTimestamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pChg_Request->StartTimestamp.Year,\
+							pChg_Request->StartTimestamp.Month,\
+							pChg_Request->StartTimestamp.Day,\
+							pChg_Request->StartTimestamp.Hour,\
+							pChg_Request->StartTimestamp.Minute,\
+							pChg_Request->StartTimestamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}		
+/////////////////////////////////////////////////////////////////////////////////////////		
+////////////////////事件结束时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"FinishTimestamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->FinishTimestamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pChg_Request->FinishTimestamp.Year,\
+							pChg_Request->FinishTimestamp.Month,\
+							pChg_Request->FinishTimestamp.Day,\
+							pChg_Request->FinishTimestamp.Hour,\
+							pChg_Request->FinishTimestamp.Minute,\
+							pChg_Request->FinishTimestamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}
+/////////事件发生源/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"OccurSource"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->OccurSource,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->OccurSource);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+/////////事件上报状态 = 通道上报状态/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ChannelState"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->ChannelState,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->ChannelState);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////充电申请单号 SIZE(16)/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"RequestNO"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->RequestNO,sizeof(pChg_Request->RequestNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pChg_Request->RequestNO);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////路由器资产编号 visible-string（SIZE(22)）////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"AssetNO"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->AssetNO,sizeof(pChg_Request->AssetNO));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pChg_Request->AssetNO);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////枪序号	{A枪（1）、B枪（2）}/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"GunNum"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->GunNum,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->GunNum);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+////////////////////充电申请时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"RequestTimeStamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->RequestTimeStamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pChg_Request->RequestTimeStamp.Year,\
+							pChg_Request->RequestTimeStamp.Month,\
+							pChg_Request->RequestTimeStamp.Day,\
+							pChg_Request->RequestTimeStamp.Hour,\
+							pChg_Request->RequestTimeStamp.Minute,\
+							pChg_Request->RequestTimeStamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}
+/////////当前SOC（单位：%，换算：-2）/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"actSOC"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->actSOC,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->actSOC);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////目标SOC（单位：%，换算：-2）/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"aimSOC"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->aimSOC,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->aimSOC);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////电池容量（单位：kWh，换算：-2）/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"CellCapacity"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->CellCapacity,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->CellCapacity);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////充电需求电量（单位：kWh，换算：-2）/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ChargeReqEle"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->ChargeReqEle,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->ChargeReqEle);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}	
+////////////////////计划用车时间//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			sprintf((char*)fpnameRd,"PlanUnChg_TimeStamp"); 
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->PlanUnChg_TimeStamp.Second,6);//返回当前文件读指针
+				rt_lprintf("%s=%02X%02X%02X%02X%02X%02X;\n",fpname,\
+							pChg_Request->PlanUnChg_TimeStamp.Year,\
+							pChg_Request->PlanUnChg_TimeStamp.Month,\
+							pChg_Request->PlanUnChg_TimeStamp.Day,\
+							pChg_Request->PlanUnChg_TimeStamp.Hour,\
+							pChg_Request->PlanUnChg_TimeStamp.Minute,\
+							pChg_Request->PlanUnChg_TimeStamp.Second);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;							
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");			
+		}		
+/////////充电模式 {正常（0），有序（1）}/////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"ChargeMode"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->ChargeMode,1);//返回当前文件读指针
+				rt_lprintf("%s=%u;\n",fpnameRd,pChg_Request->ChargeMode);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+////////用户登录令牌////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"Token"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->Token,sizeof(pChg_Request->Token));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pChg_Request->Token);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}		
+////////充电用户账号////////////////////////////////////////////////////////////////////////////////
+		sprintf((char*)fpnameRd,"UserAccount"); 
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pChg_Request->UserAccount,sizeof(pChg_Request->UserAccount));//返回当前文件读指针
+				rt_lprintf("%s=%s;\n",fpnameRd,pChg_Request->UserAccount);
+			}
+			else
+			{
+				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname);
+			}
+			namelen=0;
+		}
+		else
+		{
+			rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////	
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////			
+	}
+	else
+	{
+		rt_lprintf("[storage]:%s文件无效命令\n",path_file);
+	}
+
+	return 0;	
+}
+/*********************************************************************************************************
 ** Function name:		Log_Process
 ** Descriptions:		LOG函数
 ** input parameters:	 
@@ -4828,14 +6183,6 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 	{
 		case Cmd_MeterNumRd://
 			ret = Router_Para_Storage(ROUTER_PARA_PATH_FILE,Storage_Para,datalen,READ);
-			// 表号		
-			*(char*)Storage_Para = ((*((char*)(RouterIfo.AssetNum)+10)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 11)-'0';//
-			*(((char*)Storage_Para)+1) = ((*((char*)(RouterIfo.AssetNum)+12)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 13)-'0';//
-			*(((char*)Storage_Para)+2) = ((*((char*)(RouterIfo.AssetNum)+14)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 15)-'0';//
-			*(((char*)Storage_Para)+3) = ((*((char*)(RouterIfo.AssetNum)+16)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 17)-'0';//
-			*(((char*)Storage_Para)+4) = ((*((char*)(RouterIfo.AssetNum)+18)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 19)-'0';//
-			*(((char*)Storage_Para)+5) = ((*((char*)(RouterIfo.AssetNum)+20)-'0')<<4) + *((char*)(RouterIfo.AssetNum) + 21)-'0';//
-
 			break;
 		case Cmd_MeterPowerRd://
 			ret = Meter_Power_Storage(ROUTER_PARA_PATH_FILE,Storage_Para,datalen,READ);
@@ -4873,6 +6220,14 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			ret = Online_State_Storage(ONLINE_STATE_PATH,Storage_Para,datalen,READ);	
 			
 			break;
+		case Cmd_ChgExecuteRd:/*充电执行事件记录单元*/
+			ret = Chg_Execute_Storage(CHG_EXECUTE_PATH,Storage_Para,datalen,READ);	
+			
+			break;              			
+		case Cmd_ChgRequestRd:/*充电申请事件记录单元*/
+			ret = Chg_Request_Storage(CHG_REQUEST_PATH,Storage_Para,datalen,READ);	
+			
+			break;		
 		default:
 			rt_lprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
 		    ret = 1;
@@ -4951,6 +6306,14 @@ int SetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			ret = Online_State_Storage(ONLINE_STATE_PATH,Storage_Para,datalen,WRITE);	
 			
 			break;
+		case Cmd_ChgExecuteWr:/*充电执行事件记录单元*/
+			ret = Chg_Execute_Storage(CHG_EXECUTE_PATH,Storage_Para,datalen,WRITE);	
+			
+			break;              			
+		case Cmd_ChgRequestWr:/*充电申请事件记录单元*/
+			ret = Chg_Request_Storage(CHG_REQUEST_PATH,Storage_Para,datalen,WRITE);	
+			
+			break;		
 		default:
 			rt_lprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
 		    ret = 1;

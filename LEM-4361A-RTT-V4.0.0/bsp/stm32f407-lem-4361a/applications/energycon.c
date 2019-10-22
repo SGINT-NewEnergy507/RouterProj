@@ -307,7 +307,10 @@ static void CtrlData_RecProcess(void)
 				p_rst = ChargepileDataGetSet(Cmd_ChargeStop,0);
 
 				if(p_rst == SUCCESSFUL)
-					PileIfo.WorkState = ChgSt_Finished;				
+				{
+					PileIfo.WorkState = ChgSt_Finished;	
+					rt_lprintf("[energycon] : APP停机后，收到Chargepile返回\n");
+				}					
 			}
 //			else
 //			{
@@ -474,7 +477,7 @@ static void PileData_RecProcess(void)
 			
 			c_rst = CtrlUnit_RecResp(Cmd_PowerAdjAck,&Ctrl_PowerAdj,0);		
 		}
-		rt_lprintf("[energycon] : chargepile:ChargePileEvent 0x%02X\n", adjpow_result);
+		rt_lprintf("[energycon] : ChargePileEvent 0x%02X\n", adjpow_result);
 	}
 }
 /********************************************************************  
