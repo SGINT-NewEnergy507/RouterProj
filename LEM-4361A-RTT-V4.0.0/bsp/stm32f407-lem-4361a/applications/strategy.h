@@ -30,13 +30,7 @@ typedef enum
 	DISCONNECT,
 }PILE_COM_STATE;/*与桩通信状态 {正常（0），异常（1）}*/
 
-typedef enum
-{
-	CTRL_NULL=0,
-	CTRL_START,
-	CTRL_STOP,
-	CTRL_ADJPOW,
-}CTRL_TYPE;/*{0：未控制 1：启动  2：停止  3：调整功率}*/
+
 
 
 /******************************* 充电计划 *************************************/
@@ -160,7 +154,7 @@ typedef struct
 	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
 	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
 	char Token[39];   					//	用户登录令牌  visible-string（SIZE(38)）
-	char UserAccount[10];				//  充电用户账号  visible-string（SIZE(9)）
+	char UserAccount[65];				//  充电用户账号  visible-string（SIZE(9)）
 }CHARGE_APPLY_EVENT;/*充电申请事件记录单元*/
 CCMRAM extern CHARGE_APPLY_EVENT Chg_Apply_Event;
 

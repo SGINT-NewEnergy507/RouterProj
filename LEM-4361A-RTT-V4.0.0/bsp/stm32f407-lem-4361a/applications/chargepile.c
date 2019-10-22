@@ -609,7 +609,10 @@ static void chargepile_thread_entry(void *parameter)
 	strYC.ChargVb = 2200;		    //充电电压  1位小数
 	strYC.ChargVc = 2200;		    //充电电压  1位小数
 	STR_ChargePile_A.ChgState = state_WaitVertionCheck;
-	StrStateSystem.LdSwitch = 0x01;	      // 负荷控制开关
+	STR_ChargPilePara.ChgPileState = PILE_FAU;
+	Fault.Bit.CanCom_Fau = TRUE;	// 充电桩通信故障 （10）
+	STR_ChargPilePara.ChgPileFault = PILE_NOFAULT;
+	StrStateSystem.LdSwitch = 0x01;	// 负荷控制开关
 	rt_thread_mdelay(100);
 	while (1)
 	{
@@ -645,7 +648,8 @@ static void chargepile_thread_entry(void *parameter)
 				break;
 			case state_Standby://初始化完成->待机
 
-		
+				STR_ChargPilePara.ChgPileState = PILE_STANDBY;
+				Fault.Bit.CanCom_Fau = FALSE;	// 充电桩通信故障 （10）
 //				if(rt_event_recv(&ChargePileEvent, ChargeStartOK_EVENT | ChargeStopOK_EVENT,RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR,500, &ch) == RT_EOK)
 //				{
 //					rt_kprintf("chargepile:接收到ChargePileEvent 0x%02X\n", ch);	
@@ -659,6 +663,7 @@ static void chargepile_thread_entry(void *parameter)
 			
 				break;
 			case state_ChargStart://接收到启动充电命令 开始下发充电命令
+				STR_ChargPilePara.ChgPileState = PILE_WORKING;
 				Inform_Communicate_Can(ChargeStartFrame,FALSE);
 				rt_lprintf("chargepile:ChargeStartFrame\n");
 				STR_ChargePile_A.ChgState = state_WaitChargeStartFrameAsk;
