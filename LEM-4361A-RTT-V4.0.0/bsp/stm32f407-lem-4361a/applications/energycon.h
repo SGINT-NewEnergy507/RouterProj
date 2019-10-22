@@ -1,6 +1,8 @@
 #ifndef __ENERGYCON_H__
 #define __ENERGYCON_H__
 
+#include <rtthread.h>
+#include  <rtconfig.h>
 #include <string.h>
 #include <stdio.h>
 #include "global.h"
@@ -10,12 +12,28 @@ extern ChargPilePara_TypeDef ChargePilePara_Set;
 extern ChargPilePara_TypeDef ChargePilePara_Get;
 
 
+
 extern struct rt_thread energycon;
 extern struct rt_semaphore rx_sem_setpower;
 extern struct rt_semaphore rx_sem_adjpower;
 
 
+
 /******************************* 充电控制 *************************************/
+typedef enum
+{
+	CTRL_NULL=0,
+	CTRL_START,
+	CTRL_STOP,
+	CTRL_ADJPOW,
+}CTRL_TYPE;/*{0：未控制 1：启动  2：停止  3：调整功率}*/
+
+typedef enum 
+{
+	CONTRL_UNIT=1,		//控制器操控
+	BLE_UNIT,			//蓝牙操控
+}CTRL_CMD_SOURCE;/*控制命令来源*/
+
 typedef struct
 {
 	char OrderSn[17];			//订单号  octet-string（SIZE(16)）
@@ -53,7 +71,8 @@ typedef struct
 	unsigned long ucActualPower;	//当前充电功率（单位：W，换算：-1）
 	PHASE_LIST ucVoltage;			//当前充电电压（单位：V，换算：-1）
 	PHASE_LIST ucCurrent;			//当前充电电流（单位：A，换算：-3）
-	unsigned char ChgPileState;		//充电桩状态（1：待机 2：工作 3：故障）
+	PILEPARA_WORKSTATE ChgPileState;//充电桩状态（1：待机 2：工作 3：故障）
+	char cUserID[65];   			//用户id  visible-string（SIZE(64)）
 }CHARGE_EXE_STATE;/*路由器工作状态  即 充电计划单执行状态*/
 CCMRAM extern CHARGE_EXE_STATE Chg_ExeState;
 
@@ -63,12 +82,13 @@ typedef struct
 	char OrderSn[17];			//订单号  octet-string（SIZE(16)）
 	char cAssetNO[23];			//路由器资产编号  visible-string（SIZE(22)）
 	unsigned char GunNum;		//枪序号	{A枪（1）、B枪（2）}
-	unsigned char CtrlType;		//控制类型{1：启动  2：停止  3：调整功率}
-	unsigned char StartType;	//启动类型{1：4G启动  2:蓝牙启动}
-	unsigned char StopType;		//停机类型{1：4G停机  2:蓝牙停机}
+	CTRL_TYPE CtrlType;			//控制类型{1：启动  2：停止  3：调整功率}
+	CTRL_CMD_SOURCE StartSource;//启动源{1：4G启动  2:蓝牙启动}
+	CTRL_CMD_SOURCE StopSource;	//停机源{1：4G停机  2:蓝牙停机}
 	unsigned long SetPower;		//设定充电功率（单位：W，换算：-1）
 	unsigned char cSucIdle;		//成功或失败原因:{0：成功 1：失败 255：其他}
 }CTL_CHARGE_EVENT;/*充电控制记录单元*/
+CCMRAM extern CTL_CHARGE_EVENT CtrlCharge_Event;
 
 /********************************** 事件记录单元 *************************************/
 typedef struct

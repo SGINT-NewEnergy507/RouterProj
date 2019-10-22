@@ -60,8 +60,8 @@ static struct rt_thread strategy;
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Set;
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Get;
 
-CCMRAM CHARGE_EXE_STATE_ASK ChgExeStateAsk;//控制器
-CCMRAM CHARGE_EXE_STATE_ASK RouterExeState;//蓝牙
+CCMRAM static CHARGE_EXE_STATE_ASK ExeState_CtrlAsk;//控制器
+CCMRAM static CHARGE_EXE_STATE_ASK ExeState_BleAsk;//蓝牙
 
 CCMRAM CHARGE_STRATEGY Chg_Strategy;
 CCMRAM CHARGE_STRATEGY_RSP Chg_StrategyRsp;
@@ -92,9 +92,7 @@ CCMRAM static rt_timer_t ChgPileStateGet;
 static void ChgReqReportResp_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgReqReportResp event is timeout!\n");
-	//本地存储
-	SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
-	rt_timer_stop(ChgReqReportRsp);
+	
 }
 /**************************************************************
  * 函数名称: ChgReqReportResp_Timeout 
@@ -107,6 +105,8 @@ static void ChgPileStateGet_Timeout(void *parameter)
     rt_lprintf("[strategy] : ChgPileStateGet event is timeout!\n");
 	//查询充电桩状态
 	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
+	
+//	if(ChargePilePara_Get.ChgPileState == )
 }
 /**************************************************************
  * 函数名称: timer_create_init 
@@ -140,7 +140,7 @@ static void timer_create_init()
 ********************************************************************/ 
 static void ChgPlan_RecProcess(void)
 {
-	rt_uint8_t c_rst,b_rst;
+	rt_uint8_t c_rst,b_rst,p_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t Ctrl_EventCmd,BLE_EventCmd;
 	Ctrl_EventCmd = strategy_event_get();
@@ -194,7 +194,7 @@ static void ChgPlan_RecProcess(void)
 		{
 			rt_lprintf("[strategy]  (%s)  收到@控制器@查询工作状态的命令  \n",__func__);  
 				
-			if(memcmp(ChgExeStateAsk.cAssetNO,RouterIfo.AssetNum,sizeof(ChgExeStateAsk.cAssetNO)) == 0)
+			if(memcmp(ExeState_CtrlAsk.cAssetNO,RouterIfo.AssetNum,sizeof(ExeState_CtrlAsk.cAssetNO)) == 0)
 			{
 				memcpy(Chg_ExeState.cAssetNO,RouterIfo.AssetNum,sizeof(Chg_ExeState.cRequestNO));
 				
@@ -221,7 +221,7 @@ static void ChgPlan_RecProcess(void)
 			}
 			
 			
-			c_rst = CtrlUnit_RecResp(Cmd_RouterExeStateAck,&Chg_ExeState,0);//回复			   	
+			c_rst = CtrlUnit_RecResp(Cmd_RouterExeState,&Chg_ExeState,0);//回复			   	
 			break;
 		}
 		//收到充电申请确认
@@ -235,35 +235,36 @@ static void ChgPlan_RecProcess(void)
 	}
 	Ctrl_EventCmd = 0;//清位
 	
-	//收到充电申请
+	
 	switch(BLE_EventCmd)
 	{
+		//收到蓝牙的充电申请
+		//测试阶段先测APP ，申请后直接启动充电
 		case ChgRequest_EVENT:
-		{
+		{	
 			memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));
 			memset(&Chg_Apply_Rsp,0,sizeof(CHARGE_APPLY_RSP));
 			memcpy(&Chg_Apply_Event.RequestTimeStamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequest,&Chg_Apply,0);//取值
-			if(b_rst == 0)
+			
+			if(b_rst == SUCCESSFUL)
 			{
 				if(memcmp(&RouterIfo.AssetNum,&Chg_Apply.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
 					Chg_Apply_Event.OrderNum++;
 					memcpy(&Chg_Apply_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 					memcpy(&Chg_Apply_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
-					memcpy(&Chg_Apply_Event.RequestNO,&Chg_Apply.cRequestNO,51);//连续三个字段			
+
+					memcpy(&Chg_Apply_Event.RequestNO,&Chg_Apply.cRequestNO,sizeof(Chg_Apply_Event.RequestNO));
+					memcpy(&Chg_Apply_Event.AssetNO,&Chg_Apply.cAssetNO,sizeof(Chg_Apply_Event.AssetNO));
+					Chg_Apply_Event.GunNum = Chg_Apply.GunNum;
+					
 					Chg_Apply_Event.ChargeReqEle = Chg_Apply.ulChargeReqEle;			
 					memcpy(&Chg_Apply_Event.PlanUnChg_TimeStamp,&Chg_Apply.PlanUnChg_TimeStamp,sizeof(STR_SYSTEM_TIME));
 					Chg_Apply_Event.ChargeMode = Chg_Apply.ChargeMode;
 					
-					if(Chg_Apply.cUserID[0]<=9)//防止溢出
-					{
-						memcpy(&Chg_Apply_Event.UserAccount[1],&Chg_Apply.cUserID[1],Chg_Apply.cUserID[0]);		
-						Chg_Apply_Event.UserAccount[0] = Chg_Apply.cUserID[0];
-					}
-					
-					c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
-					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
+					memcpy(&Chg_Apply_Event.UserAccount,&Chg_Apply.cUserID,sizeof(Chg_Apply_Event.UserAccount));		
+
 
 					/* 充电申请上送回复计时 */
 					if (ChgReqReportRsp != RT_NULL)
@@ -284,18 +285,32 @@ static void ChgPlan_RecProcess(void)
 		
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Apply_Rsp,0);//回复	
 			
+			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
+			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
+			//本地存储
+			SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
+			
+			//暂定立即启动充电
 			if(b_rst == SUCCESSFUL)
-				ChargepileDataGetSet(Cmd_ChargeStart,0);
+			{
+				CtrlCharge_Event.CtrlType = CTRL_START;
+				CtrlCharge_Event.StartSource = BLE_UNIT;
+				p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+				if(p_rst == SUCCESSFUL)
+					PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+			}			
 			break;
 		}
 		//收到蓝牙抄读路由器工作状态
 		case AskState_EVENT:
 		{
-			rt_lprintf("[strategy]  (%s)  收到@蓝牙查询@工作状态的命令  \n",__func__);  
-				
-			if(memcmp(RouterExeState.cAssetNO,RouterIfo.AssetNum,sizeof(RouterExeState.cAssetNO)) == 0)//校验资产码
+			rt_lprintf("[strategy]  (%s)  收到@蓝牙查询@工作状态的命令  \n",__func__);  				
+			
+			if(ExeState_BleAsk.GunNum == GUN_A)
 			{
-				memcpy(Chg_ExeState.cRequestNO,RouterIfo.AssetNum,sizeof(Chg_ExeState.cRequestNO));
+				memcpy(Chg_ExeState.cRequestNO,Chg_Apply_Event.RequestNO,sizeof(Chg_ExeState.cRequestNO));
+				memcpy(Chg_ExeState.cAssetNO,RouterIfo.AssetNum,sizeof(Chg_ExeState.cRequestNO));
+				Chg_ExeState.GunNum = ExeState_BleAsk.GunNum;
 				
 				if(Chg_ExeState.exeState != EXE_ING)//非执行过程中，按计划中额定功率传
 					Chg_ExeState.ucPlanPower = Chg_Strategy.ulChargeRatePow;
@@ -313,6 +328,7 @@ static void ChgPlan_RecProcess(void)
 				
 				ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 				Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;
+				memcpy(Chg_ExeState.cUserID,Chg_Apply_Event.UserAccount,sizeof(Chg_ExeState.cUserID));			
 			}
 			else
 			{
@@ -330,27 +346,44 @@ static void ChgPlan_RecProcess(void)
 
 /********************************************************************  
 *	函 数 名: RtState_Judge()
-*	功能说明: 路由器状态判断
+*	功能说明: 路由器和充电桩状态判断
 *	形    参: 无
 *	返 回 值: 故障代码
 ********************************************************************/ 
 static void RtState_Judge(void)
 {
-	if(ChargePilePara_Get.ChgPileState == ChgSt_Fault)
+	if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
+		PileIfo.WorkState = ChgSt_Standby;
+	else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
+		PileIfo.WorkState = ChgSt_InCharging;
+	else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
+		PileIfo.WorkState = ChgSt_Fault;
+	
+	switch(PileIfo.WorkState)
 	{
-		Fault.Bit.ChgPile_Fau = TRUE;	
-	}	
-	else if(ChargePilePara_Get.ChgPileState == ChgSt_InCharging)
-	{
-		PileIfo.WorkState = RtSt_InCharging;
+		case ChgSt_Fault:
+		{
+			Fault.Bit.ChgPile_Fau = TRUE;
+			break;
+		}
+		case ChgSt_InCharging:
+		case ChgSt_DisCharging:
+		{
+			RouterIfo.WorkState = RtSt_CtrlPower;
+			break;
+		}
+		case ChgSt_Finished:
+		{
+			RouterIfo.WorkState = RtSt_StandbyOK;//充电结束回待机
+			break;
+		}
+		default:
+			break;
 	}
-	else if(ChargePilePara_Get.ChgPileState == ChgSt_Finished)
-	{
-		PileIfo.WorkState = RtSt_Finished;
-	}
+
 	
 	if(Fault.Total == TRUE)
-		PileIfo.WorkState = RtSt_Fault;	
+		RouterIfo.WorkState = RtSt_Fault;	
 }
 
 static void strategy_thread_entry(void *parameter)
@@ -358,7 +391,8 @@ static void strategy_thread_entry(void *parameter)
 	rt_err_t res;
 	
 //	Fault.Total = FALSE;
-	PileIfo.WorkState = RtSt_StandbyOK;//待机正常
+	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
+	GetStorageData(Cmd_MeterNumRd,RouterIfo.AssetNum,sizeof(RouterIfo.AssetNum));
 	rt_thread_mdelay(100);
 	
 	while (1)
@@ -374,7 +408,8 @@ int strategy_thread_init(void)
 {
 	rt_err_t res;
 	
-	PileIfo.WorkState = RtSt_Starting;//开机中
+	/*初始化变量*/
+	RouterIfo.WorkState = RtSt_Starting;//开机中
 	Chg_ExeState.exeState = EXE_NULL;
 	memset(&Plan_Offer_Event,0,sizeof(PLAN_OFFER_EVENT));
 	memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));

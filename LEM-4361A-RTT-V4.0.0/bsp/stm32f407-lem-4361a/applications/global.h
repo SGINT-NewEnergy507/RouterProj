@@ -57,9 +57,7 @@ extern STR_SYSTEM_TIME System_Time_STR;
 typedef enum {
 	RtSt_Starting=0,			// 开机中
 	RtSt_StandbyOK,          	// 待机正常
-	RtSt_InCharging,           	// 充电中
-	RtSt_DisCharging,          	// 放电中
-	RtSt_Finished,				// 充放电完成（3秒回待机）
+	RtSt_CtrlPower,				// 控制输出功率中（包括执行计划和充电控制）
 	RtSt_Fault,           		// 故障
 	RtSt_Update,				// 升级中
 }ROUTER_WORKSTATE;/*路由器状态*/
@@ -67,8 +65,8 @@ typedef enum {
 
 typedef struct
 {
-	char AssetNum[23];				//路由器资产编号 字符串 maxlen=22
-	rt_uint8_t WorkState;			//路由器运行状态
+	char AssetNum[23];					//路由器资产编号 字符串 maxlen=22
+	ROUTER_WORKSTATE WorkState;			//路由器运行状态
 }ROUTER_IFO_UNIT;/*路由器信息单元*/
 extern ROUTER_IFO_UNIT RouterIfo;
 	
@@ -93,9 +91,17 @@ typedef enum
 {
 	ChgSt_Standby=0,            //正常待机
 	ChgSt_InCharging,           //充电中
-	ChgSt_Finished,				//充电完成
+	ChgSt_DisCharging,          //放电中
+	ChgSt_Finished,				//充放电完成（3秒回待机）
 	ChgSt_Fault,            	//故障
-}PILE_WORKSTATE;/*充电桩状态*/
+}PILE_WORKSTATE;/*充电桩状态（路由器自用）*/
+
+typedef enum 
+{
+	PILE_STANDBY=1,         //正常待机
+	PILE_WORKING,           //工作中
+	PILE_FAU,            	//故障
+}PILEPARA_WORKSTATE;/*充电桩状态（数据上送）*/
 
 typedef enum
 {
@@ -146,7 +152,7 @@ typedef struct
 	unsigned long minChargePow;			//充电桩最低充电功率 double-long（单位：W，换算：-1），
 	unsigned long ulChargeRatePow;		//充电额定功率额定功率 double-long（单位：W，换算：-1）
 	rt_uint8_t AwakeSupport;			//是否支持唤醒    {0:不支持 1：支持}
-	rt_uint8_t WorkState;				//运行状态
+	PILE_WORKSTATE WorkState;			//运行状态
 }PILE_IFO_UNIT;/*充电桩信息单元*/
 extern PILE_IFO_UNIT PileIfo;
 /******************************** 故障信息 ***********************************/		//zcx190710
@@ -190,7 +196,7 @@ typedef union
 		rt_err_t RTC_Fau:1;         //	RTC通信故障  (13)	(自定义)
 	}
 	Bit;
-}ROUTER_FAULT;
+}ROUTER_FAULT;/*路由器故障*/
 extern ROUTER_FAULT Fault;
 
 /************************************** 有序充电业务 *******************************************/
