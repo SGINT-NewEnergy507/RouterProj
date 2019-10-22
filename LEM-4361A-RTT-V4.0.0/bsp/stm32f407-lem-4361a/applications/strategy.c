@@ -25,7 +25,7 @@
 #endif
 
 #define THREAD_STRATEGY_PRIORITY     8
-#define THREAD_STRATEGY_STACK_SIZE   1024
+#define THREAD_STRATEGY_STACK_SIZE   2048
 #define THREAD_STRATEGY_TIMESLICE    5
 
 
@@ -76,7 +76,12 @@ CCMRAM PLAN_OFFER_EVENT Plan_Offer_Event;
 CCMRAM CHARGE_APPLY_EVENT Chg_Apply_Event;
 
 
+	rt_uint8_t i;
+	
+	char buf[13];
 
+	
+	
 
 
 //超时结果
@@ -238,10 +243,10 @@ static void ChgPlan_RecProcess(void)
 	
 	switch(BLE_EventCmd)
 	{
-		//收到蓝牙的充电申请
 		//测试阶段先测APP ，申请后直接启动充电
 		case ChgRequest_EVENT:
 		{	
+			rt_lprintf("[strategy]  (%s) <ChgRequest_EVENT> 收到@蓝牙@ 充电申请 的命令\n",__func__); 
 			memset(&Chg_Apply_Event,0,sizeof(CHARGE_APPLY_EVENT));
 			memset(&Chg_Apply_Rsp,0,sizeof(CHARGE_APPLY_RSP));
 			memcpy(&Chg_Apply_Event.RequestTimeStamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
@@ -249,9 +254,11 @@ static void ChgPlan_RecProcess(void)
 			
 			if(b_rst == SUCCESSFUL)
 			{
+				rt_lprintf("[strategy]  (%s) Receive the data of Chg_Apply from BLE, Successful!\n",__func__);
 				if(memcmp(&RouterIfo.AssetNum,&Chg_Apply.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
 				{
 					Chg_Apply_Event.OrderNum++;
+					rt_lprintf("[strategy]  (%s) Chg_Apply_Event.OrderNum = %d\n",__func__,Chg_Apply_Event.OrderNum);
 					memcpy(&Chg_Apply_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 					memcpy(&Chg_Apply_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 
@@ -277,34 +284,47 @@ static void ChgPlan_RecProcess(void)
 				else
 				{				
 					Chg_Apply_Rsp.cSucIdle = FAILED;
+					rt_lprintf("[strategy]  (%s) 校验资产一致性，失败！\n",__func__);
 				}
 				memcpy(&Chg_Apply_Rsp.cRequestNO,&Chg_Apply.cRequestNO,sizeof(Chg_Apply.cRequestNO));
 				memcpy(&Chg_Apply_Rsp.cAssetNO,&Chg_Apply.cAssetNO,sizeof(Chg_Apply.cAssetNO));
 				Chg_Apply_Rsp.GunNum = Chg_Apply.GunNum;
 			}
+			else
+			{
+				rt_lprintf("[strategy]  (%s) 获取BLE传输的数据，失败！\n",__func__);
+			}
 		
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Apply_Rsp,0);//回复	
+			
+			//暂定立即启动充电
+			if(b_rst == SUCCESSFUL)
+			{
+				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
+				CtrlCharge_Event.CtrlType = CTRL_START;
+				CtrlCharge_Event.StartSource = BLE_UNIT;
+				p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+				if(p_rst == SUCCESSFUL)
+				{
+					PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+					rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);
+				}
+			}	
+			else
+			{
+				rt_lprintf("[strategy]  (%s) 回复BLE充电申请的结果，失败！\n",__func__);
+			}	
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
 			//本地存储
 			SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
-			
-			//暂定立即启动充电
-			if(b_rst == SUCCESSFUL)
-			{
-				CtrlCharge_Event.CtrlType = CTRL_START;
-				CtrlCharge_Event.StartSource = BLE_UNIT;
-				p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
-				if(p_rst == SUCCESSFUL)
-					PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
-			}			
 			break;
 		}
 		//收到蓝牙抄读路由器工作状态
 		case AskState_EVENT:
 		{
-			rt_lprintf("[strategy]  (%s)  收到@蓝牙查询@工作状态的命令  \n",__func__);  				
+			rt_lprintf("[strategy]  (%s)  <AskState_EVENT> 收到 @蓝牙@ 查询工作状态 的命令  \n",__func__,BLE_EventCmd);  				
 			
 			if(ExeState_BleAsk.GunNum == GUN_A)
 			{
@@ -332,10 +352,20 @@ static void ChgPlan_RecProcess(void)
 			}
 			else
 			{
-				Chg_ExeState.exeState = EXE_FAILED;//申请单号不匹配，视为“执行失败"
+				Chg_ExeState.exeState = EXE_FAILED;
+				rt_lprintf("[strategy]  (%s) 充电桩号不匹配，视为 执行失败！\n",__func__);
 			}		
 			
-			b_rst = BLE_CtrlUnit_RecResp(Cmd_RouterExeStateAck,&Chg_ExeState,0);//回复			   	
+			b_rst = BLE_CtrlUnit_RecResp(Cmd_RouterExeStateAck,&Chg_ExeState,0);//回复
+
+			if(b_rst == SUCCESSFUL)
+			{
+				rt_lprintf("[strategy]  (%s) Chg_ExeState Response to BLE, Successful!\n",__func__);
+			}
+			else
+			{
+				rt_lprintf("[strategy]  (%s) 上送给BLE路由器工作状态，失败！\n",__func__);
+			}
 			break;
 		}
 		default:
@@ -389,10 +419,19 @@ static void RtState_Judge(void)
 static void strategy_thread_entry(void *parameter)
 {
 	rt_err_t res;
+
 	
 //	Fault.Total = FALSE;
 	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
-	GetStorageData(Cmd_MeterNumRd,RouterIfo.AssetNum,sizeof(RouterIfo.AssetNum));
+	
+	for(i=0;i<13;i++)
+	{
+		buf[i] = i+1;
+	}
+
+	SetStorageData(Cmd_MeterNumWr,&buf,13);
+	
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
 	rt_thread_mdelay(100);
 	
 	while (1)
