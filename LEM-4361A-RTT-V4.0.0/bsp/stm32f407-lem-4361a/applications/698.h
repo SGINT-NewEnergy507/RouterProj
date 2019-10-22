@@ -788,6 +788,8 @@ struct _698_FRAME       //698协议结构,可能用不到,以防用的到
 	unsigned int list_no;//只有第一个的有用
 	struct _698_strategy strategy; 
 	int need_package;//这个为1是发送后应答的帧
+	int security_flag;
+	int needEsam_flag;
 	int time_flag_positon;	
 };
 
@@ -962,6 +964,11 @@ int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_
 int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
 int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev);
 //int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+
+int Cmd_security_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx);
+
+
+
 
 /************上报*****************/
 int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state);
