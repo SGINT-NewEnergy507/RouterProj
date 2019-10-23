@@ -145,7 +145,7 @@ static void timer_create_init()
 ********************************************************************/ 
 static void ChgPlan_RecProcess(void)
 {
-	rt_uint8_t c_rst,b_rst,p_rst;
+	rt_uint8_t c_rst,b_rst,p_rst,s_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t Ctrl_EventCmd,BLE_EventCmd;
 	Ctrl_EventCmd = strategy_event_get();
@@ -270,8 +270,8 @@ static void ChgPlan_RecProcess(void)
 					memcpy(&Chg_Apply_Event.PlanUnChg_TimeStamp,&Chg_Apply.PlanUnChg_TimeStamp,sizeof(STR_SYSTEM_TIME));
 					Chg_Apply_Event.ChargeMode = Chg_Apply.ChargeMode;
 					
-					memcpy(&Chg_Apply_Event.UserAccount,&Chg_Apply.cUserID,sizeof(Chg_Apply_Event.UserAccount));		
-
+					memcpy(&Chg_Apply_Event.UserAccount,&Chg_Apply.cUserID,sizeof(Chg_Apply_Event.UserAccount));							
+					memcpy(&Chg_Apply_Event.Token,&Chg_Apply.Token,sizeof(Chg_Apply.Token));		//按32有效数取值
 
 					/* 充电申请上送回复计时 */
 					if (ChgReqReportRsp != RT_NULL)
@@ -315,10 +315,20 @@ static void ChgPlan_RecProcess(void)
 				rt_lprintf("[strategy]  (%s) 回复BLE充电申请的结果，失败！\n",__func__);
 			}	
 			
-			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
+			//存储“申请事件”
+			s_rst = SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
+			if(s_rst == SUCCESSFUL)
+			{
+				rt_lprintf("[strategy]  (%s) Storage Chg_Apply_Event, Successful!\n",__func__);
+			}
+			else
+			{
+				rt_lprintf("[strategy]  (%s) 保存 申请事件，失败！\n",__func__);
+				SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));//再存一次
+			}
+//			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
-			//本地存储
-			SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
+			
 			break;
 		}
 		//收到蓝牙抄读路由器工作状态
@@ -348,7 +358,7 @@ static void ChgPlan_RecProcess(void)
 				
 				ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 				Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;
-				memcpy(Chg_ExeState.cUserID,Chg_Apply_Event.UserAccount,sizeof(Chg_ExeState.cUserID));			
+				memcpy(&Chg_ExeState.cUserID,&Chg_Apply_Event.UserAccount,sizeof(Chg_ExeState.cUserID));			
 			}
 			else
 			{
@@ -420,18 +430,16 @@ static void strategy_thread_entry(void *parameter)
 {
 	rt_err_t res;
 
-	
-//	Fault.Total = FALSE;
 	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
 	
-	for(i=0;i<13;i++)
-	{
-		buf[i] = i+1;
-	}
+//	for(i=0;i<13;i++)
+//	{
+//		buf[i] = i+100;
+//	}
 
-	SetStorageData(Cmd_MeterNumWr,&buf,13);
+//	SetStorageData(Cmd_MeterNumWr,&buf,13);
 	
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,sizeof(RouterIfo.AssetNum));
 	rt_thread_mdelay(100);
 	
 	while (1)

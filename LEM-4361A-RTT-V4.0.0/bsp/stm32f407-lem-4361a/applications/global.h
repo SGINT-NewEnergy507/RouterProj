@@ -85,6 +85,18 @@ typedef struct
 }KEY_INFO_UNIT;/*路由器密钥信息单元*/
 
 
+/******************************** 与控制器交互信息 ***********************************/
+typedef enum
+{
+	DISORDER=0,
+	ORDER,
+}CHARGE_MODE;/*充电模式 {正常（0），有序（1）}*/
+
+typedef enum
+{
+	CONNECT=0,
+	DISCONNECT,
+}PILE_COM_STATE;/*与桩通信状态 {正常（0），异常（1）}*/
 
 /******************************** 充电桩相关信息 ***********************************/	//zcx190807
 typedef enum 
@@ -105,7 +117,8 @@ typedef enum
 
 typedef enum
 {
-	GUN_A=1,
+	GUN_SINGLE,
+	GUN_A,
 	GUN_B,
 }GUN_NUM;/*枪序号 {A枪（1）、B枪（2）}*/
 
