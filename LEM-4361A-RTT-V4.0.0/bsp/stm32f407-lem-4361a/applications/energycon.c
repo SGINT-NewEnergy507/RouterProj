@@ -49,15 +49,16 @@ struct rt_thread energycon;
 struct rt_semaphore rx_sem_setpower;     //用于接收数据的信号量
 struct rt_semaphore rx_sem_adjpower;
 
-CCMRAM CTL_CHARGE Ctrl_Start;
-CCMRAM CTL_CHARGE Ctrl_Stop;
-CCMRAM CTL_CHARGE Ctrl_PowerAdj;
+CCMRAM static CTL_CHARGE Ctrl_Start;//包括返回参数
+CCMRAM static CTL_CHARGE Ctrl_Stop;
+CCMRAM static CTL_CHARGE BLE_Stop;
+CCMRAM static CTL_CHARGE Ctrl_PowerAdj;
 
 CCMRAM CHARGE_EXE_STATE Chg_ExeState;
 
 CCMRAM CTL_CHARGE_EVENT CtrlCharge_Event;
-CCMRAM CHARGE_EXE_EVENT ChgExe_Event;
-CCMRAM CHG_ORDER_EVENT ChgOrder_Event;
+CCMRAM static CHARGE_EXE_EVENT Ctrl_ChgExe_Event;
+CCMRAM static CHG_ORDER_EVENT ChgOrder_Event;//订单共用一个变量
 
 //指令标志
 CCMRAM static rt_bool_t startchg_flag;
@@ -295,9 +296,9 @@ static void CtrlData_RecProcess(void)
 	{
 		CtrlCharge_Event.StopSource = BLE_UNIT;
 			
-		c_rst = BLE_CtrlUnit_RecResp(Cmd_StopChg,&Ctrl_Stop,0);//取值			
+		c_rst = BLE_CtrlUnit_RecResp(Cmd_StopChg,&BLE_Stop,0);//取值			
 		rt_lprintf("[energycon]  (%s)  收到@蓝牙@停止充电命令  \n",__func__); 
-		memcpy(&CtrlCharge_Event,&Ctrl_Stop,41);			
+		memcpy(&CtrlCharge_Event,&BLE_Stop,41);			
 		CtrlCharge_Event.CtrlType = CTRL_STOP;
 		
 		if(Fault.Total != TRUE)
@@ -489,7 +490,7 @@ static void PileData_RecProcess(void)
 static void TimeSolt_PilePowerCtrl(void)
 {
 	rt_uint8_t i;
-	rt_uint8_t c_rst,p_rst;
+	rt_uint8_t c_rst,p_rst,s_rst,b_rst;
 	
 	//定位当前所属计划单起始时间段
 	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
@@ -507,13 +508,13 @@ static void TimeSolt_PilePowerCtrl(void)
 			if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
 			{
 				if(count == 0)
-					memcpy(&ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+					memcpy(&Ctrl_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
 				p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
 				
-				ChgExe_Event.OrderNum++;
-				memcpy(&ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
-				memcpy(&ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//上报充电计划执行事件
+				Ctrl_ChgExe_Event.OrderNum++;
+				memcpy(&Ctrl_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+				memcpy(&Ctrl_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//上报充电计划执行事件
 				
 				Chg_ExeState.exeState = EXE_ING;
 				SetPowerFinishFlag[i] = TRUE;
@@ -524,7 +525,7 @@ static void TimeSolt_PilePowerCtrl(void)
 		}
 	}
 	if(c_rst !=0 )
-		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&ChgExe_Event,0);//若失败再上报一次
+		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//若失败再上报一次
 		
 	if(count == Chg_Strategy.ucTimeSlotNum)//检测到执行完计划
 	{
@@ -546,7 +547,6 @@ static void TimeSolt_PilePowerCtrl(void)
 			
 			ChgOrder_Event.ChargeReqEle = Plan_Offer_Event.Chg_Strategy.ulChargeReqEle;
 //			memcpy(&ChgOrder_Event.RequestTimeStamp,&Chg_Apply_Event.RequestTimeStamp,sizeof(STR_SYSTEM_TIME));
-//			memcpy(&ChgOrder_Event.FinishTimestamp,&Chg_Apply_Event.FinishTimestamp,sizeof(STR_SYSTEM_TIME));
 			ChgOrder_Event.ChargeMode = Plan_Offer_Event.Chg_Strategy.ucChargeMode;	
 		}
 		else//蓝牙操控
@@ -557,8 +557,7 @@ static void TimeSolt_PilePowerCtrl(void)
 			ChgOrder_Event.GunNum = Chg_Apply_Event.GunNum;
 			
 			ChgOrder_Event.ChargeReqEle = Chg_Apply_Event.ChargeReqEle;
-			memcpy(&ChgOrder_Event.RequestTimeStamp,&Chg_Apply_Event.RequestTimeStamp,sizeof(STR_SYSTEM_TIME));
-			memcpy(&ChgOrder_Event.FinishTimestamp,&Chg_Apply_Event.FinishTimestamp,sizeof(STR_SYSTEM_TIME));
+			memcpy(&ChgOrder_Event.RequestTimeStamp,&Chg_Apply_Event.RequestTimeStamp,sizeof(STR_SYSTEM_TIME));		
 			ChgOrder_Event.ChargeMode = Chg_Apply_Event.ChargeMode;
 		}
 		
@@ -584,7 +583,28 @@ static void TimeSolt_PilePowerCtrl(void)
 		ChgOrder_Event.ucChargeTime = stop_time - start_time;
 		
 		memcpy(&ChgOrder_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-		CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//上报充电订单
+		s_rst = SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));
+		if(s_rst == SUCCESSFUL)
+		{
+			rt_lprintf("[energycon]  (%s) Storage ChgOrder_Event, Successful!\n",__func__);
+		}
+		else
+		{
+			rt_lprintf("[energycon]  (%s) 保存充电订单事件，失败！\n",__func__);
+			SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));//再存一次
+		}
+
+		c_rst = CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//上报充电订单
+		if(c_rst == SUCCESSFUL)
+			rt_lprintf("[energycon]  (%s) ChgOrder_Event Apply to Contrllor, Successful!\n",__func__);
+		else
+			rt_lprintf("[energycon]  (%s) 充电订单事件上送至Contrllor，失败！\n",__func__);
+		
+		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//同时将事件回传APP
+		if(b_rst == SUCCESSFUL)
+			rt_lprintf("[energycon]  (%s) ChgOrder_Event Apply to BLE, Successful!\n",__func__);
+		else
+			rt_lprintf("[energycon]  (%s) 充电订单事件上送至BLE，失败！\n",__func__);
 	}
 }
 
