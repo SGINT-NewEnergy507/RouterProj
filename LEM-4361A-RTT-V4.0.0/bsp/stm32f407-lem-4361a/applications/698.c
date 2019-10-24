@@ -441,7 +441,7 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 			if(times==10){//10秒判断超时,全清空
 
 				times=0;
-				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d over time! \n",__func__,priv_698_state->len_left);				
+//				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d over time! \n",__func__,priv_698_state->len_left);				
 				clear_data(priv_698_state,data_rev,&data_rev->_698_frame);//处理完了后清理数据	,只有这个是动态的后面的申请了空间后就不变了
 				return -1;
 			}
@@ -5164,8 +5164,37 @@ rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd){
 	return 0;
 	
 }
+/*
+目标是从0开始的
 
-/***
+*/
+//int hplc_lock1=0,hplc_lock2=0;
+//rt_uint32_t strategy_event;
+//rt_uint32_t hplc_event=0;
+
+rt_uint8_t strategy_event_clear(CTRL_EVENT_TYPE cmd){
+	rt_uint32_t event;
+//锁资源
+	while(hplc_lock1==1){
+		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_lock1=1;
+	while(hplc_lock2==1){
+		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_lock2=1;	
+	
+	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);	
+	strategy_event=strategy_event|(~event);
+	
+	hplc_lock2=0;
+	hplc_lock1=0;		
+	return 0;
+	
+}
+/****
 用户来调用这个获取事件strategy_event
 
 ****/
@@ -5188,7 +5217,7 @@ rt_uint32_t strategy_event_get(void){
 
 
 	result=strategy_event;
-	strategy_event=CTRL_NO_EVENT;
+//	strategy_event=CTRL_NO_EVENT;
 	
 	hplc_lock2=0;
 	hplc_lock1=0;		
@@ -5258,7 +5287,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
 			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanIssue;
-		
+			strategy_event_clear(ChgPlanIssue_EVENT);
 			//拷贝给他,指针结构体直接赋值不成功！？									
 			break;
 
@@ -5281,12 +5310,28 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
 		break;		
 		
+///**充电计划召测事件***////
+//		case():	//将计划单传给用户
+//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
+//			*((CHARGE_STRATEGY *)STR_SetPara)=_698_ChgPlanIssueGet_data;
+//			strategy_event_clear(ChgPlanIssueGet_EVENT);
+//			//拷贝给他,指针结构体直接赋值不成功！？									
+//			break;
+
+//		case()://应答
+//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
+//			rsp=*((CHARGE_STRATEGY_RSP *)STR_SetPara);//可以用
+//			hplc_event=hplc_event|event;						
+//			break;			
+//
+
 		
 		
 		
  		case(Cmd_ChgPlanAdjust)://变更充电计划,应用层得到数据，处理完后才下一步
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanAdjust  \n",__func__);
-			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanAdjust;//拷贝给他										
+			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanAdjust;//拷贝给他
+			strategy_event_clear(ChgPlanAdjust_EVENT);
 			break; 		
 
 
@@ -5298,8 +5343,9 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 
 		case(Cmd_StartChg)://启动充电参数下发,无参数传递
-			rt_kprintf("[hplc]  (%s)   Cmd_StartChg  \n",__func__);	
-			result=-1;		
+			rt_kprintf("[hplc]  (%s)   Cmd_StartChg  \n",__func__);
+			strategy_event_clear(StartChg_EVENT);				
+		
 							
 			break;
 		
@@ -5311,7 +5357,8 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 		
 		case(Cmd_StopChg)://停止充电参数下发	
-			result=-1;				
+
+			strategy_event_clear(StopChg_EVENT);
 			rt_kprintf("[hplc]  (%s)   Cmd_StopChg  \n",__func__);								
 			break;
 		
@@ -5370,7 +5417,12 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 *****/		
 	case(Cmd_ChgRequestReport)://充电申请事件上送
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
-			hplc_CHARGE_APPLY_EVENT=*((CHARGE_APPLY_EVENT *)STR_SetPara);	
+			hplc_CHARGE_APPLY_EVENT=*((CHARGE_APPLY_EVENT *)STR_SetPara);
+
+			rt_kprintf("[hplc]  (%s)  %0x：%0x：%0x：%0x：%0x：  \n",__func__,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Year,
+	hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Month,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Day,
+	hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Hour,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Minute); 
+
 			hplc_event=hplc_event|event;
 			//是否还要判断是否运行成功，成功了之后才推出。
 
@@ -5812,18 +5864,21 @@ unsigned char tmp_addr[6];
 //	addr[3]=0x00;
 //	addr[4]=0x00;	
 //	addr[5]=0x00;
-	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
-		
-	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,6)==0){
-		for(int i=0;i<6;i++){
-			addr[i]=tmp_addr[5-i];
+//	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
+	
+
+	
+	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
+
+		for(int i=0;i<(tmp_addr[0]/2);i++){
+			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
 			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
 		}
-		return 0;
-	
+		addr[0]=0x11;
+		return 0;	
 	}else{
 		return -1;
-	}	
+	}
 
 	return 0;	
 }
@@ -5920,13 +5975,21 @@ int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char *
 }
 int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_date_time_s *date_time_s){
 
+	
+	
+	rt_kprintf("[hplc]  (%s)  %0x：%0x：%0x：%0x：%0x：  \n",__func__,SYSTEM_TIME->Year,SYSTEM_TIME->Month,SYSTEM_TIME->Day,SYSTEM_TIME->Hour,SYSTEM_TIME->Minute); 
 	date_time_s->year[0]=date_time_s->data[0]=((2000&0xff00)>>8);//
 	date_time_s->year[1]=date_time_s->data[1]=(((SYSTEM_TIME->Year&0xf0)>>4)*10+SYSTEM_TIME->Year&0x0f+(2000&0x00ff));//年	
-	date_time_s->month=date_time_s->data[2]=((SYSTEM_TIME->Month&0xf0)>>4)*10+SYSTEM_TIME->Month&0x0f;//月
-	date_time_s->day=date_time_s->data[3]=((SYSTEM_TIME->Day&0xf0)>>4)*10+SYSTEM_TIME->Day&0x0f;//日	
-	date_time_s->hour=date_time_s->data[4]=((SYSTEM_TIME->Hour&0xf0)>>4)*10+SYSTEM_TIME->Hour&0x0f;//时
-	date_time_s->minute=date_time_s->data[5]=((SYSTEM_TIME->Minute&0xf0)>>4)*10+SYSTEM_TIME->Minute&0x0f;//分	
-	date_time_s->second=date_time_s->data[6]=((SYSTEM_TIME->Second&0xf0)>>4)*10+SYSTEM_TIME->Second&0x0f;//秒	
+	date_time_s->month=date_time_s->data[2]=(((SYSTEM_TIME->Month&0xf0)>>4)*10+SYSTEM_TIME->Month&0x0f);//月
+	date_time_s->day=date_time_s->data[3]=(((SYSTEM_TIME->Day&0xf0)>>4)*10+SYSTEM_TIME->Day&0x0f);//日	
+	date_time_s->hour=date_time_s->data[4]=(((SYSTEM_TIME->Hour&0xf0)>>4)*10+SYSTEM_TIME->Hour&0x0f);//时
+	date_time_s->minute=date_time_s->data[5]=(((SYSTEM_TIME->Minute&0xf0)>>4)*10+SYSTEM_TIME->Minute&0x0f);//分	
+	date_time_s->second=date_time_s->data[6]=(((SYSTEM_TIME->Second&0xf0)>>4)*10+SYSTEM_TIME->Second&0x0f);//秒	
+	
+	
+	
+	
+	
 	return 0;
 
 
@@ -6538,7 +6601,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 	
 	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
-//	result=save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
+	
 
 	temp_char=Data_array;//所有的oad看做是array
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -6814,7 +6877,6 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
-//	result=save_char_point_data(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);		
 
 	temp_char=Data_array;//所有的oad看做是array
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
@@ -7002,7 +7064,7 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 
 
 /*
-充电申请事件记录单元
+*充电申请事件记录单元
 
 */
 int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data)
@@ -7015,9 +7077,6 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 		    0x35, 0x05, 0x02, 0x0a, 0x35, 0x05, 0x02, 0x0b, 0x35, 0x05, 0x02, 0x0c, 0x35, 0x05, 
 				0x02, 0x0d, 0x35, 0x05, 0x02, 0x0e, 0x35, 0x05, 0x02, 0x0f, 0x35, 0x05, 0x02, 0x10, 
 				0x35, 0x05, 0x02, 0x11};
-	unsigned char router_no[30]={0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x11, 0x20, 0x20, 0x20, 0x20,0x20, 0x20, 0x20, 0x20, 0x20, 
-	0x20, 0x20, 0x20};
 	//结构体赋值，共同部分
 	/**用户数据的结构体部分，参考读取一个记录型对象属性**/  
 	//SEQUENCE OF A-ResultNormal
