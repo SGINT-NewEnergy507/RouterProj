@@ -7,7 +7,7 @@
 #include <storage.h>
 //extern rt_uint8_t GetStorageData(STORAGE_CMD_ENUM cmd,void *STO_GetPara,rt_uint32_t datalen);
 //测试数据
-int test_dis_check=1;//对接收数据不进行头尾校验的开关
+int test_dis_check=0;//对接收数据不进行头尾校验的开关
 
 int test_report=0;
 int first_time=0;
@@ -5864,29 +5864,29 @@ unsigned char tmp_addr[6];
 	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
 	
 
-	
-	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
+//	
+//	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
 
-		for(i=0;i<13;i++){
-//			j=i/2;
-//			addr[j]=(tmp_addr[13-i]-0x30);
-//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-//			i++;
-//			addr[j]=(tmp_addr[13-i]-0x30)*10;
-//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-			
-			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
-		}
-		
-//		for(i=0;i<(tmp_addr[0]/2);i++){
-//			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
-//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+//		for(i=0;i<13;i++){
+////			j=i/2;
+////			addr[j]=(tmp_addr[13-i]-0x30);
+////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+////			i++;
+////			addr[j]=(tmp_addr[13-i]-0x30)*10;
+////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+//			
+//			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
 //		}
-//		addr[0]=0x11;
-		return 0;	
-	}else{
-		return -1;
-	}
+//		
+////		for(i=0;i<(tmp_addr[0]/2);i++){
+////			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
+////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+////		}
+////		addr[0]=0x11;
+//		return 0;	
+//	}else{
+//		return -1;
+//	}
 
 	return 0;	
 }
