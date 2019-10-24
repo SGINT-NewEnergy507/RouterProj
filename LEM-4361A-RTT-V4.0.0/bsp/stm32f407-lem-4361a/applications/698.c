@@ -71,7 +71,7 @@ CCMRAM struct rt_event PowerCtrlEvent;
 //struct rt_event PowerCtrlEvent;
 struct rt_event HplcEvent;
 #define THREAD_HPLC_PRIORITY     15
-#define THREAD_HPLC_STACK_SIZE   1024*9
+#define THREAD_HPLC_STACK_SIZE   1024*8
 #define THREAD_HPLC_TIMESLICE    7
 //下发命令
 CCMRAM struct  _698_FRAME _698_ChgPlanIssue;
@@ -182,6 +182,7 @@ void hplc_thread_entry(void * parameter){
 
 	time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
 
+	rt_thread_mdelay(5000);
 	while(1){
 		
 //	if(1){
@@ -441,7 +442,7 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 			if(times==10){//10秒判断超时,全清空
 
 				times=0;
-//				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d over time! \n",__func__,priv_698_state->len_left);				
+				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d no data for very long time! \n",__func__,priv_698_state->len_left);				
 				clear_data(priv_698_state,data_rev,&data_rev->_698_frame);//处理完了后清理数据	,只有这个是动态的后面的申请了空间后就不变了
 				return -1;
 			}
@@ -5352,12 +5353,10 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 		case(Cmd_StartChgAck)://启动充电应答，应当无参数		
 			rt_kprintf("[hplc]  (%s)   Cmd_StartChgAck cmd=%d \n",__func__,cmd);
 			hplc_event=hplc_event|event;
-			result=0;		
-									
+			result=0;											
 			break;
 		
 		case(Cmd_StopChg)://停止充电参数下发	
-
 			strategy_event_clear(StopChg_EVENT);
 			rt_kprintf("[hplc]  (%s)   Cmd_StopChg  \n",__func__);								
 			break;
@@ -5366,15 +5365,12 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			rt_kprintf("[hplc]  (%s)   Cmd_StopChgAck   cmd=%d \n",__func__,cmd);
 			hplc_event=hplc_event|event;			
 			break;
-
-
 		
 		case(Cmd_DeviceFault)://只上传，应答忽略//上送路由器异常状态 
 			rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);
 			_698_router_fail_event.plan_fail_event=(PLAN_FAIL_EVENT *)STR_SetPara;//不一定成功	
 			_698_router_fail_event.array_size=count;
 			hplc_event=hplc_event|event;
-
 			break;	
 
 		
@@ -5858,23 +5854,35 @@ int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 
 int get_meter_addr(unsigned char * addr){//需要别人提供接口
 unsigned char tmp_addr[6];
-//	addr[0]=0x11;
-//	addr[1]=0x00;	
-//	addr[2]=0x00;
-//	addr[3]=0x00;
-//	addr[4]=0x00;	
-//	addr[5]=0x00;
-//	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
+	int i=0,j=0;
+	addr[0]=0x11;
+	addr[1]=0x00;	
+	addr[2]=0x00;
+	addr[3]=0x00;
+	addr[4]=0x00;	
+	addr[5]=0x00;
+	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
 	
 
 	
 	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
 
-		for(int i=0;i<(tmp_addr[0]/2);i++){
-			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
-			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+		for(i=0;i<13;i++){
+//			j=i/2;
+//			addr[j]=(tmp_addr[13-i]-0x30);
+//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+//			i++;
+//			addr[j]=(tmp_addr[13-i]-0x30)*10;
+//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+			
+			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
 		}
-		addr[0]=0x11;
+		
+//		for(i=0;i<(tmp_addr[0]/2);i++){
+//			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
+//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+//		}
+//		addr[0]=0x11;
 		return 0;	
 	}else{
 		return -1;
@@ -7542,7 +7550,7 @@ int hplc_thread_init(void)
 {
 	rt_err_t res;
 	int result;
-	rt_kprintf("[hplc]  (%s)   \n",__func__);
+	rt_kprintf("[hplc]  (%s) \n",__func__);
 	
 	result=rt_event_init(&PowerCtrlEvent,"PowerCtrlEvent",RT_IPC_FLAG_FIFO);
 	if(result!=RT_EOK){		
