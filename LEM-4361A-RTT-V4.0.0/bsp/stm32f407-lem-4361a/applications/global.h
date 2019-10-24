@@ -214,23 +214,24 @@ extern ROUTER_FAULT Fault;
 
 /************************************** 有序充电业务 *******************************************/
 typedef enum {
-	Cmd_ChgPlanIssue=0, 					//充电计划下发
+	
+	Cmd_ChgRequest = 0,						//蓝牙充电申请
+	Cmd_ChgRequestAck,						//蓝牙充电申请应答
+	
+	Cmd_ChgPlanIssue, 						//充电计划下发
 	Cmd_ChgPlanIssueAck,                 	//充电计划下发应答
 	Cmd_ChgPlanOffer, 						//充电计划事件上报
 	Cmd_ChgPlanOfferAck,                 	//充电计划上报事件应答
-	Cmd_ChgPlanExeState,                    //充电计划执行状态事件上报
-	Cmd_ChgPlanExeStateAck,                 //充电计划执行状态事件上报应答
 	
 	Cmd_ChgPlanAdjust,                 		//充电计划调整
 	Cmd_ChgPlanAdjustAck,                 	//充电计划调整应答
-	Cmd_RouterExeState,                    	//路由器执行状态查询
-	Cmd_RouterExeStateAck,                 	//路由器执行状态应答
 
-	Cmd_ChgRequest,							//蓝牙充电申请
-	Cmd_ChgRequestAck,						//蓝牙充电申请应答
 	Cmd_ChgRequestReport,					//充电申请事件上送
 	Cmd_ChgRequestReportAck,				//充电申请事件上送应答
 	Cmd_ChgRequestReportAPP,				//充电申请事件告知APP
+	
+	Cmd_ChgPlanExeState,                    //充电计划执行状态事件上报
+	Cmd_ChgPlanExeStateAck,                 //充电计划执行状态事件上报应答
 //	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
 	
 	Cmd_StartChg,							//启动充电参数下发
@@ -244,6 +245,9 @@ typedef enum {
 	Cmd_DeviceFault,                      	//上送路由器异常状态
 	Cmd_PileFault,                 			//上送充电桩异常状态
 	Cmd_ChgPlanIssueGetAck,
+	
+	Cmd_RouterExeState,                    	//路由器执行状态查询
+	Cmd_RouterExeStateAck,                 	//路由器执行状态应答
 }COMM_CMD_C;//业务传输流程命令号
 #define COMM_CMD_C rt_uint32_t
 
@@ -281,7 +285,7 @@ extern unsigned char CRC7(unsigned char *ptr,unsigned int cnt);
 extern unsigned int CRC_16(unsigned char *ptr, unsigned int nComDataBufSize);
 extern unsigned char CRC7(unsigned char *ptr,unsigned int count);
 extern unsigned char XOR_Check(unsigned char *pData, unsigned int Len);
-
+extern char *itoa(int num,char *str,int radix);
 
 extern void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* function);
 ////////////////////////////////////////////////////////////////////////////////// 
