@@ -214,8 +214,9 @@ extern ROUTER_FAULT Fault;
 
 /************************************** 有序充电业务 *******************************************/
 typedef enum {
+	Cmd_Null=0,								//未收到指令
 	
-	Cmd_ChgRequest = 0,						//蓝牙充电申请
+	Cmd_ChgRequest,							//蓝牙充电申请
 	Cmd_ChgRequestAck,						//蓝牙充电申请应答
 	
 	Cmd_ChgPlanIssue, 						//充电计划下发

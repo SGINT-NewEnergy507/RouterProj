@@ -100,7 +100,7 @@ CCMRAM static CTL_CHARGE BLE_Stop;
 CCMRAM static CTL_CHARGE Ctrl_PowerAdj;
 
 //充电执行状态
-CCMRAM static CHARGE_EXE_STATE Chg_ExeState;
+CCMRAM CHARGE_EXE_STATE Chg_ExeState;
 
 CCMRAM CTL_CHARGE_EVENT CtrlCharge_Event;
 CCMRAM static CHARGE_EXE_EVENT Ctrl_ChgExe_Event;
@@ -284,7 +284,7 @@ static void CtrlData_RecProcess(void)
 	rt_uint8_t i;
 	rt_uint8_t c_rst,b_rst,p_rst,s_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
-	rt_uint32_t Ctrl_EventCmd,BLE_EventCmd;
+	rt_uint32_t Ctrl_EventCmd=Cmd_Null,BLE_EventCmd=Cmd_Null;
 	char Cmd[32];
 	
 	/***************************** 接收控制器命令 *******************************/
@@ -664,12 +664,14 @@ static void CtrlData_RecProcess(void)
 				
 			c_rst = BLE_CtrlUnit_RecResp(Cmd_StopChg,&BLE_Stop,0);//取值			
 			rt_lprintf("[energycon]  (%s)  收到@蓝牙@停止充电命令  \n",__func__); 
-			memcpy(&CtrlCharge_Event,&BLE_Stop,41);			
+			memcpy(&CtrlCharge_Event.OrderSn,&BLE_Stop.OrderSn,sizeof(CtrlCharge_Event.OrderSn));	
+			memcpy(&CtrlCharge_Event.cAssetNO,&BLE_Stop.cAssetNO,sizeof(CtrlCharge_Event.cAssetNO));	
+			CtrlCharge_Event.GunNum = BLE_Stop.GunNum;	
 			CtrlCharge_Event.CtrlType = CTRL_STOP;
 			
 			if(Fault.Total != TRUE)
 			{
-				if(Ctrl_Stop.GunNum == GUN_A)		
+				if(Ctrl_Stop.GunNum == GUN_SINGLE)		
 				{
 					p_rst = ChargepileDataGetSet(Cmd_ChargeStop,0);
 
@@ -1028,12 +1030,12 @@ static void strategy_thread_entry(void *parameter)
 
 	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
 	
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,sizeof(RouterIfo.AssetNum));
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
 	rt_thread_mdelay(100);
 	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
-	RELAY_ON();//上电吸合继电器
+	RELAY_ON();//上电吸合继电器,给桩上电
 	while (1)
 	{
 		RtState_Judge();
