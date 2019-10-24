@@ -8,7 +8,7 @@
 #include <meter.h>
 #include "strategy.h"
 #include "global.h"
-#include "energycon.h"
+
 
 #ifdef RT_USING_DFS
 #include <dfs_fs.h>
@@ -106,7 +106,8 @@ static void storage_thread_entry(void *parameter)
 //	extern void ls(const char *pathname);
 //	ls("/Meter");
 //	ls("/LOG");	
-	rt_thread_delay(100);	
+	rt_thread_delay(100);
+	
 	while (1)
 	{
 //		/* lock scheduler */
@@ -5325,7 +5326,7 @@ static int Chg_Execute_Storage(const char *PATH,void *Storage_Para,rt_uint32_t o
 static int Chg_Request_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd)	
 {
 	int fd = 0;
-	char buffer[48]; 
+	char buffer[256]; 
 	char path_file[64];
 	CHARGE_APPLY_EVENT* pChg_Request = (CHARGE_APPLY_EVENT*)Storage_Para;	
 	
@@ -6115,9 +6116,9 @@ int storage_thread_init(void)
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	
-	RouterIfo.AssetNum[0] = 22;
-	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
-    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
+//	RouterIfo.AssetNum[0] = 22;
+//	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
+//    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	

@@ -2,7 +2,6 @@
 //#include <rtthread.h>
 #include <rtdevice.h>
 #include <strategy.h>
-#include "energycon.h"
 
 #define HPLC_UART_NAME       "uart5"  /* 串口设备名称 */
 

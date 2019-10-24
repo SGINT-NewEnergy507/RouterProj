@@ -28,11 +28,11 @@
 
 struct _698_DATE_S
 {
-	union
-	{
-		unsigned int year;
-		unsigned char c_year[2];
-	}g_year;
+//	union
+//	{
+		unsigned char year[2];
+//		unsigned int year;
+//	}g_year;
 	unsigned char month;
 	unsigned char day;
 	unsigned char hour;
@@ -96,7 +96,7 @@ struct _698_BLE_METER_ADDR
 	unsigned char	data;
 	unsigned char data_type;
 	unsigned char addr_len;
-	unsigned char addr[6];
+	unsigned char addr[12];
 	unsigned char optional;
 	unsigned char time;
 };
