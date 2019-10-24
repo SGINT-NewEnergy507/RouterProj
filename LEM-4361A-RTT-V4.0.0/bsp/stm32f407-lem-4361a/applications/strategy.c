@@ -941,18 +941,20 @@ static void TimeSolt_PilePowerCtrl(void)
 		//计算已充时间
 		time_t start_time = 0;
 		struct tm* timep;
-		timep->tm_sec = ChgOrder_Event.ChgStartTime.Second;
-		timep->tm_min = ChgOrder_Event.ChgStartTime.Minute;
-		timep->tm_hour = ChgOrder_Event.ChgStartTime.Hour;
-		timep->tm_mday = ChgOrder_Event.ChgStartTime.Day;
-		timep->tm_year = ChgOrder_Event.ChgStartTime.Year;
+		BCD_toInt((unsigned char*)&timep->tm_sec,&ChgOrder_Event.ChgStartTime.Second,1);
+		BCD_toInt((unsigned char*)&timep->tm_min,&ChgOrder_Event.ChgStartTime.Minute,1);
+		BCD_toInt((unsigned char*)&timep->tm_hour,&ChgOrder_Event.ChgStartTime.Hour,1);
+		BCD_toInt((unsigned char*)&timep->tm_mday,&ChgOrder_Event.ChgStartTime.Day,1);
+		BCD_toInt((unsigned char*)&timep->tm_mon,&ChgOrder_Event.ChgStartTime.Month,1);
+		BCD_toInt((unsigned char*)&timep->tm_year,&ChgOrder_Event.ChgStartTime.Year,1);
 		start_time = mktime(timep);
 		time_t stop_time = 0;
-		timep->tm_sec = ChgOrder_Event.ChgStopTime.Second;
-		timep->tm_min = ChgOrder_Event.ChgStopTime.Minute;
-		timep->tm_hour = ChgOrder_Event.ChgStopTime.Hour;
-		timep->tm_mday = ChgOrder_Event.ChgStopTime.Day;
-		timep->tm_year = ChgOrder_Event.ChgStopTime.Year;
+		BCD_toInt((unsigned char*)&timep->tm_sec,&ChgOrder_Event.ChgStopTime.Second,1);
+		BCD_toInt((unsigned char*)&timep->tm_min,&ChgOrder_Event.ChgStopTime.Minute,1);
+		BCD_toInt((unsigned char*)&timep->tm_hour,&ChgOrder_Event.ChgStopTime.Hour,1);
+		BCD_toInt((unsigned char*)&timep->tm_mday,&ChgOrder_Event.ChgStopTime.Day,1);
+		BCD_toInt((unsigned char*)&timep->tm_mon,&ChgOrder_Event.ChgStopTime.Month,1);
+		BCD_toInt((unsigned char*)&timep->tm_year,&ChgOrder_Event.ChgStopTime.Year,1);
 		stop_time = mktime(timep);
 		ChgOrder_Event.ucChargeTime = stop_time - start_time;
 		
