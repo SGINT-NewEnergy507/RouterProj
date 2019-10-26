@@ -78,7 +78,8 @@ char* AT_CmdDef[]={
 	"AT+BLENAME=",	//…Ë÷√ BLE …Ë±∏√˚≥∆
 //	"AT+BLENAME=\"LN000000000001\"\r\n",	//…Ë÷√ BLE …Ë±∏√˚≥∆
 //	"AT+BLENAME=\"[NR000000000001]\"\r\n",	//…Ë÷√ BLE …Ë±∏√˚≥∆
-	"AT+BLEADDR=1,\"f1:f2:f3:f4:f5:f6\"\r\n",
+//	"AT+BLEADDR=1,\"f1:f2:f3:f4:f5:f6\"\r\n",
+	"AT+BLEADDR=1,\"",
 	
 	"AT+BLEGATTSSRVCRE\r\n",	//¥¥Ω®GATTS ∑˛ŒÒ
 	"AT+BLEGATTSSRVSTART\r\n",	//ø™∆ÙGATTS ∑˛ŒÒ
@@ -214,15 +215,18 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 ********************************************************************/
 void BLE_Commit_TimeOut(void)
 {
-	g_ulBLE_Rx_Count++;
-	g_ulBLE_Tx_Count++;
-	
-	if((g_ulBLE_Rx_Count>60)||(g_ulBLE_Tx_Count>60))
+	if(g_ucProtocol == TRANS_MODE)
 	{
-		g_ulBLE_Rx_Count = 100;
-		g_ulBLE_Tx_Count = 100;
-		BLE_ATCmd = BLE_QUIT_TRANS;
-		g_ucProtocol = AT_MODE;
+		g_ulBLE_Rx_Count++;
+		g_ulBLE_Tx_Count++;
+		
+		if((g_ulBLE_Rx_Count>60)||(g_ulBLE_Tx_Count>60))
+		{
+			g_ulBLE_Rx_Count = 0;
+			g_ulBLE_Tx_Count = 0;
+			BLE_ATCmd = BLE_QUIT_TRANS;
+			g_ucProtocol = AT_MODE;
+		}
 	}
 }
 
@@ -235,20 +239,26 @@ void BLE_Commit_TimeOut(void)
 rt_err_t BLE_Uart_Data_Recv(rt_device_t dev,ScmUart_Comm* stData,rt_uint32_t size)
 {
 //	rt_uint8_t i,rx_len,rx_ptr;
+	rt_uint32_t lenth;
 	
 	if(dev == RT_NULL)
 		return RT_ERROR;
 	
 	if((g_ulBLE_Rx_Ptr+size) >= 1024)
 	{
+		lenth = (size - ((g_ulBLE_Rx_Ptr+size)-1024));
+		
+		rt_device_read(dev, 0, stData->Rx_data+g_ulBLE_Rx_Ptr,lenth);
 		g_ulBLE_Rx_Ptr = 0;
+		lenth = ((g_ulBLE_Rx_Ptr+size)-1024);
+		rt_device_read(dev, 0, stData->Rx_data+g_ulBLE_Rx_Ptr,lenth);
 		if(size > 1024)
 		{
 			size = 1024;
 		}
 	}
-
-	rt_device_read(dev, 0, stData->Rx_data+g_ulBLE_Rx_Ptr, size);
+	else
+		rt_device_read(dev, 0, stData->Rx_data+g_ulBLE_Rx_Ptr, size);
 	
 	g_ulBLE_Rx_Ptr += size;
 	
@@ -318,6 +328,19 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 		strcat((char*)ble_meter_addr_buf,"\0");
 		strcat(at_buf,(char*)(&ble_meter_addr_buf[1]));
 		strcat(at_buf,"\"\r\n");
+	}
+	else if(at_cmd == BLE_ADDR_SET)
+	{
+		for(i = 0; i < 6;i++)
+		{
+			strncpy(buf,"f",1);
+			strcat(at_buf,buf);
+			strncpy(buf,(char*)(&ble_meter_addr_buf[(i+1)*2]),1);
+			strcat(at_buf,buf);
+			if(i != 5)
+				strcat(at_buf,":");
+		}
+		strcat(at_buf,"\"\r\n");		
 	}
 	else if(at_cmd == BLE_ADV_DATA)
 	{
@@ -425,6 +448,8 @@ void BLE_Trans_Send(rt_device_t dev,rt_uint32_t cmd,rt_uint8_t reason,ScmUart_Co
 		my_printf((char*)stData->Tx_data,stData->DataTx_len,MY_HEX,1,FUNC_PRINT_TX);
 		
 		size = rt_device_write(dev, 0, stData->Tx_data, stData->DataTx_len);
+		
+		g_ulBLE_Tx_Count = 0;
 							
 //		if(size == stData->DataTx_len)
 //		{
@@ -446,8 +471,8 @@ void BLE_Trans_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//AT÷
 
 	if(BLE_Check_Data_to_Buf(stData) == RT_EOK)
 	{
-		while(g_ulBLE_RX_Write != g_ulBLE_RX_Read)
-		{
+//		while(g_ulBLE_RX_Write != g_ulBLE_RX_Read)
+//		{
 			if(BLE_698_Data_UnPackage(&_698_ble_frame,BLE_698_data_buf[g_ulBLE_RX_Read]) == RT_EOK)
 			{		
 				BLE_698_Data_Analysis_and_Response(&_698_ble_frame,stData);
@@ -457,7 +482,7 @@ void BLE_Trans_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//AT÷
 			g_ulBLE_RX_Read++;
 			if(g_ulBLE_RX_Read >= 4)
 				g_ulBLE_RX_Read = 0;
-		}		
+//		}		
 	}
 	
 	
@@ -466,15 +491,16 @@ void BLE_Trans_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//AT÷
 		BLE_ATCmd = BLE_QUIT_TRANS;
 		g_ucProtocol = AT_MODE;
 	}
-	rt_kprintf("[bluetooth]: BLE_RX_Read: %d \n",g_ulBLE_RX_Read);
-	rt_kprintf("[bluetooth]: BLE_RX_Write: %d \n",g_ulBLE_RX_Write);
-	rt_kprintf("[bluetooth]: BLE_Rx_Beg: %d \n",g_ulBLE_Rx_Beg);
-	rt_kprintf("[bluetooth]: BLE_Rx_Ptr: %d \n",g_ulBLE_Rx_Ptr);
-	rt_kprintf("[bluetooth]: BLE_Rx_Pre: %d \n",g_ulBLE_Rx_Pre);
+	g_ulBLE_Rx_Count = 0;
+//	rt_kprintf("[bluetooth]: BLE_RX_Read: %d \n",g_ulBLE_RX_Read);
+//	rt_kprintf("[bluetooth]: BLE_RX_Write: %d \n",g_ulBLE_RX_Write);
+//	rt_kprintf("[bluetooth]: BLE_Rx_Beg: %d \n",g_ulBLE_Rx_Beg);
+//	rt_kprintf("[bluetooth]: BLE_Rx_Ptr: %d \n",g_ulBLE_Rx_Ptr);
+//	rt_kprintf("[bluetooth]: BLE_Rx_Pre: %d \n",g_ulBLE_Rx_Pre);
 	
-	g_ulBLE_Rx_Beg = 0;
-	g_ulBLE_Rx_Ptr = 0;
-	g_ulBLE_Rx_Pre = 0;
+//	g_ulBLE_Rx_Beg = 0;
+//	g_ulBLE_Rx_Ptr = 0;
+//	g_ulBLE_Rx_Pre = 0;
 }
 
 
@@ -1621,26 +1647,26 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 //static rt_err_t check_698_data_to_buf(ScmUart_Comm* stData,struct CharPointDataManage* data_rev)
 {
 	rt_uint32_t i,lenth,hcs_size;
+	rt_uint8_t result;
 	
 	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	if(g_ucRecv698_In_AT == 1)
 	{
-		g_ucRecv698_In_AT = 0;		
-		memcpy(&stData->Rx_data[g_ulBLE_Rx_Pre],BLE_698_Get_Addr,sizeof(BLE_698_Get_Addr));
-		
+		g_ucRecv698_In_AT = 0;
+		g_ulBLE_Rx_Pre = 0;	
 		g_ulBLE_Rx_Ptr = sizeof(BLE_698_Get_Addr);
+		memcpy(&stData->Rx_data[g_ulBLE_Rx_Pre],BLE_698_Get_Addr,sizeof(BLE_698_Get_Addr));
 	}
+	
+	result = 0;
 	
 	for(i = g_ulBLE_Rx_Pre; i < g_ulBLE_Rx_Ptr; i++)
 	{
-		if(i > 1023)
+		if(i == g_ulBLE_Rx_Ptr)
 		{
-			g_ulBLE_Rx_Pre = 0;
-			g_ulBLE_Rx_Ptr = 0;
-			
-			rt_kprintf("[bluetooth]:Recv buf too much,%s !\n",__func__);
-			return RT_ERROR;
+			rt_kprintf("[bluetooth]:not find 68 in the recv buf,i = %d,%s !\n",i,__func__);
+			break;
 		}
 		
 		if(stData->Rx_data[i] == 0x68)
@@ -1650,14 +1676,9 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 			
 			if((lenth+i+1) > 1023)
 			{
-				g_ulBLE_Rx_Pre = 0;
-				g_ulBLE_Rx_Ptr = 0;
-				rt_kprintf("[bluetooth]:Recv buf too much,%s !\n",__func__);
-				return RT_ERROR;
+				rt_kprintf("[bluetooth]:data lenth is too long lenth = %d,%s !\n",lenth,__func__);
 			}
-			
-			
-			if(stData->Rx_data[i+lenth+1] == 0x16)//698“ª÷° ˝æ›  Ω” ‹ÕÍ’˚
+			else if(stData->Rx_data[i+lenth+1] == 0x16)//698“ª÷° ˝æ›  Ω” ‹ÕÍ’˚
 			{
 				hcs_size = (rt_uint32_t)((*(stData->Rx_data+i+4)&0x0f)+8);
 				if((_698_HCS(stData->Rx_data,i+1,hcs_size,0) == 0)&&(_698_FCS(stData->Rx_data,i+1,lenth,0) == 0))
@@ -1667,13 +1688,16 @@ static rt_err_t BLE_Check_Data_to_Buf(ScmUart_Comm* stData)
 					g_ulBLE_RX_Write++;
 					if(g_ulBLE_RX_Write >= 4)
 						g_ulBLE_RX_Write = 0;
+					result = 1;
 //					return RT_EOK;
 				}
 			}
 		}
 	}
+	g_ulBLE_Rx_Pre = 0;
+	g_ulBLE_Rx_Ptr = 0;
 	
-	if(g_ulBLE_RX_Write != g_ulBLE_RX_Read)
+	if(result)
 	{
 		return RT_EOK;
 	}
@@ -3831,6 +3855,8 @@ static void bluetooth_thread_entry(void *parabluetooth)
 //////////////////////////////////////////////////////////////////////	
 	
 	Esam_KEY_Sess_State= 0;// ª·ª∞–≠…Ã±Í÷æ  ª·ª∞–≠…ÃÕÍ±œ ≤≈ƒ‹Ω¯––∆‰À˚“µŒÒ
+	g_ulBLE_Rx_Count = 0;
+	g_ulBLE_Tx_Count = 0;
 		
 	while (1)
 	{
@@ -3850,7 +3876,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 		else
 			rt_thread_mdelay(500);
 		
-//		BLE_Commit_TimeOut();
+		BLE_Commit_TimeOut();
 //		rt_thread_mdelay(1000);
 	}
 }
