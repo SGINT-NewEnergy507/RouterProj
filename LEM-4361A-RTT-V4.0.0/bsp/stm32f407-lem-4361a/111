@@ -34,19 +34,11 @@ typedef enum
 	BLE_UNIT,			//蓝牙操控
 }CTRL_CMD_SOURCE;/*控制命令来源*/
 
-typedef enum
-{
-	EXE_NULL=0,
-	EXE_ING,
-	EXE_END,
-	EXE_FAILED,
-}EXESTATE;/*执行状态 {0：未执行  1：正常执行 2：执行结束 3：执行失败}*/
-
 typedef struct
 {
 	char OrderSn[17];			//订单号  octet-string（SIZE(16)）
 	char cAssetNO[23];			//路由器资产编号  visible-string（SIZE(22)）
-	GUN_NUM GunNum;				//枪序号	{A枪（1）、B枪（2）}
+	unsigned char GunNum;		//枪序号	{A枪（1）、B枪（2）}
 	unsigned long SetPower;		//设定充电功率（单位：W，换算：-1）
 	unsigned char cSucIdle;		//成功或失败原因:{0：成功 1：失败 255：其他}
 }CTL_CHARGE;/*控制器充电控制*/
@@ -61,15 +53,15 @@ typedef struct
 typedef struct
 {
 	char cAssetNO[23];		//路由器资产编号  visible-string（SIZE(22)）
-	GUN_NUM GunNum;	//枪序号	{A枪（1）、B枪（2）}
+	unsigned char GunNum;	//枪序号	{A枪（1）、B枪（2）}
 }CHARGE_EXE_STATE_ASK;/*路由器工作状态查询*/
 
 typedef struct
 {
 	char cRequestNO[17];			//申请单号  octet-string（SIZE(16)）
 	char cAssetNO[23];				//路由器资产编号  visible-string（SIZE(22)）
-	GUN_NUM GunNum;					//枪序号	{A枪（1）、B枪（2）}
-	EXESTATE exeState;				//执行状态 {1：正常执行 2：执行结束 3：执行失败}
+	unsigned char GunNum;			//枪序号	{A枪（1）、B枪（2）}
+	unsigned char exeState;			//执行状态 {1：正常执行 2：执行结束 3：执行失败}
 	unsigned char ucTimeSlotNum;	//时间段数量
 	unsigned long ulEleBottomValue[5]; 	//电能示值底值（充电首次执行时示值）（单位：kWh，换算：-2）
 	unsigned long ulEleActualValue[5]; 	//当前电能示值（单位：kWh，换算：-2）
@@ -89,7 +81,7 @@ typedef struct
 {
 	char OrderSn[17];			//订单号  octet-string（SIZE(16)）
 	char cAssetNO[23];			//路由器资产编号  visible-string（SIZE(22)）
-	GUN_NUM GunNum;				//枪序号	{A枪（1）、B枪（2）}
+	unsigned char GunNum;		//枪序号	{A枪（1）、B枪（2）}
 	CTRL_TYPE CtrlType;			//控制类型{1：启动  2：停止  3：调整功率}
 	CTRL_CMD_SOURCE StartSource;//启动源{1：4G启动  2:蓝牙启动}
 	CTRL_CMD_SOURCE StopSource;	//停机源{1：4G停机  2:蓝牙停机}
@@ -121,11 +113,11 @@ typedef struct
 	
 	char RequestNO[17];					//	充电申请单号   （SIZE(16)）
 	char AssetNO[23];					//	路由器资产编号 visible-string（SIZE(22)）
-	GUN_NUM GunNum;						//	枪序号	{A枪（1）、B枪（2）}
+	unsigned char GunNum;				//	枪序号	{A枪（1）、B枪（2）}
 	unsigned long ChargeReqEle;			//	充电需求电量（单位：kWh，换算：-2）
 	STR_SYSTEM_TIME RequestTimeStamp;	//	充电申请时间
 	STR_SYSTEM_TIME	PlanUnChg_TimeStamp;//	计划用车时间
-	CHARGE_MODE ChargeMode;				//	充电模式 {正常（0），有序（1）}
+	unsigned char ChargeMode;			//	充电模式 {正常（0），有序（1）}
 	unsigned long StartMeterValue[5];	//	启动时电表表底值
 	unsigned long StopMeterValue[5];	//	停止时电表表底值
 	STR_SYSTEM_TIME	ChgStartTime;		//	充电启动时间
