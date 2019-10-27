@@ -5414,11 +5414,12 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	case(Cmd_ChgRequestReport)://充电申请事件上送
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
 			hplc_CHARGE_APPLY_EVENT=*((CHARGE_APPLY_EVENT *)STR_SetPara);
-
-			rt_kprintf("[hplc]  (%s)  %0x：%0x：%0x：%0x：%0x：  \n",__func__,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Year,
-	hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Month,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Day,
-	hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Hour,hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Minute); 
-
+			
+//			rt_kprintf("[hplc]   %2x：\n",hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Year); 
+//			rt_kprintf("[hplc]   %2x：\n",hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Month); 
+//			rt_kprintf("[hplc]   %2x：\n",hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Day); 
+//			rt_kprintf("[hplc]   %2x：\n",hplc_CHARGE_APPLY_EVENT.PlanUnChg_TimeStamp.Hour); 
+//			rt_kprintf("[hplc]   %2x：\n",(*((CHARGE_APPLY_EVENT *)STR_SetPara)).PlanUnChg_TimeStamp.Minute); 
 			hplc_event=hplc_event|event;
 			//是否还要判断是否运行成功，成功了之后才推出。
 
@@ -5985,16 +5986,31 @@ int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_dat
 
 	
 	
-	rt_kprintf("[hplc]  (%s)  %0x：%0x：%0x：%0x：%0x：  \n",__func__,SYSTEM_TIME->Year,SYSTEM_TIME->Month,SYSTEM_TIME->Day,SYSTEM_TIME->Hour,SYSTEM_TIME->Minute); 
+//	rt_kprintf("[hplc]  %2x \n",SYSTEM_TIME->Year); 
+//	rt_kprintf("[hplc]  %2x \n",SYSTEM_TIME->Month); 
+//	rt_kprintf("[hplc]  %2x \n",SYSTEM_TIME->Day); 
+//	rt_kprintf("[hplc]  %2x \n",SYSTEM_TIME->Hour); 
+//	rt_kprintf("[hplc]  %2x \n",SYSTEM_TIME->Minute); 
+
+
+
+
+
+
 	date_time_s->year[0]=date_time_s->data[0]=((2000&0xff00)>>8);//
-	date_time_s->year[1]=date_time_s->data[1]=(((SYSTEM_TIME->Year&0xf0)>>4)*10+SYSTEM_TIME->Year&0x0f+(2000&0x00ff));//年	
-	date_time_s->month=date_time_s->data[2]=(((SYSTEM_TIME->Month&0xf0)>>4)*10+SYSTEM_TIME->Month&0x0f);//月
-	date_time_s->day=date_time_s->data[3]=(((SYSTEM_TIME->Day&0xf0)>>4)*10+SYSTEM_TIME->Day&0x0f);//日	
-	date_time_s->hour=date_time_s->data[4]=(((SYSTEM_TIME->Hour&0xf0)>>4)*10+SYSTEM_TIME->Hour&0x0f);//时
-	date_time_s->minute=date_time_s->data[5]=(((SYSTEM_TIME->Minute&0xf0)>>4)*10+SYSTEM_TIME->Minute&0x0f);//分	
-	date_time_s->second=date_time_s->data[6]=(((SYSTEM_TIME->Second&0xf0)>>4)*10+SYSTEM_TIME->Second&0x0f);//秒	
+	date_time_s->year[1]=date_time_s->data[1]=(((SYSTEM_TIME->Year&0xf0)>>4)*10+(SYSTEM_TIME->Year&0x0f)+(2000&0x00ff));//年	
+
+	date_time_s->month=date_time_s->data[2]=(((SYSTEM_TIME->Month&0xf0)>>4)*10+(SYSTEM_TIME->Month&0x0f));//月
+	date_time_s->day=date_time_s->data[3]=(((SYSTEM_TIME->Day&0xf0)>>4)*10+(SYSTEM_TIME->Day&0x0f));//日	
+	date_time_s->hour=date_time_s->data[4]=(((SYSTEM_TIME->Hour&0xf0)>>4)*10+(SYSTEM_TIME->Hour&0x0f));//时
+	date_time_s->minute=date_time_s->data[5]=(((SYSTEM_TIME->Minute&0xf0)>>4)*10+(SYSTEM_TIME->Minute&0x0f));//分	
+	date_time_s->second=date_time_s->data[6]=(((SYSTEM_TIME->Second&0xf0)>>4)*10+(SYSTEM_TIME->Second&0x0f));//秒	
 	
-	
+//	rt_kprintf("[hplc]  %2x \n",date_time_s->data[0]); 
+//	rt_kprintf("[hplc]  %2x \n",date_time_s->data[1]); 
+//	rt_kprintf("[hplc]  %2x \n",date_time_s->data[2]); 
+//	rt_kprintf("[hplc]  %2x \n",date_time_s->data[3]); 
+//	rt_kprintf("[hplc]  %2x \n",date_time_s->data[4]); 	
 	
 	
 	

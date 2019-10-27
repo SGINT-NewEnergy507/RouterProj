@@ -509,11 +509,6 @@
               <FilePath>applications\chargepile.c</FilePath>
             </File>
             <File>
-              <FileName>energycon.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>applications\energycon.c</FilePath>
-            </File>
-            <File>
               <FileName>esam.c</FileName>
               <FileType>1</FileType>
               <FilePath>applications\esam.c</FilePath>
