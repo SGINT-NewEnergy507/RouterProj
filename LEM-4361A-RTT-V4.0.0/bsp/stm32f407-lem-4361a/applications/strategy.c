@@ -119,8 +119,9 @@ CCMRAM static char cRequestNO_New[17];
  **************************************************************/
  void RELAY_ON(void)
 {
-	rt_pin_write(RELAYA_PIN, PIN_LOW);
-	rt_pin_write(RELAYB_PIN, PIN_HIGH);
+	rt_pin_write(RELAYB_PIN, PIN_LOW);
+	rt_thread_mdelay(200);
+	rt_pin_write(RELAYA_PIN, PIN_HIGH);
 }
 /**************************************************************
  * 函数名称: RELAY_OFF 
@@ -130,8 +131,9 @@ CCMRAM static char cRequestNO_New[17];
  **************************************************************/
 void RELAY_OFF(void)
 {
-	rt_pin_write(RELAYB_PIN, PIN_LOW);
-	rt_pin_write(RELAYA_PIN, PIN_HIGH);
+	rt_pin_write(RELAYA_PIN, PIN_LOW);
+	rt_thread_mdelay(200);
+	rt_pin_write(RELAYB_PIN, PIN_HIGH);
 }
 /**************************************************************
  * 函数名称: StartChgResp_Timeout 
@@ -238,7 +240,7 @@ static void timer_create_init()
 									ChgPileStateGet_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
 									1000, /* 定时长度，以OS Tick为单位，即5000个OS Tick */
-									RT_TIMER_FLAG_ONE_SHOT); /* 一次性定时器 */
+									RT_TIMER_FLAG_PERIODIC); /* 周期性定时器 */
 	/* 启动定时器 */
 	if (ChgPileStateGet != RT_NULL)
 		rt_timer_start(ChgPileStateGet);
@@ -265,7 +267,7 @@ static void ExeState_Update(void)
 	
 	ScmMeter_Analog stgMeter_Analog;
 	cmMeter_get_data(EMMETER_ANALOG,&stgMeter_Analog);
-	Chg_ExeState.ucActualPower = stgMeter_Analog.ulAcPwr;
+	Chg_ExeState.ucActualPower = stgMeter_Analog.ulAcPwr/100;
 	Chg_ExeState.ucVoltage.A = stgMeter_Analog.ulVol;
 	Chg_ExeState.ucCurrent.A = stgMeter_Analog.ulCur;
 	
@@ -300,6 +302,7 @@ static void CtrlData_RecProcess(void)
 			break;
 		}
 	}
+	
 	switch(Ctrl_EventCmd)
 	{
 		//收到充电计划
@@ -556,8 +559,9 @@ static void CtrlData_RecProcess(void)
 			{
 				rt_lprintf("[strategy]  (%s) 获取BLE传输的数据，失败！\n",__func__);
 			}
-		
-			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Apply_Rsp,0);//回复	
+			
+			//充电申请确认响应
+			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestAck,&Chg_Apply_Rsp,0);	
 			if(b_rst == SUCCESSFUL)
 			{
 				rt_lprintf("[strategy]  (%s) Chg_Apply Response, Successful!\n",__func__);				
@@ -567,7 +571,7 @@ static void CtrlData_RecProcess(void)
 				rt_lprintf("[strategy]  (%s) 回复BLE充电申请确认响应，失败！\n",__func__);
 			}
 			
-			
+
 			//申请事件处理
 			s_rst = SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
 			if(s_rst == SUCCESSFUL)
@@ -583,22 +587,33 @@ static void CtrlData_RecProcess(void)
 			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
 			
+			
 			//暂定立即启动充电
 			if(b_rst == SUCCESSFUL)
 			{
 				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
-				CtrlCharge_Event.CtrlType = CTRL_START;
-				CtrlCharge_Event.StartSource = BLE_UNIT;
-				p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
 				memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-				if(p_rst == SUCCESSFUL)
+				if(PileIfo.WorkState == ChgSt_Standby)
 				{
-					PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
-					rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+					CtrlCharge_Event.CtrlType = CTRL_START;
+					CtrlCharge_Event.StartSource = BLE_UNIT;
+					p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+					
+					if(p_rst == SUCCESSFUL)
+					{
+						PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+						Chg_ExeState.exeState = EXE_ING;
+						rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+					}
+					else
+					{
+						Chg_ExeState.exeState = EXE_FAILED;
+						rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+					}
 				}
 				else
 				{
-					rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+					Chg_ExeState.exeState = EXE_FAILED;
 				}
 				
 				//上送充电执行事件
@@ -678,6 +693,7 @@ static void CtrlData_RecProcess(void)
 					if(p_rst == SUCCESSFUL)
 					{
 						PileIfo.WorkState = ChgSt_Finished;	
+						Chg_ExeState.exeState = EXE_END;
 						rt_lprintf("[energycon] : APP停机后，收到Chargepile返回\n");
 					}					
 				}
@@ -1038,26 +1054,28 @@ static void RtState_Judge(void)
 static void strategy_thread_entry(void *parameter)
 {
 	rt_err_t res,p_rst;
-	
-	rt_thread_mdelay(1000);
+
 	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
+	
+	
+	rt_thread_mdelay(3000);
+	
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
+	rt_thread_mdelay(100);
+	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
-	RELAY_ON();//上电吸合继电器,给桩上电
-	
-	rt_thread_mdelay(2000);
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
-
+	RELAY_ON();//上电吸合继电器
 	while (1)
 	{
 		RtState_Judge();
 		CtrlData_RecProcess();
 		PileData_RecProcess();	
 		
-		if(memcmp(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old)) != 0)
-		{
+//		if(memcmp(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old)) != 0)
+//		{
 			TimeSolt_PilePowerCtrl(); 
-		}
+//		}
 		
 		if(rt_pin_read(KC3_PIN) == PIN_LOW)
 			p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
@@ -1106,5 +1124,15 @@ int strategy_thread_init(void)
 #endif
 MSH_CMD_EXPORT(strategy_thread_init, strategy thread run);
 
+void REALY_ON(int argc, char**argv)
+{
+	RELAY_ON();
+}
+MSH_CMD_EXPORT(REALY_ON, AC out CMD);
 
+void REALY_OFF(int argc, char**argv)
+{
+	RELAY_OFF();
+}
+MSH_CMD_EXPORT(REALY_OFF, AC out  CMD);
 
