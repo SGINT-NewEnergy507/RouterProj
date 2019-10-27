@@ -165,7 +165,7 @@ int test_sizeof(CHARGE_APPLY_EVENT* prive_struct){
 *	
 */
 void hplc_thread_entry(void * parameter){
-	int result=0,i=0,j=0,time=0,time_past=0;
+	int result=0,i=0,j=0,time=0,time_past=0,times=0;
 	struct CharPointDataManage hplc_data_rev,hplc_data_tx;
 	struct CharPointDataManage hplc_data_wait_list;//用不能超过2个，实际位客户机接收帧最大窗口尺寸
 	
@@ -232,7 +232,6 @@ void hplc_thread_entry(void * parameter){
 			}	
 		}	
 
-
 		
 		result=get_single_frame_frome_hplc(&hplc_698_state,&hplc_data_rev,&hplc_data_tx);
 		if(result!=0){//定义成这样，是为了方便其他接口可能的调用，如果错误，接着去接收
@@ -249,8 +248,8 @@ void hplc_thread_entry(void * parameter){
 		}else{//如果正确接收到了一帧
 			if(hplc_priveData_analysis(&hplc_data_rev,&hplc_data_tx)==0){//进行帧解析	,给结构体，并且校验														
 			//处理一且由服务器发来的帧，要区分
-//				rt_kprintf("[hplc]  (%s)  	RX:\n",__func__);
-//				printmy(&hplc_data_rev._698_frame);	//测试
+				rt_kprintf("[hplc]  (%s)  	RX:\n",__func__);
+				printmy(&hplc_data_rev._698_frame);	//测试
 				if(judge_meter_no(&hplc_698_state,&hplc_data_rev)==0){
 					result=_698_analysis(&hplc_698_state,&hplc_data_tx,&hplc_data_rev,&hplc_data_wait_list);
 					
@@ -292,7 +291,22 @@ void hplc_thread_entry(void * parameter){
 			}else{
 				//发送应用层提交的事物		
 			}
-		}			
+		}
+		if(1){
+			times++;
+			if(times>10){//50秒左右打印一次
+				times=0;
+				rt_kprintf("[hplc]  (%s)  no data for very long time! \n",__func__);				
+			}
+			
+
+		}
+
+
+
+
+
+		
 	}//while（1）	
 }
 
@@ -442,7 +456,6 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 			if(times==10){//10秒判断超时,全清空
 
 				times=0;
-				rt_kprintf("[hplc]  (%s) priv_698_state->len_left=%d no data for very long time! \n",__func__,priv_698_state->len_left);				
 				clear_data(priv_698_state,data_rev,&data_rev->_698_frame);//处理完了后清理数据	,只有这个是动态的后面的申请了空间后就不变了
 				return -1;
 			}
@@ -5216,10 +5229,8 @@ rt_uint32_t strategy_event_get(void){
 	hplc_lock2=1;	
 //	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);		
 
-
 	result=strategy_event;
-//	strategy_event=CTRL_NO_EVENT;
-	
+//	strategy_event=CTRL_NO_EVENT;	
 	hplc_lock2=0;
 	hplc_lock1=0;		
 	return result;
@@ -5241,7 +5252,6 @@ rt_uint32_t my_strategy_event_get(void){
 	}	
 	hplc_lock2=1;	
 //	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);		
-
 
 	result=strategy_event;
 	
@@ -5841,7 +5851,7 @@ int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 	for(i=0;i<priv_698_state->addr.s_addr_len;i++){
 		if((data_rev->_698_frame.addr.s_addr[i]==0xaa)||(priv_698_state->addr.s_addr[i]==data_rev->_698_frame.addr.s_addr[i])){
 
-			rt_kprintf("[hplc]  (%s) right meter No. \n",__func__);
+//			rt_kprintf("[hplc]  (%s) right meter No. \n",__func__);
 			
 		}else{
 			rt_kprintf("[hplc]  (%s)  NOT right right meter No.  s_addr[%d]= %2X \n",__func__,i,priv_698_state->addr.s_addr[i]);
