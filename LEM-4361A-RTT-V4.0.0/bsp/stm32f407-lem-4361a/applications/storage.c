@@ -8,7 +8,7 @@
 #include <meter.h>
 #include "strategy.h"
 #include "global.h"
-
+#include "energycon.h"
 
 #ifdef RT_USING_DFS
 #include <dfs_fs.h>
@@ -34,7 +34,7 @@ static rt_uint8_t storage_stack[THREAD_STORAGE_STACK_SIZE];//线程堆栈
 static rt_mutex_t storage_ReWr_mutex = RT_NULL;
 #define MAX_DIR_NUM    14
 
-#define MAX_MALLOC_NUM    2048
+#define MAX_MALLOC_NUM    1024
 
 ///* 定义邮箱控制块 */
 //rt_mailbox_t m_save_mail = RT_NULL;
@@ -106,8 +106,29 @@ static void storage_thread_entry(void *parameter)
 //	extern void ls(const char *pathname);
 //	ls("/Meter");
 //	ls("/LOG");	
-	rt_thread_delay(100);
-	
+	rt_thread_delay(5000);
+	char para[9];
+	char array[9];
+//	unlink((const char*)ROUTER_PARA_PATH_FILE); //删除oldest_file 必须完整路径
+//	memset(array,0x00,sizeof(array));
+//	memset(para,0x00,sizeof(para));
+//	for(int i=0;i<8;i++)
+//	{
+//		para[i] = i+1;
+//	}
+//	for(int i=0;i<8;i++)
+//	{
+//		rt_kprintf("para[%d]=%02X\n",i,para[i]);
+//	}
+//	rt_kprintf("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
+//	SetStorageData(Cmd_MeterNumWr,para,sizeof(para));
+//	rt_thread_delay(1000);
+//	GetStorageData(Cmd_MeterNumRd,array,sizeof(array));
+//	rt_kprintf("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
+//	for(int i=0;i<8;i++)
+//	{
+//		rt_kprintf("array[%d]=%02X\n",i,array[i]);
+//	}
 	while (1)
 	{
 //		/* lock scheduler */
@@ -986,25 +1007,27 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		
 		if(strlen((const char*)Para_Buff)>MAX_MALLOC_NUM)
 		{
-			rt_lprintf("[storage]: Para_Buff overflow\n");
+			rt_kprintf("[storage]: Para_Buff overflow\n");
 			
 			return -1;
 		}
 		else
 		{
-			rt_lprintf("[storage]:strlen(Para_Buff)=%d\n",strlen(Para_Buff));
+			rt_kprintf("[storage]:strlen(Para_Buff)=%d\n",strlen(Para_Buff));
 		}
 		
 /************************************************************************************************/			
-		/* Opens the file, if it is existing. If not, a new file is created. */
+		/*O_CREAT: Opens the file, if it is existing. If not, a new file is created. */
+		/*O_TRUNC: Creates a new file. If the file is existing, it is truncated and overwritten. */
+		/*O_EXCL: Creates a new file. The function fails if the file is already existing. */
 		int fd= open(file,O_WRONLY | O_CREAT);
 		if(fd >= 0)
 		{
-			rt_lprintf("[storage]:%s文件打开成功\n",file);
+			rt_kprintf("[storage]:%s文件打开成功\n",file);
 		}
 		else
 		{
-			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",file,fd);
+			rt_kprintf("[storage]:%s文件打开失败 fd=%d\n",file,fd);
 
 			return -2; 			
 		}		
@@ -1012,16 +1035,17 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		writelen = write(fd,Para_Buff,strlen((const char*)Para_Buff));//写入首部   返回值0：成功	
 		if(writelen > 0)
 		{
-			rt_lprintf("[storage]:文件写入成功 writelen=%d\n",writelen);
+			rt_kprintf("[storage]:文件写入成功 writelen=%d\n",writelen);
 		}
 		else
 		{
-			rt_lprintf("[storage]:文件写入失败 writelen=%d\n",writelen);
+			rt_kprintf("[storage]:文件写入失败 writelen=%d\n",writelen);
 		}				
 		if(close(fd) != UENOERR)
 		{
-			rt_lprintf("[storage]:文件关闭失败\n");
-		}			
+			rt_kprintf("[storage]:文件关闭失败\n");
+		}
+		return datalen;		
 	}
 /************************************************************************************************/
 /************************************************************************************************/
@@ -1030,30 +1054,30 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		fd= open(file,O_RDONLY);//打开文件。如果文件不存在，则打开失败。
 		if(fd >= 0)
 		{
-			rt_lprintf("[storage]:%s文件打开成功\n",file);
+			rt_kprintf("[storage]:%s文件打开成功\n",file);
 		}
 		else
 		{
-			rt_lprintf("[storage]:%s文件打开失败 fd=%d\n",file,fd);
+			rt_kprintf("[storage]:%s文件打开失败 fd=%d\n",file,fd);
 		}
         /***************************************************************************************/
-		readlen=read(fd,Para_Buff,strlen(Para_Buff));	//读出txt里面的内容	
+		readlen=read(fd,Para_Buff,MAX_MALLOC_NUM);	//读出txt里面的内容	
 		if(readlen > 0) //0
 		{
-			rt_lprintf("[storage]:文件读取成功 readlen=%d\n",readlen);
+			rt_kprintf("[storage]:文件读取成功 readlen=%d\n",readlen);
 		}
 		else
 		{
-			rt_lprintf("[storage]:文件读取失败 readlen=%d\n",readlen);
+			rt_kprintf("[storage]:文件读取失败 readlen=%d\n",readlen);
 		}
 		if(close(fd) != UENOERR)
 		{
-			rt_lprintf("[storage]:文件关闭失败\n");
+			rt_kprintf("[storage]:文件关闭失败\n");
 		}
 		*(Para_Buff+readlen) = '\0';//需要追加结束符
 		if(readlen <= RT_CONSOLEBUF_SIZE)
 		{
-			rt_lprintf("[storage]:文件读取内容\n%s\n",Para_Buff);
+			rt_kprintf("[storage]:文件读取内容\n%s\n",Para_Buff);
 		}
 	
 		char *fpoint = Para_Buff;//参数
@@ -1069,20 +1093,21 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 				fpoint = get_pvalue(fpoint,(rt_uint32_t*)Storage_Para,datalen);//返回当前文件读指针
 				for(int i=0;i<datalen;i++)
 				{
-					rt_lprintf((char*)buffer,"0x%02X",*((char*)Storage_Para+i));// 表号
+					rt_kprintf((char*)buffer,"0x%02X",*((char*)Storage_Para+i));// 表号
 				}
-				rt_lprintf("\n");
+				rt_kprintf("\n");
 			}			
 			else
 			{
-				rt_lprintf("[storage]:文件名不符合 ulVol=%s\n",fpname); 
+				rt_kprintf("[storage]:文件名不符合 ulVol=%s\n",fpname); 
 			}
 			namelen=0;		
 		}
 		else
 		{
-            rt_lprintf("[storage]:namelen=0\n");
+            rt_kprintf("[storage]:namelen=0\n");
 		}
+		return readlen/2;	
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1090,11 +1115,9 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 	}
 	else
 	{
-		rt_lprintf("[storage]:文件无效命令\n");
-	}
-
-	return 0;	
-	
+		rt_kprintf("[storage]:文件无效命令\n");
+		return 0;	
+	}	
 }
 /*********************************************************************************************************
 ** Function name:		Meter_GJFMode_Storage
@@ -6116,9 +6139,9 @@ int storage_thread_init(void)
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	
-//	RouterIfo.AssetNum[0] = 22;
-//	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
-//    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
+	RouterIfo.AssetNum[0] = 22;
+	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
+    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	
@@ -6172,18 +6195,17 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 	    Para_Buff = rt_malloc(MAX_MALLOC_NUM);//申请内存
 		if(Para_Buff == NULL)
 		{
-			rt_lprintf("[storage]:Para_Buff 分配内存失败\n");
+			rt_kprintf("[storage]:Para_Buff 分配内存失败\n");
 			return 1;
 		}
-		rt_lprintf("[storage]:Para_Buff rt_mallocOK\n");
 	}
 	rt_err_t ret = 0;	
 	rt_err_t result = rt_mutex_take(storage_ReWr_mutex, RT_WAITING_FOREVER);
-	
 	switch(cmd)
 	{
 		case Cmd_MeterNumRd://
 			ret = Router_Para_Storage(ROUTER_PARA_PATH_FILE,Storage_Para,datalen,READ);
+		
 			break;
 		case Cmd_MeterPowerRd://
 			ret = Meter_Power_Storage(ROUTER_PARA_PATH_FILE,Storage_Para,datalen,READ);
@@ -6230,7 +6252,7 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			
 			break;		
 		default:
-			rt_lprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
+			rt_kprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
 		    ret = 1;
 			break;
 	}	
@@ -6244,7 +6266,7 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 	}
 	else
 	{
-		rt_lprintf("[storage]:storage_ReWr_mutex 释放互斥锁失败\n");
+		rt_kprintf("[storage]:storage_ReWr_mutex 释放互斥锁失败\n");
 	}
 	
 	return ret;
@@ -6460,4 +6482,112 @@ static rt_uint32_t pow_df(rt_uint8_t m,rt_uint8_t n)
 	rt_uint32_t result=1;
 	while(n--)result*=m;
 	return result;
+}
+//对于nptr指向的字符串，其开头和结尾处的空格被忽视，字符串中间的空格被视为非法字符。
+//D:\tc2>test myarg1 myarg2 
+//这个时候，argc的值是3，argc[0]的值是”test”，argc[1]的值是”myarg1”，argc[2]的值是”myarg2”。
+//argc 的值 这个赋值过程是编译器完成的，我们只需要读出数据就可以了
+void WrAssetNum(int argc, char**argv)//WrAssetNum 191000000035 zichan 191000000035
+{
+	char buf[13];
+	if(argc != 2)
+	{
+		rt_kprintf("Please input single string e.g.\nWrAssetNum *******\n");
+		return;	
+	}
+	rt_uint32_t level = rt_hw_interrupt_disable();
+	rt_size_t len = strlen(argv[1]);
+	rt_kprintf("len:%d\n",len);
+//	char *buf = (char*)rt_malloc(len);
+	buf[0] = len;
+	memcpy(&buf[1],argv[1],buf[0]);
+	for(int i = 0;i < len+1;i++)
+	{
+		rt_kprintf("buf[%u]=%02X\n",i,buf[i]);
+	}
+	SetStorageData(Cmd_MeterNumWr,buf,len+1);
+	rt_kprintf("WrAssetNum success\n");
+//	rt_free(buf);
+	rt_hw_interrupt_enable(level);
+}
+MSH_CMD_EXPORT(WrAssetNum, set assetnum);
+//对于nptr指向的字符串，其开头和结尾处的空格被忽视，字符串中间的空格被视为非法字符。
+//D:\tc2>test myarg1 myarg2 
+//这个时候，argc的值是3，argc[0]的值是”test”，argc[1]的值是”myarg1”，argc[2]的值是”myarg2”。
+//argc 的值 这个赋值过程是编译器完成的，我们只需要读出数据就可以了
+void RdAssetNum(int argc, char**argv)
+{
+	char asserr[13];
+	if(argc != 1)
+	{
+		rt_kprintf("Please input single cmd e.g.\nWrAssetNum\n");
+		return;	
+	}
+	rt_uint32_t level = rt_hw_interrupt_disable();
+	rt_size_t len = 13;
+//	char *buf = (char*)rt_malloc(len);
+	GetStorageData(Cmd_MeterNumRd,asserr,len);	
+	for(int i = 0;i < len;i++)
+	{
+		rt_kprintf("asserr[%u]=%02X\n",i,asserr[i]);
+	}
+//	rt_free(buf);
+	rt_hw_interrupt_enable(level);
+}
+MSH_CMD_EXPORT(RdAssetNum, read AssetNum);
+/*
+// C prototype : void StrToHex(BYTE *pbDest, BYTE *pbSrc, int nLen)
+// parameter(s): [OUT] pbDest - 输出缓冲区
+//	[IN] pbSrc - 字符串
+//	[IN] nLen - 16进制数的字节数(字符串的长度/2)
+// return value: 
+// remarks : 将字符串转化为16进制数
+*/
+#include "ctype.h"
+void StrToHex(char *pbDest, char *pbSrc, int nLen)
+{
+	char h1,h2;
+	char s1,s2;
+	int i;
+
+	for (i=0; i<nLen; i++)
+	{
+		h1 = pbSrc[2*i];
+		h2 = pbSrc[2*i+1];
+
+		s1 = toupper(h1) - 0x30; //toupper将字符转换为大写英文字母
+		if (s1 > 9) 
+		s1 -= 7;
+
+		s2 = toupper(h2) - 0x30;
+		if (s2 > 9) 
+		s2 -= 7;
+
+		pbDest[i] = s1*16 + s2;
+	}
+}
+/*
+// C prototype : void HexToStr(BYTE *pbDest, BYTE *pbSrc, int nLen)
+// parameter(s): [OUT] pbDest - 存放目标字符串
+//	[IN] pbSrc - 输入16进制数的起始地址
+//	[IN] nLen - 16进制数的字节数
+// return value: 
+// remarks : 将16进制数转化为字符串
+*/
+void HexToStr(char *pbDest, char *pbSrc, int nLen)
+{
+	char ddl,ddh;
+	int i;
+
+	for (i=0; i<nLen; i++)
+	{
+		ddh = 48 + pbSrc[i] / 16;
+		ddl = 48 + pbSrc[i] % 16;
+		if (ddh > 57) ddh = ddh + 7;
+		if (ddl > 57) ddl = ddl + 7;
+		pbDest[i*2] = ddh;
+		pbDest[i*2+1] = ddl;
+	}
+
+	pbDest[nLen*2] = '\0';
 }
