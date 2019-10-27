@@ -8,7 +8,10 @@
 #include <meter.h>
 #include "strategy.h"
 #include "global.h"
+<<<<<<< HEAD
 //#include "energycon.h"
+=======
+>>>>>>> 1601e0d452a05161858f53cee812b713a958faeb
 
 #ifdef RT_USING_DFS
 #include <dfs_fs.h>
@@ -6139,9 +6142,9 @@ int storage_thread_init(void)
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	
-	RouterIfo.AssetNum[0] = 22;
-	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
-    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
+//	RouterIfo.AssetNum[0] = 22;
+//	memcpy(&RouterIfo.AssetNum[1], "0011223344000000000011", sizeof(RouterIfo.AssetNum)-1);// 表号
+//    rt_lprintf("[storage]:电表资产号：%s\n",RouterIfo.AssetNum);	
 /**********************************************************************************************/	
 /**********************************************************************************************/
 /**********************************************************************************************/	
@@ -6196,7 +6199,7 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 		if(Para_Buff == NULL)
 		{
 			rt_kprintf("[storage]:Para_Buff 分配内存失败\n");
-			return 1;
+			return -1;
 		}
 	}
 	rt_err_t ret = 0;	
@@ -6253,7 +6256,7 @@ int GetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			break;		
 		default:
 			rt_kprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
-		    ret = 1;
+		    ret = -1;
 			break;
 	}	
 	
@@ -6279,7 +6282,7 @@ int SetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 		if(Para_Buff == NULL)
 		{
 			rt_lprintf("[storage]:Para_Buff 分配内存失败\n");
-			return 1;
+			return -1;
 		}
 		rt_lprintf("[storage]:Para_Buff rt_mallocOK\n");
 	}
@@ -6339,7 +6342,7 @@ int SetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			break;		
 		default:
 			rt_lprintf("[storage]:Waring：%s收到未定义指令%u\r\n",__FUNCTION__,cmd);
-		    ret = 1;
+		    ret = -1;
 			break;	
 	}
 	
