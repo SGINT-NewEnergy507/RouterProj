@@ -141,7 +141,7 @@ void RELAY_OFF(void)
  **************************************************************/
 static void StartChgResp_Timeout(void *parameter)
 {
-	rt_uint8_t p_rst;
+	rt_int8_t p_rst;
 	rt_lprintf("[energycon] : StartChgResp event is timeout!\n");
 	p_rst = ChargepileDataGetSet(Cmd_ChargeStartResp,0);
 	
@@ -282,7 +282,7 @@ static void ExeState_Update(void)
 static void CtrlData_RecProcess(void)
 {
 	rt_uint8_t i;
-	rt_uint8_t c_rst,b_rst,p_rst,s_rst;
+	rt_int8_t c_rst,b_rst,p_rst,s_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t Ctrl_EventCmd=Cmd_Null,BLE_EventCmd=Cmd_Null;
 	char Cmd[32];
@@ -572,7 +572,7 @@ static void CtrlData_RecProcess(void)
 			s_rst = SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
 			if(s_rst == SUCCESSFUL)
 			{
-				rt_lprintf("[strategy]  (%s) Storage Chg_Apply_Event, Successful!\n",__func__);
+				rt_lprintf("[strategy]  (%s) Sto+rage Chg_Apply_Event, Successful!\n",__func__);
 			}
 			else
 			{
@@ -580,7 +580,7 @@ static void CtrlData_RecProcess(void)
 				SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));//再存一次
 			}
 			memcpy(&Chg_Apply_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-//			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
+			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
 			
 			//暂定立即启动充电
@@ -707,7 +707,7 @@ static void CtrlData_RecProcess(void)
 ********************************************************************/ 
 static void PileData_RecProcess(void)
 {
-	rt_uint8_t c_rst,p_rst;
+	rt_int8_t c_rst,p_rst;
 	rt_uint32_t start_result,stop_result,adjpow_result;
 	
 	if(startchg_flag == TRUE)
@@ -853,7 +853,26 @@ static void PileData_RecProcess(void)
 		rt_lprintf("[energycon] : ChargePileEvent 0x%02X\n", adjpow_result);
 	}
 }
-
+/********************************************************************  
+*	函 数 名: TimeCalculation
+*	功能说明: 时间计算
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/ 
+static time_t TimeCalculation(STR_SYSTEM_TIME* TimeStamp)
+{
+	time_t time_s = 0;
+	struct tm* timep;
+	BCD_toInt((unsigned char*)&timep->tm_sec,&TimeStamp->Second,1);
+	BCD_toInt((unsigned char*)&timep->tm_min,&TimeStamp->Minute,1);
+	BCD_toInt((unsigned char*)&timep->tm_hour,&TimeStamp->Hour,1);
+	BCD_toInt((unsigned char*)&timep->tm_mday,&TimeStamp->Day,1);
+	BCD_toInt((unsigned char*)&timep->tm_mon,&TimeStamp->Month,1);
+	BCD_toInt((unsigned char*)&timep->tm_year,&TimeStamp->Year,1);
+	time_s = mktime(timep);
+	
+	return time_s;
+}
 
 /********************************************************************  
 *	函 数 名: TimeSolt_PilePowerCtrl()
@@ -864,11 +883,14 @@ static void PileData_RecProcess(void)
 static void TimeSolt_PilePowerCtrl(void)
 {
 	rt_uint8_t i;
-	rt_uint8_t c_rst,p_rst,s_rst,b_rst;
+	rt_int8_t c_rst,p_rst,s_rst,b_rst;
+	time_t time_s;
 	
+	time_s = TimeCalculation(&System_Time_STR);//获取当前时间秒数
 	//定位当前所属计划单起始时间段
 	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
 	{
+		
 		if((Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Year <= System_Time_STR.Year)&& 
 		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Month <= System_Time_STR.Month)&& 
 		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day <= System_Time_STR.Day)&& 
@@ -940,22 +962,9 @@ static void TimeSolt_PilePowerCtrl(void)
 			ChgOrder_Event.ucChargeEle[i] = ChgOrder_Event.StopMeterValue[i] - ChgOrder_Event.StartMeterValue[i]; 
 		//计算已充时间
 		time_t start_time = 0;
-		struct tm* timep;
-		BCD_toInt((unsigned char*)&timep->tm_sec,&ChgOrder_Event.ChgStartTime.Second,1);
-		BCD_toInt((unsigned char*)&timep->tm_min,&ChgOrder_Event.ChgStartTime.Minute,1);
-		BCD_toInt((unsigned char*)&timep->tm_hour,&ChgOrder_Event.ChgStartTime.Hour,1);
-		BCD_toInt((unsigned char*)&timep->tm_mday,&ChgOrder_Event.ChgStartTime.Day,1);
-		BCD_toInt((unsigned char*)&timep->tm_mon,&ChgOrder_Event.ChgStartTime.Month,1);
-		BCD_toInt((unsigned char*)&timep->tm_year,&ChgOrder_Event.ChgStartTime.Year,1);
-		start_time = mktime(timep);
+		start_time = TimeCalculation(&ChgOrder_Event.ChgStartTime);
 		time_t stop_time = 0;
-		BCD_toInt((unsigned char*)&timep->tm_sec,&ChgOrder_Event.ChgStopTime.Second,1);
-		BCD_toInt((unsigned char*)&timep->tm_min,&ChgOrder_Event.ChgStopTime.Minute,1);
-		BCD_toInt((unsigned char*)&timep->tm_hour,&ChgOrder_Event.ChgStopTime.Hour,1);
-		BCD_toInt((unsigned char*)&timep->tm_mday,&ChgOrder_Event.ChgStopTime.Day,1);
-		BCD_toInt((unsigned char*)&timep->tm_mon,&ChgOrder_Event.ChgStopTime.Month,1);
-		BCD_toInt((unsigned char*)&timep->tm_year,&ChgOrder_Event.ChgStopTime.Year,1);
-		stop_time = mktime(timep);
+		stop_time = TimeCalculation(&ChgOrder_Event.ChgStopTime);
 		ChgOrder_Event.ucChargeTime = stop_time - start_time;
 		
 		memcpy(&ChgOrder_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
@@ -1029,15 +1038,16 @@ static void RtState_Judge(void)
 static void strategy_thread_entry(void *parameter)
 {
 	rt_err_t res,p_rst;
-
+	
+	rt_thread_mdelay(1000);
 	RouterIfo.WorkState = RtSt_StandbyOK;//待机正常
-	
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
-	rt_thread_mdelay(100);
-	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
 	RELAY_ON();//上电吸合继电器,给桩上电
+	
+	rt_thread_mdelay(2000);
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
+
 	while (1)
 	{
 		RtState_Judge();
