@@ -7,7 +7,7 @@
 
 extern struct rt_thread hplc;
 extern struct _698_STATE hplc_698_state;
-extern rt_uint32_t hplc_event;
+extern rt_uint32_t hplcEvent;
 extern int hplc_lock1,hplc_lock2;
 extern rt_uint32_t strategy_event;
 
@@ -202,7 +202,7 @@ oi_file_transfer=0xf//文件传输
 };
 /****************************************/
 
-//static struct CharPointDataManage _698_data_rev,_698_data_send;//最好不用
+//static struct CharPointDataManage _698_dataRev,_698_data_send;//最好不用
 //static struct _698_ADDR *_698_addr;//没啥用
 
 static unsigned char test_hplc[200]={
@@ -775,7 +775,7 @@ struct _698_FRAME       //698协议结构,可能用不到,以防用的到
 	unsigned char *usrData;//链路用户数据,调试用，后期去掉[HPLC_DATA_MAX_SIZE]
 	//struct usrData;//链路用户数据
 	int usrData_len;//数组的结束位
-	int usrData_size;//用户数组的总长度，接收时是相等的usrData指向要指的地方
+	int usrDataSize;//用户数组的总长度，接收时是相等的usrData指向要指的地方
 	unsigned short FCS0;//帧校验
 	unsigned short FCS1;
 	unsigned char end;//结束字符 = 0x16	
@@ -895,87 +895,87 @@ int save_meter_no_backward(struct CharPointDataManage *hplc_data,int position,un
 unsigned short pppfcs16(unsigned short fcs, unsigned char *cp, int len);
 int tryfcs16(unsigned char *cp, int len);
 int _698_FCS(unsigned char *data, int start_size,int size,unsigned short FCS);
-int _698_analysis(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev,struct CharPointDataManage * hplc_data_wait_list);
-int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev);
+int _698_analysis(struct _698_STATE  * privState,struct CharPointDataManage * dataTx,struct CharPointDataManage * dataRev,struct CharPointDataManage * hplcDataWaitList);
+int rev_698_del_affairs(struct _698_STATE  * privState,struct CharPointDataManage * dataTx,struct CharPointDataManage * dataRev);
 int _address_unPackage(unsigned char * data,struct _698_ADDR *_698_addr,int size);
 int _698_unPackage(unsigned char * data,struct  _698_FRAME  *_698_frame_rev,int size);
 int _698_package(unsigned char * data,int size);
 int unPackage_698_link_request(struct  _698_FRAME  *_698_frame,struct _698_link_request * request,int * size);
-int unPackage_698_connect_request(struct _698_STATE  * priv_698_state,struct  _698_FRAME  * _698_frame,struct _698_connect_response * prive_struct);
+int unPackage_698_connect_request(struct _698_STATE  * privState,struct  _698_FRAME  * _698_frame,struct _698_connect_response * prive_struct);
 int _698_HCS(unsigned char *data, int start_size,int size,unsigned short HCS);
-int priveData_analysis(struct CharPointDataManage * data_rev,struct CharPointDataManage * data_tx);
+int data_analysis(struct CharPointDataManage * dataRev,struct CharPointDataManage * dataTx);
 int my_strcpy(unsigned char *dst,unsigned char *src,int startSize,int size);
 int save_char_point_data(struct CharPointDataManage *hplc_data,int position,unsigned char *Res,int size);
 int array_inflate(unsigned char *data, int size,int more_size);
 int array_deflate(unsigned char *data, int size,int de_size);
-int hplc_data_inflate(struct CharPointDataManage *data_rev);
+int hplc_data_inflate(struct CharPointDataManage *dataRev);
 int save_char_point_usrdata(unsigned char *data,int *length,unsigned char *Res,int position,int size);
 int get_current_time(unsigned char * data );
 int get_date_time_s(struct _698_date_time_s *date_time_s);
-int hplc_tx_frame(struct _698_STATE  * priv_698_state,rt_device_t serial,struct CharPointDataManage * data_tx);
-int link_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_FRAME  *_698_frame_send,struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx);
-int get_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int connect_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx);
-int copy_to_work_wait_list(struct CharPointDataManage *hplc_data,struct CharPointDataManage * hplc_data_wait_list);
-int connect_request_package(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int link_request_package(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int hplc_tx_frame(struct _698_STATE  * privState,rt_device_t serial,struct CharPointDataManage * dataTx);
+int link_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_FRAME  *_698_frame_send,struct _698_STATE  * privState,struct CharPointDataManage * dataTx);
+int get_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int connect_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * dataTx);
+int copy_to_work_wait_list(struct CharPointDataManage *hplc_data,struct CharPointDataManage * hplcDataWaitList);
+int connect_request_package(struct CharPointDataManage *hplc_data,struct _698_STATE  * privState);
+int link_request_package(struct CharPointDataManage *hplc_data,struct _698_STATE  * privState);
 int copy_char_point_data(struct CharPointDataManage * des,struct CharPointDataManage * source);
 int copy_698_frame(struct  _698_FRAME * des,struct  _698_FRAME  * source);
 int init_CharPointDataManage(struct CharPointDataManage *des);
 int free_CharPointDataManage(struct CharPointDataManage *des);
 int init_698_FRAME(struct  _698_FRAME  * des);
 int free_698_FRAME(struct  _698_FRAME  * des);
-int iterate_wait_response_list(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev,struct CharPointDataManage * hplc_data_list);
-int iterate_wait_request_list(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev,struct CharPointDataManage * hplc_data_list);
-int init_698_state(struct _698_STATE  * priv_698_state);
-int hplc_priveData_analysis(struct CharPointDataManage * data_rev,struct CharPointDataManage * data_tx);
-int hplc_package(unsigned char * data,int size);
-int clear_data(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct  _698_FRAME  *_698_frame);
-int save_hplc_data(struct CharPointDataManage *data_rev,int position,unsigned char Res);
-int printmy(struct  _698_FRAME  *_698_frame);
-int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct CharPointDataManage *data_tx);
+int iterate_wait_response_list(struct _698_STATE  * privState,struct CharPointDataManage * dataTx,struct CharPointDataManage * dataRev,struct CharPointDataManage * hplc_data_list);
+int iterate_wait_request_list(struct _698_STATE  * privState,struct CharPointDataManage * dataTx,struct CharPointDataManage * dataRev,struct CharPointDataManage * hplc_data_list);
+int init_698_state(struct _698_STATE  * privState);
+int prive_data_analysis(struct CharPointDataManage * dataRev,struct CharPointDataManage * dataTx);
+
+int clear_data(struct _698_STATE  * privState,struct CharPointDataManage *dataRev,struct  _698_FRAME  *_698_frame);
+int save_hplc_data(struct CharPointDataManage *dataRev,int position,unsigned char Res);
+int print_698(int type,struct  _698_FRAME  *_698_frame);
+int get_single_frame(struct _698_STATE  * privState,struct CharPointDataManage *dataRev,struct CharPointDataManage *dataTx);
 int hplc_tx(struct CharPointDataManage *hplc_data);
-int hplc_inition(struct CharPointDataManage *  data_wait_list,struct CharPointDataManage * data_rev,struct CharPointDataManage * data_tx);
+int hplc_inition(struct CharPointDataManage *  dataWaitList,struct CharPointDataManage * dataRev,struct CharPointDataManage * dataTx);
 void hplc_thread_entry(void * parameter);
-int hplc_645_addr_receive(struct CharPointDataManage *data_rev);
-int hplc_645_addr_response(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct CharPointDataManage *data_tx);
-int init_698_state(struct _698_STATE  * priv_698_state);
+int addr_analysis_645(struct CharPointDataManage *dataRev);
+int addr_response_645(struct _698_STATE  * privState,struct CharPointDataManage *dataRev,struct CharPointDataManage *dataTx);
+int init_698_state(struct _698_STATE  * privState);
 int my_free(unsigned char  *des);
 int oad_package(struct _698_oad *priv_struct,struct  _698_FRAME  *_698_frame_rev,int position);
-int get_response_package_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int get_response_parameter_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int oi_parameter_get_addr(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int get_data_class(struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data,enum Data_T data_type);
+int get_response_package_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int get_response_parameter_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int get_response_normal_oad(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int oi_parameter_get_addr(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int get_data_class(struct _698_STATE  * privState,struct CharPointDataManage * hplc_data,enum Data_T data_type);
 int send_event(void);
 
 int my_strcpy_char(char *dst,char *src,int startSize,int size);
-int action_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
-int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx);
+int action_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
+int check_afair_from_botom(struct _698_STATE  * privState,struct CharPointDataManage *dataTx);
 
-int package_for_test(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+int package_for_test(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
 int hplc_tx(struct CharPointDataManage *hplc_data);
 int charge_strategy_package(CHARGE_STRATEGY *priv_struct_STRATEGY,struct CharPointDataManage * hplc_data);
 int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataManage * hplc_data);
-int security_get_package(int security_style,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+int security_get_package(int security_style,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
 
-int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
-int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state);
-int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev);
-//int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data);
+int action_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState);
+int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState);
+int judge_meter_no(struct _698_STATE  * privState,struct CharPointDataManage *dataRev);
+//int CHARGE_APPLY_package(CHARGE_APPLY *hplc_CHARGE_APPLY,struct _698_STATE  * privState,struct CharPointDataManage * hplc_data);
 
-int Cmd_security_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx);
+int Cmd_security_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * privState,struct CharPointDataManage * dataTx);
 
 
 
 
 /************上报*****************/
-int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state);
+int report_notification_package(COMM_CMD_C  report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * privState);
 
-int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
-int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * privState);
+int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE  * privState);
 
-int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * priv_698_state);
+int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698_STATE  * privState);
 
 /**
 
@@ -993,8 +993,8 @@ extern rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd);
 extern rt_uint8_t CtrlUnit_RecResp(rt_uint32_t cmd,void *STR_SetPara,int count);
 
 /************hplc上下电*****************/
-void hplc_PWR_ON(void);
-void hplc_PWR_OFF(void);
+void hplc_power_on(void);
+void hplc_power_off(void);
 
 
 /***************保存制定数据类型的函数***************/

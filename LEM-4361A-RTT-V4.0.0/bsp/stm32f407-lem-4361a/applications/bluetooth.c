@@ -139,7 +139,7 @@ static struct rt_event bluetooth_event;//ÓÃÓÚ½ÓÊÕÊı¾İµÄĞÅºÅÁ¿
 
 CCMRAM static ScmUart_Comm stBLE_Comm;
 CCMRAM static ScmEsam_Comm stBLE_Esam_Comm;
-CCMRAM static rt_uint8_t BLE_698_data_buf[5][255];
+CCMRAM static rt_uint8_t BLE_698_data_buf[4][255];
 
 
 CCMRAM CHARGE_APPLY 				stBLE_Charge_Apply;//³äµçÉêÇë
@@ -281,14 +281,14 @@ void BLE_ATCmd_TimeOut(BLE_AT_CMD at_cmd)
 	if(BLE_ATCmd_Old == at_cmd)
 	{
 		BLE_ATCmd_Count++;
-		if(BLE_ATCmd_Count>10)
+		if(BLE_ATCmd_Count>7)
 		{
 			BLE_PWR_ON();
 			BLE_ATCmd = BLE_ATE;
 			BLE_ATCmd_Old = BLE_NULL;
 			BLE_ATCmd_Count = 0;
 		}
-		else if(BLE_ATCmd_Count>6)//À¶ÑÀÄ£¿éÏìÓ¦³¬Ê± µôµçÖØÆô
+		else if(BLE_ATCmd_Count>4)//À¶ÑÀÄ£¿éÏìÓ¦³¬Ê± µôµçÖØÆô
 		{
 			BLE_PWR_OFF();	
 		}
@@ -335,7 +335,10 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 		{
 			strncpy(buf,"f",1);
 			strcat(at_buf,buf);
-			strncpy(buf,(char*)(&ble_meter_addr_buf[(i+1)*2]),1);
+			if(i <2)
+				strncpy(buf,(char*)(&ble_meter_addr_buf[3+i]),1);
+			else
+				strncpy(buf,(char*)(&ble_meter_addr_buf[7+i]),1);
 			strcat(at_buf,buf);
 			if(i != 5)
 				strcat(at_buf,":");
@@ -471,8 +474,8 @@ void BLE_Trans_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//ATÖ
 
 	if(BLE_Check_Data_to_Buf(stData) == RT_EOK)
 	{
-//		while(g_ulBLE_RX_Write != g_ulBLE_RX_Read)
-//		{
+		while(g_ulBLE_RX_Write != g_ulBLE_RX_Read)
+		{
 			if(BLE_698_Data_UnPackage(&_698_ble_frame,BLE_698_data_buf[g_ulBLE_RX_Read]) == RT_EOK)
 			{		
 				BLE_698_Data_Analysis_and_Response(&_698_ble_frame,stData);
@@ -482,7 +485,7 @@ void BLE_Trans_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//ATÖ
 			g_ulBLE_RX_Read++;
 			if(g_ulBLE_RX_Read >= 4)
 				g_ulBLE_RX_Read = 0;
-//		}		
+		}		
 	}
 	
 	
@@ -3828,7 +3831,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 
 //	SetStorageData(Cmd_MeterNumWr,&ble_meter_addr_buf,13);
 //	rt_thread_mdelay(100);
-	if(GetStorageData(Cmd_MeterNumRd,&ble_meter_addr_buf,13) != 0)//¶ÁÈ¡ÎÄ¼ş´íÎó ÉèÖÃÎªÄ¬ÈÏÖµ
+	if(GetStorageData(Cmd_MeterNumRd,&ble_meter_addr_buf,13) < 0)//¶ÁÈ¡ÎÄ¼ş´íÎó ÉèÖÃÎªÄ¬ÈÏÖµ
 	{
 		ble_meter_addr_buf[0] = 0x0C;
 		for(i = 0; i < ble_meter_addr_buf[0];i++)
