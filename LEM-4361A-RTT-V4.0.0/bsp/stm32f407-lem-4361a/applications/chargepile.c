@@ -748,6 +748,7 @@ static void chargepileRev_thread_entry(void *parameter)
 	rt_uint32_t err;
 	rt_err_t res = RT_EOK;
     rt_uint32_t can1RevCycleCount = 0;
+	ScmMeter_Analog tempgMeter_Analog;
 	while (1)
 	{
 		res = rt_event_recv(&can_rx_event, CAN_RX_EVENT, RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR, 0, &err);
@@ -766,17 +767,22 @@ static void chargepileRev_thread_entry(void *parameter)
 		can1RevCycleCount++;
 		//定时上传
 		if(can1RevCycleCount >= (1000/can1RevCycle))//1000对应1秒
-		{		
+		{	
+			cmMeter_get_data(EMMETER_ANALOG,&tempgMeter_Analog);
+			strYC.ChargVa = tempgMeter_Analog.ulVol;
+			strYC.ChargIa = tempgMeter_Analog.ulCur/10;
+			
 			Inform_Communicate_Can(HeartSendFrame,FALSE);
 			Inform_Communicate_Can(YcSendDataFrame,FALSE);
 			can1RevCycleCount = 0;
 		}
 		
 		can_heart_count++;	
-		if(can_heart_count >= (10000/can1RevCycle))// 10s收不到任何数据 重新连接
+		if(can_heart_count >= (3000/can1RevCycle))// 10s收不到任何数据 重新连接
 		{
-            STR_ChargePile_A.TotalFau |= PILE_Board_FAULT;
+			STR_ChargePile_A.TotalFau |= PILE_Board_FAULT;
 			can_heart_count = 0x00; //清空心跳包计数
+			memset(&StrStateFrame,0x00,sizeof(STR_STATE_FRAME));
 			STR_ChargePile_A.ChgState = state_WaitVertionCheck;		
 			rt_lprintf("can1_task:NO Receive Heart,Reboot!\r\n"); //
 		}

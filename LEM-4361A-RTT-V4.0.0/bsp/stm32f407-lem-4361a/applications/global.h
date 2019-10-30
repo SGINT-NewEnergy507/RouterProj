@@ -98,6 +98,12 @@ typedef enum
 	DISCONNECT,
 }PILE_COM_STATE;/*与桩通信状态 {正常（0），异常（1）}*/
 
+typedef enum
+{
+	PLAN_CREATE=1,
+	PLAN_ADJ,
+}PILE_TYPE;/*策略类型 {生成（1） 、调整（2）*/
+
 /******************************** 充电桩相关信息 ***********************************/	//zcx190807
 typedef enum 
 {

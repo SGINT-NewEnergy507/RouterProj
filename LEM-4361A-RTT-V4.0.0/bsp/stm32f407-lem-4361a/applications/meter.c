@@ -213,7 +213,7 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		tmp_arry[1] = pSTR->Rx_data[9];
 		tmp_arry[0] = pSTR->Rx_data[10];
 		memcpy(&temp,tmp_arry,sizeof(char)*4);
-		stMeter_Analog.ulCur = (unsigned long)(temp/100);//XXXX.XX 交流电流
+		stMeter_Analog.ulCur = (unsigned long)(temp/10);//XXXX.XXX 交流电流 
 
 		tmp_arry[3] = pSTR->Rx_data[11];
 		tmp_arry[2] = pSTR->Rx_data[12];
@@ -245,7 +245,7 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		stMeter_Analog.ulFrequency = (unsigned long)(temp);    // XXXXXX.XX		频率
 		
 		rt_lprintf("[Meter]:ChargVa = %d.%dV----",stMeter_Analog.ulVol/10,stMeter_Analog.ulVol%10);
-		rt_lprintf("ChargIa = %d.%02dA----",stMeter_Analog.ulCur/100,stMeter_Analog.ulCur%100);
+		rt_lprintf("ChargIa = %d.%03dA----",stMeter_Analog.ulCur/1000,stMeter_Analog.ulCur%1000);
 		rt_lprintf("MeterTotal = %d.%03dKWH----\r\n",stMeter_Analog.ulMeterTotal/1000,stMeter_Analog.ulMeterTotal%1000);
 		
 		rt_lprintf("[Meter]:AcPwr = %d.%03dW----",stMeter_Analog.ulAcPwr/1000,stMeter_Analog.ulAcPwr%1000);
@@ -446,9 +446,11 @@ void cmMeter_get_data(unsigned char cmd,void* str_data)//其他线程调用函数 获取Me
 	switch(cmd)
 	{
 		case EMMETER_ANALOG:
-			memcpy(&((ScmMeter_Analog*)str_data)->ulVol,&stMeter_Analog.ulVol,sizeof(ScmMeter_Analog));
+//			memcpy(&((ScmMeter_Analog*)str_data)->ulVol,&stMeter_Analog.ulVol,sizeof(ScmMeter_Analog));
+			*((ScmMeter_Analog*)str_data) = stMeter_Analog;
 		break;
 		case EMMETER_HISDATA:
+			*((ScmMeter_HisData*)str_data) = stMeter_HisData;
 //			memcpy(&((ScmMeter_HisData*)str_data)->ulMeter_Total,&stMeter_HisData.ulMeter_Total,sizeof(ScmMeter_HisData));
 		break;
 		default:
