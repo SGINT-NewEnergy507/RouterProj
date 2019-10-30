@@ -8,8 +8,6 @@
 #include <meter.h>
 #include "strategy.h"
 #include "global.h"
-//#include "energycon.h"
-
 
 #ifdef RT_USING_DFS
 #include <dfs_fs.h>
