@@ -2661,7 +2661,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 		
 					//保存启动功率
 					action_response_charge_strategy(&charge_strategy_ChgPlanIssue,_698_frame_rev);//存到里面等周调用
-					strategy_event_send(ChgPlanIssue_EVENT);
+					strategy_event_send(Cmd_ChgPlanIssue);
 //					CtrlUnit_RecResp(Cmd_ChgPlanIssueAck,&ChgPlanIssue_rsp,1);//测试				
 					
 					return 2;//发送事件	
@@ -2724,7 +2724,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					_698_ChgPlanAdjust.time_flag_positon=_698_ChgPlanAdjust.usrData_len;//最后一位，只给方法用时有效
 					//保存充电计划单
 					action_response_charge_strategy(&charge_strategy_ChgPlanAdjust,_698_frame_rev);
-					strategy_event_send(ChgPlanAdjust_EVENT);
+					strategy_event_send(Cmd_ChgPlanAdjust);
 					return 2;//发送事件	
 				}				
 			
@@ -2774,7 +2774,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 //					action_response_charge_StartStop(&StartStopChg_ZHOU,_698_frame_rev);//存到周的里面
 					
 					
-					strategy_event_send(StartChg_EVENT);
+					strategy_event_send(Cmd_StartChg);
 					return 2;//发送事件	
 				}
 
@@ -2812,7 +2812,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					_698_StopChg.time_flag_positon=_698_StopChg.usrData_len;//最后一位，只给方法用时有效
 					rt_kprintf("[hplc]  (%s) stop  rt_event_send \n",__func__);
 					//rt_event_send(&PowerCtrlEvent,StopChg_EVENT);
-					strategy_event_send(StopChg_EVENT);
+					strategy_event_send(Cmd_StopChg);
 //						event=0x0000001<<Cmd_StopChgAck;
 //						hplc_event=hplc_event|event;
 					//rt_kprintf("[hplc]  (%s) stop  rt_event_send is ok \n",__func__);
@@ -2987,7 +2987,7 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					my_strcpy(_698_ChgPlanIssueGet_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
 					_698_ChgPlanIssueGet.usrData=_698_ChgPlanIssueGet_data;	
 						
-					strategy_event_send(ChgPlanIssueGet_EVENT);
+					strategy_event_send(Cmd_ChgPlanExeState);
 					return 2;//发送事件	
 				}
 				//发送信号让下面把充电计划单准备好
@@ -3027,7 +3027,7 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					_698_RouterExeState.usrData=_698_RouterExeState_data;
 					
 					//清空 _698_frame_rev
-					strategy_event_send(AskState_EVENT);
+					strategy_event_send(Cmd_RouterExeState);
 					return 2;//发送事件	
 				}
 				//发送信号让下面把充电计划单准备好
@@ -5280,7 +5280,7 @@ int copy_charge_strategy(CHARGE_STRATEGY *des,CHARGE_STRATEGY *src){
 //rt_uint32_t strategy_event;
 //rt_uint32_t hplc_event=0;
 
-rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd){
+rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
 //	rt_uint32_t event;
 //锁资源
 	while(hplc_lock1==1){
@@ -5295,7 +5295,7 @@ rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd){
 	hplc_lock2=1;	
 	
 	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);	
-	strategy_event=strategy_event|cmd;
+	strategy_event|=(0x00000001<<cmd);
 	
 	hplc_lock2=0;
 	hplc_lock1=0;		
@@ -5310,28 +5310,8 @@ rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd){
 //rt_uint32_t strategy_event;
 //rt_uint32_t hplc_event=0;
 
-rt_uint8_t strategy_event_clear(CTRL_EVENT_TYPE cmd){
-	rt_uint32_t event;
-//锁资源
-	while(hplc_lock1==1){
-		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
-		rt_thread_mdelay(20);
-	}
-	hplc_lock1=1;
-	while(hplc_lock2==1){
-		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);
-		rt_thread_mdelay(20);
-	}
-	hplc_lock2=1;	
-	
-	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);	
-	strategy_event=strategy_event|(~event);
-	
-	hplc_lock2=0;
-	hplc_lock1=0;		
-	return 0;
-	
-}
+
+
 /****
 用户来调用这个获取事件strategy_event
 
@@ -5422,7 +5402,8 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
 			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanIssue;
-			strategy_event_clear(ChgPlanIssue_EVENT);
+
+		
 			//拷贝给他,指针结构体直接赋值不成功！？									
 			break;
 
@@ -5449,7 +5430,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 //		case():	//将计划单传给用户
 //			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
 //			*((CHARGE_STRATEGY *)STR_SetPara)=_698_ChgPlanIssueGet_data;
-//			strategy_event_clear(ChgPlanIssueGet_EVENT);
+
 //			//拷贝给他,指针结构体直接赋值不成功！？									
 //			break;
 
@@ -5466,7 +5447,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
  		case(Cmd_ChgPlanAdjust)://变更充电计划,应用层得到数据，处理完后才下一步
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanAdjust  \n",__func__);
 			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanAdjust;//拷贝给他
-			strategy_event_clear(ChgPlanAdjust_EVENT);
+
 			break; 		
 
 
@@ -5479,7 +5460,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 
 		case(Cmd_StartChg)://启动充电参数下发,无参数传递
 			rt_kprintf("[hplc]  (%s)   Cmd_StartChg  \n",__func__);
-			strategy_event_clear(StartChg_EVENT);				
+		
 		
 							
 			break;
@@ -5491,7 +5472,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 		
 		case(Cmd_StopChg)://停止充电参数下发	
-			strategy_event_clear(StopChg_EVENT);
+
 			rt_kprintf("[hplc]  (%s)   Cmd_StopChg  \n",__func__);								
 			break;
 		
@@ -5570,7 +5551,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			return 1;
 			break;	
 	}
-	
+	strategy_event&=(~event);	
 //解锁
 	hplc_698_state.lock2=0;	
 	hplc_698_state.lock1=0;	

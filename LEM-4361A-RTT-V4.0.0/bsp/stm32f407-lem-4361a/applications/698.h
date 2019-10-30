@@ -989,7 +989,7 @@ int Report_Cmd_ChgPlanExeState(struct CharPointDataManage *hplc_data,struct _698
 /************跟用户交互*****************/
 rt_uint32_t my_strategy_event_get(void);
 extern rt_uint32_t strategy_event_get(void);
-extern rt_uint8_t strategy_event_send(CTRL_EVENT_TYPE cmd);
+extern rt_uint8_t strategy_event_send(COMM_CMD_C cmd);
 extern rt_uint8_t CtrlUnit_RecResp(rt_uint32_t cmd,void *STR_SetPara,int count);
 
 /************hplc上下电*****************/
