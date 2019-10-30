@@ -106,7 +106,7 @@ CCMRAM CTL_CHARGE_EVENT CtrlCharge_Event;
 CCMRAM static CHARGE_EXE_EVENT Ctrl_ChgExe_Event;
 CCMRAM static CHG_ORDER_EVENT ChgOrder_Event;//订单共用一个变量
 
-CCMRAM static unsigned char count;
+CCMRAM static unsigned char PlanSlotCount;
 CCMRAM static unsigned char SetPowerFinishFlag[50];
 CCMRAM static char cRequestNO_Old[17];
 CCMRAM static char cRequestNO_New[17];
@@ -239,7 +239,7 @@ static void timer_create_init()
 	ChgPileStateGet = rt_timer_create("ChgPileStateGet",  /* 定时器名字是 ChgPileStateGet */
 									ChgPileStateGet_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
-									1000, /* 定时长度，以OS Tick为单位，即5000个OS Tick */
+									1000, /* 定时长度，以OS Tick为单位，即1000个OS Tick */
 									RT_TIMER_FLAG_PERIODIC); /* 周期性定时器 */
 	/* 启动定时器 */
 	if (ChgPileStateGet != RT_NULL)
@@ -284,6 +284,7 @@ static void ExeState_Update(void)
 static void CtrlData_RecProcess(void)
 {
 	rt_uint8_t i;
+	rt_bool_t PlanAccepted;
 	rt_int8_t c_rst,b_rst,p_rst,s_rst;
 	rt_uint32_t chgplanIssue,chgplanIssueAdj,startchg,stopchg;
 	rt_uint32_t Ctrl_EventCmd=Cmd_Null,BLE_EventCmd=Cmd_Null;
@@ -308,32 +309,53 @@ static void CtrlData_RecProcess(void)
 		//收到充电计划
 		case Cmd_ChgPlanIssueAck:
 		{
+			PlanAccepted = TRUE;
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//取值
 			
-			if((Chg_Strategy.ucChargeMode == 1)&&(Chg_Strategy.ucDecType == 1))
+			if(Fault.Total != TRUE)
 			{
-				memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));
-				memset(&SetPowerFinishFlag,0,50);//清空标志位
-				count = 0;
+				if(memcmp(&RouterIfo.AssetNum,&Chg_Strategy.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
+				{
+					if((Chg_Strategy.ucChargeMode == ORDER)&&(Chg_Strategy.ucDecType == PLAN_CREATE))
+					{
+						memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));//接收到最新充电计划
+						memset(&SetPowerFinishFlag,0,50);//清空标志位
+						PlanSlotCount = 0;
+					}
+					
+					memcpy(&Chg_StrategyRsp.cRequestNO,&Chg_Strategy.cRequestNO,sizeof(Chg_StrategyRsp.cRequestNO));
+					memcpy(&Chg_StrategyRsp.cAssetNO,&Chg_Strategy.cAssetNO,sizeof(Chg_StrategyRsp.cAssetNO));
+					Chg_StrategyRsp.cSucIdle = SUCCESSFUL;
+				}
+				else
+				{
+					Chg_StrategyRsp.cSucIdle = ORTHERS;
+				}
 			}
-			
-			memcpy(&Chg_StrategyRsp,&Chg_Strategy,40);
-			Chg_StrategyRsp.cSucIdle = 0;
+			else
+			{
+				Chg_StrategyRsp.cSucIdle = FAILED;
+			}		
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssueAck,&Chg_StrategyRsp,0);//回复	
-			
-			if(c_rst == 0)
+		
+			//回复成功上送事件
+			if(c_rst == SUCCESSFUL)
 			{
 				memcpy(&Plan_Offer_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//记录上报时间
 				SetStorageData(Cmd_PlanOfferWr,&Plan_Offer_Event,sizeof(PLAN_OFFER_EVENT));
-				//回复成功上送事件
+				
 				Plan_Offer_Event.OrderNum++;		
 				Plan_Offer_Event.ChannelState = 0;//通道状态
 				memcpy(&Plan_Offer_Event.Chg_Strategy,&Chg_Strategy,sizeof(CHARGE_STRATEGY));
 				memcpy(&Plan_Offer_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
-				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);//上报充电计划时间
+				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);//上报充电计划事件
 				
-				//缺等待确认		
+				//缺等待确认					
+			}
+			else
+			{
+				
 			}
 			break;
 		}
@@ -341,13 +363,28 @@ static void CtrlData_RecProcess(void)
 		case Cmd_ChgPlanAdjust:
 		{
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanAdjust,&Adj_Chg_Strategy,0);//取值	
-			if((Chg_Strategy.ucChargeMode == 1)&&(Chg_Strategy.ucDecType == 2))
+			if(Fault.Total != TRUE)
 			{
-				memcpy(cRequestNO_New,Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));
+				if(memcmp(&RouterIfo.AssetNum,&Adj_Chg_Strategy.cAssetNO,sizeof(RouterIfo.AssetNum)) == 0)//校验资产一致性
+				{
+					if((Adj_Chg_Strategy.ucChargeMode == ORDER)&&(Adj_Chg_Strategy.ucDecType == PLAN_ADJ))
+					{
+						memcpy(cRequestNO_New,Adj_Chg_Strategy.cRequestNO,sizeof(cRequestNO_New));//接收到最新充电计划
+					}
+					
+					memcpy(&Adj_Chg_StrategyRsp.cRequestNO,&Adj_Chg_Strategy.cRequestNO,sizeof(Adj_Chg_Strategy.cRequestNO));
+					memcpy(&Adj_Chg_StrategyRsp.cAssetNO,&Adj_Chg_Strategy.cAssetNO,sizeof(Adj_Chg_Strategy.cAssetNO));
+					Adj_Chg_StrategyRsp.cSucIdle = SUCCESSFUL;
+				}
+				else
+				{
+					Adj_Chg_StrategyRsp.cSucIdle = ORTHERS;
+				}
 			}
-			
-			memcpy(&Adj_Chg_StrategyRsp,&Adj_Chg_Strategy,40);
-			Chg_StrategyRsp.cSucIdle = 0;
+			else
+			{
+				Adj_Chg_StrategyRsp.cSucIdle = FAILED;
+			}
 			
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanAdjustAck,&Adj_Chg_StrategyRsp,0);//回复	
 			break;
@@ -587,7 +624,7 @@ static void CtrlData_RecProcess(void)
 				SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));//再存一次
 			}
 			memcpy(&Chg_Apply_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//上送事件
+			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//通知控制器
 			b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
 			
 			
@@ -878,17 +915,19 @@ static void PileData_RecProcess(void)
 *	形    参: 无
 *	返 回 值: 无
 ********************************************************************/ 
-static time_t TimeCalculation(STR_SYSTEM_TIME* TimeStamp)
+static time_t TimeCalculation(STR_SYSTEM_TIME TimeStamp)
 {
 	time_t time_s = 0;
-	struct tm* timep;
-	BCD_toInt((unsigned char*)&timep->tm_sec,&TimeStamp->Second,1);
-	BCD_toInt((unsigned char*)&timep->tm_min,&TimeStamp->Minute,1);
-	BCD_toInt((unsigned char*)&timep->tm_hour,&TimeStamp->Hour,1);
-	BCD_toInt((unsigned char*)&timep->tm_mday,&TimeStamp->Day,1);
-	BCD_toInt((unsigned char*)&timep->tm_mon,&TimeStamp->Month,1);
-	BCD_toInt((unsigned char*)&timep->tm_year,&TimeStamp->Year,1);
-	time_s = mktime(timep);
+	struct tm timep;
+	
+	BCD_toInt((unsigned char*)&timep.tm_sec,&TimeStamp.Second,1);
+	BCD_toInt((unsigned char*)&timep.tm_min,&TimeStamp.Minute,1);
+	BCD_toInt((unsigned char*)&timep.tm_hour,&TimeStamp.Hour,1);
+	BCD_toInt((unsigned char*)&timep.tm_mday,&TimeStamp.Day,1);	
+	BCD_toInt((unsigned char*)&timep.tm_wday,&TimeStamp.Week,1);
+	BCD_toInt((unsigned char*)&timep.tm_mon,&TimeStamp.Month,1);
+	BCD_toInt((unsigned char*)&timep.tm_year,&TimeStamp.Year,1);
+	time_s = mktime(&timep);
 	
 	return time_s;
 }
@@ -902,50 +941,83 @@ static time_t TimeCalculation(STR_SYSTEM_TIME* TimeStamp)
 static void TimeSolt_PilePowerCtrl(void)
 {
 	rt_uint8_t i;
-	rt_int8_t c_rst,p_rst,s_rst,b_rst;
-	time_t time_s;
+	rt_int8_t c_rst=0,p_rst=0,s_rst=0,b_rst=0;
+	time_t NowTime_s;
+	unsigned char PlanStartTime_s[50];
 	
-	time_s = TimeCalculation(&System_Time_STR);//获取当前时间秒数
+	NowTime_s = TimeCalculation(System_Time_STR);//获取当前时间秒数
 	//定位当前所属计划单起始时间段
-	for(i=count;i<Chg_Strategy.ucTimeSlotNum;i++)
+	for(i=PlanSlotCount;i<Chg_Strategy.ucTimeSlotNum;i++)
 	{
-		
-		if((Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Year <= System_Time_STR.Year)&& 
-		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Month <= System_Time_STR.Month)&& 
-		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day <= System_Time_STR.Day)&& 
-		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Hour <= System_Time_STR.Hour)&& 
-		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Minute <= System_Time_STR.Minute)&& 
-		(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Second <= System_Time_STR.Second))	
+		if(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day> 0)//校验时间的合法性
 		{
-			Chg_ExeState.ucPlanPower = Chg_Strategy.strChargeTimeSolts[i].ulChargePow;		
-			ChargePilePara_Set.PWM_Duty = Chg_ExeState.ucPlanPower*10/132;//功率换算
+			PlanStartTime_s[i] = TimeCalculation(Chg_Strategy.strChargeTimeSolts[i].strDecStartTime);
 			
-			if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
+			if(NowTime_s >= PlanStartTime_s[i])//检测到执行到当前时间段	
 			{
-				if(count == 0)
-					memcpy(&Ctrl_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-				p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);
+				Chg_ExeState.ucPlanPower = Chg_Strategy.strChargeTimeSolts[i].ulChargePow;		
+				ChargePilePara_Set.PWM_Duty = Chg_ExeState.ucPlanPower*10/132;//功率换算
 				
-				Ctrl_ChgExe_Event.OrderNum++;
-				memcpy(&Ctrl_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
-				memcpy(&Ctrl_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//上报充电计划执行事件
-				
-				Chg_ExeState.exeState = EXE_ING;
-				SetPowerFinishFlag[i] = TRUE;
-				count = i;
-				//count++;
+				if(SetPowerFinishFlag[i] == FALSE)//限制发送一次
+				{
+					if(PlanSlotCount == 0)
+						memcpy(&Ctrl_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+					
+					p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);//下发充电桩设定功率
+					if(p_rst == SUCCESSFUL)
+						rt_kprintf("[energycon]  (%s) ChargePilePara_Set,Cmd_SetPower,Successful!\n",__func__);
+					else
+						rt_kprintf("[energycon]  (%s) 执行充电计划时功率设定，失败！\n",__func__);
+					
+					Ctrl_ChgExe_Event.OrderNum++;
+					memcpy(&Ctrl_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+					
+					c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//上报充电计划执行事件
+					if(c_rst == SUCCESSFUL)
+						rt_kprintf("[energycon]  (%s) Ctrl_ChgExe_Event,Cmd_ChgPlanExeState,Successful!\n",__func__);
+					else
+						rt_kprintf("[energycon]  (%s) 上报执行充电计划，失败！\n",__func__);
+					
+					Chg_ExeState.exeState = EXE_ING;
+					SetPowerFinishFlag[i] = TRUE;
+					PlanSlotCount = i;
+					//count++;
+				}
+				break;
 			}
-			break;
+		}
+		else
+		{
+			rt_kprintf("[energycon]  (%s) 执行充电计划时时间内容异常，失败！\n",__func__);		
 		}
 	}
+	
 	if(c_rst !=0 )
 		CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//若失败再上报一次
 		
-	if(count == Chg_Strategy.ucTimeSlotNum)//检测到执行完计划
+	if(PlanSlotCount == Chg_Strategy.ucTimeSlotNum)//检测到执行完计划
 	{
 		memcpy(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old));//不再给桩发送功率设定帧
+		memcpy(&Ctrl_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//执行事件结束时间
+		
+		c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//上报充电计划执行事件
+		if(c_rst == SUCCESSFUL)
+			rt_kprintf("[energycon]  (%s) Ctrl_ChgExe_Event,Cmd_ChgPlanExeState,The last one,Successful!\n",__func__);
+		else
+			rt_kprintf("[energycon]  (%s) 最后一次上报执行充电计划，失败！\n",__func__);
 	}
+	
+}
+/********************************************************************  
+*	函 数 名: ChgOrder_Apply()
+*	功能说明: 形成充电订单上报
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/ 
+static void ChgOrder_Apply(void)
+{
+	rt_int8_t c_rst=0,b_rst=0;
+	rt_uint8_t i;
 	
 	if(PileIfo.WorkState == ChgSt_Finished)//检测到充电完成
 	{
@@ -981,37 +1053,38 @@ static void TimeSolt_PilePowerCtrl(void)
 			ChgOrder_Event.ucChargeEle[i] = ChgOrder_Event.StopMeterValue[i] - ChgOrder_Event.StartMeterValue[i]; 
 		//计算已充时间
 		time_t start_time = 0;
-		start_time = TimeCalculation(&ChgOrder_Event.ChgStartTime);
+		rt_kprintf("[energycon]  (%s) calculate start_time!\n",__func__);
+		start_time = TimeCalculation(ChgOrder_Event.ChgStartTime);
+		rt_kprintf("[energycon]  (%s) get start_time!\n",__func__);
 		time_t stop_time = 0;
-		stop_time = TimeCalculation(&ChgOrder_Event.ChgStopTime);
+		stop_time = TimeCalculation(ChgOrder_Event.ChgStopTime);
 		ChgOrder_Event.ucChargeTime = stop_time - start_time;
 		
 		memcpy(&ChgOrder_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-		s_rst = SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));
-		if(s_rst == SUCCESSFUL)
-		{
-			rt_lprintf("[energycon]  (%s) Storage ChgOrder_Event, Successful!\n",__func__);
-		}
-		else
-		{
-			rt_lprintf("[energycon]  (%s) 保存充电订单事件，失败！\n",__func__);
-			SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));//再存一次
-		}
+//		s_rst = SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));
+//		if(s_rst == SUCCESSFUL)
+//		{
+//			rt_kprintf("[energycon]  (%s) Storage ChgOrder_Event, Successful!\n",__func__);
+//		}
+//		else
+//		{
+//			rt_kprintf("[energycon]  (%s) 保存充电订单事件，失败！\n",__func__);
+//			SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));//再存一次
+//		}
 
 		c_rst = CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//上报充电订单
 		if(c_rst == SUCCESSFUL)
-			rt_lprintf("[energycon]  (%s) ChgOrder_Event Apply to Contrllor, Successful!\n",__func__);
+			rt_kprintf("[energycon]  (%s) ChgOrder_Event Apply to Contrllor, Successful!\n",__func__);
 		else
-			rt_lprintf("[energycon]  (%s) 充电订单事件上送至Contrllor，失败！\n",__func__);
+			rt_kprintf("[energycon]  (%s) 充电订单事件上送至Contrllor，失败！\n",__func__);
 		
 		b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgRecord,&ChgOrder_Event,0);//同时将事件回传APP
 		if(b_rst == SUCCESSFUL)
-			rt_lprintf("[energycon]  (%s) ChgOrder_Event Apply to BLE, Successful!\n",__func__);
+			rt_kprintf("[energycon]  (%s) ChgOrder_Event Apply to BLE, Successful!\n",__func__);
 		else
-			rt_lprintf("[energycon]  (%s) 充电订单事件上送至BLE，失败！\n",__func__);
+			rt_kprintf("[energycon]  (%s) 充电订单事件上送至BLE，失败！\n",__func__);
 	}
 }
-
 /********************************************************************  
 *	函 数 名: RtState_Judge()
 *	功能说明: 路由器和充电桩状态判断
@@ -1072,13 +1145,14 @@ static void strategy_thread_entry(void *parameter)
 	while (1)
 	{
 		RtState_Judge();
+		ChgOrder_Apply();
 		CtrlData_RecProcess();
 		PileData_RecProcess();	
 		
-//		if(memcmp(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old)) != 0)
-//		{
+		if(memcmp(cRequestNO_Old,cRequestNO_New,sizeof(cRequestNO_Old)) != 0)
+		{
 			TimeSolt_PilePowerCtrl(); 
-//		}
+		}
 		
 		if(rt_pin_read(KC3_PIN) == PIN_LOW)
 			p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
