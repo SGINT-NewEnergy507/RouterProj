@@ -1925,13 +1925,13 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	temp_char=Data_structure;//结构体
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	temp_char=13;//结构体成员数
+	temp_char=14;//结构体成员数
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 
   len=5;
   len=temp_char=priv_struct->cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
-	if(len>sizeof(priv_struct->cRequestNO)){
+	if(len>(sizeof(priv_struct->cRequestNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO \n",__func__);
 		return -1;
 	}	
@@ -1942,7 +1942,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	//路由器资产编号   visible-string（SIZE(22)）
   len=5;
   len=temp_char=priv_struct->cAssetNO[0];
-	if(len>sizeof(priv_struct->cAssetNO)){
+	if(len>(sizeof(priv_struct->cAssetNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cAssetNO\n",__func__);
 		return -1;
 	}	
@@ -2065,6 +2065,20 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	temp_char=priv_struct->ChgPileState; // 
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
+	
+	//用户ID visible-string（SIZE(64)）
+  len=5;
+  len=temp_char=priv_struct->cUserID[0];
+	if(len>(sizeof(priv_struct->cUserID)-1)){
+		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
+		return -1;
+	}	
+	temp_array=( unsigned char *) (priv_struct->cUserID+1);
+	_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);		
+	
+	
+	
+	
 	return result;
 }
 
@@ -2095,7 +2109,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	//充电申请单号 octet-string（SIZE(16)）
 	len=5;
   len=temp_char=priv_struct->cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
-	if(len>sizeof(priv_struct->cRequestNO)){
+	if(len>(sizeof(priv_struct->cRequestNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
 		return -1;
 	}	
@@ -2107,7 +2121,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	//用户ID visible-string（SIZE(64)）
   len=5;
   len=temp_char=priv_struct->cUserID[0];
-	if(len>sizeof(priv_struct->cUserID)){
+	if(len>(sizeof(priv_struct->cUserID)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
 		return -1;
 	}	
@@ -2141,7 +2155,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	//路由器资产编号   visible-string（SIZE(22)）
   len=5;
   len=temp_char=priv_struct->cAssetNO[0];
-	if(len>sizeof(priv_struct->cAssetNO)){
+	if(len>(sizeof(priv_struct->cAssetNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cAssetNO \n",__func__);
 		return -1;
 	}		
