@@ -4256,7 +4256,7 @@ int get_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  
 参数：
 */
 int connect_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
-	int len_position=0,HCS_position=0,result;
+	int len_position=0,HCS_position=0,result=0;
 	int i=0,len=0;
 	struct _698_connect_response prive_struct;
 	unsigned char temp_char;	
@@ -5575,6 +5575,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 
 			if(Cmd_security_package(&_698_StartChg,priv_698_state,data_tx)==0){
+				printmy(&data_tx->_698_frame);
 				hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 				
 			}
@@ -5592,18 +5593,13 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 
 			if(Cmd_security_package(&_698_StopChg,priv_698_state,data_tx)==0){
+				printmy(&data_tx->_698_frame);
 				hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 				
 			}
 		}				
 	}		
 	
-
-
-
-
-
-
 
 
 	
@@ -5644,6 +5640,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
 			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			printmy(&data_tx->_698_frame);
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}													
 	}
@@ -5656,7 +5653,8 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
+			printmy(&data_tx->_698_frame);
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}				
 	}	
@@ -5681,14 +5679,16 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	}	
 	if(hplc_event&(0x1<<Cmd_PileFault)){	//上送路由器异常状态
 		hplc_event&=(~(0x1<<Cmd_PileFault));		
-		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
+		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);
+		report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);	
 //		result=Report_Cmd_PileFault(data_tx,priv_698_state);
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
-			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);	
+			//rt_kprintf("[hplc]  (%s)  print data_tx:\n",__func__);
+			printmy(&data_tx->_698_frame);
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-			report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);				
+//			report_notification_package(Cmd_DeviceFault,data_tx,data_tx,priv_698_state);	//为啥写下面了？			
 		}				
 	}				
 	hplc_698_state.lock2=0;
