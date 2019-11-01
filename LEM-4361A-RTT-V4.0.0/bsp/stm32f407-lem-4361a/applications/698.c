@@ -12,47 +12,6 @@ int test_dis_check=0;//对接收数据不进行头尾校验的开关
 int test_report=0;
 int first_time=0;
 
-unsigned char _698_ChgPlanIssue_data[1024]={
-0xFE , 0xFE , 0xFE , 0xFE , 0x68 , 0x34 , 
-0x00 , 0xC3 , 0x05 , 0x02 , 0x00 , 0x04 , 
-0x12 , 0x18 , 0x00 , 0x00 , 0xB7 , 0x02 , 
-0x85 , 0x01 , 0x1D , 0x00 , 0x10 , 0x02 , 
-0x00 , 0x01 , 0x01 , 0x05 , 0x06 , 0x00 , 
-0x00 , 0x00 , 0x66 , 0x06 , 0x00 , 0x00 , 
-0x00 , 0x24 , 0x06 , 0x00 , 0x00 , 0x00 , 
-0x40 , 0x06 , 0x00 , 0x00 , 0x00 , 0x00 , 
-0x06 , 0x00 , 0x00 , 0x00 , 0x01 , 0x00 , 
-0x00 , 0xF7 , 0x08 , 0x16,	
-0xfe, 0xfe, 0xfe, 0xfe, 0xfe,	
-0xFE, 0xFE, 0xFE, 0xFE, 0x68, 
-0x17 , 0x00 , 0x43 , 0x45 , 0xAA , 
-0xAA , 0xAA , 0xAA , 0xAA , 0xAA ,
-0x00 , 0x5B , 0x4F , 0x05 , 0x01 , 
-0x00 , 0x40 , 0x01 , 0x02 , 0x00 , 
-0x00 , 0xED , 0x03 , 0x16	,
-0xfe, 0xfe, 0xfe, 0xfe, 0xfe,
-0x68, 0x1e, 0x00, 0x81, 0x05,
-0x07, 0x09, 0x19, 0x05, 0x16,
-0x20, 0x00, 0x60, 0x30, 0x01, 
-0x00, 0x00, 0x00, 0xb4, 0x07,
-0xe0, 0x05, 0x13, 0x04, 0x08,	
-0x05, 0x00, 0x00, 0xa4, 0xfc,
-0x83, 0x16
-};
-
-//获取esam信息
-unsigned char esam_data[1024]={0x68 , 0x2a , 0x00 , 0x43 , 0x05 , 0x01 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 
-	0x06 , 0xc2 , 0x05 , 0x02 , 0x20 , 0x03 , 
-	0xf1 , 0x00 , 0x02 , 0x00 , 
-	0xf1 , 0x00 , 0x04 , 0x00 , 
-	0xf1 , 0x00 , 0x07 , 0x00 , 
-	0x01 , 0x07 , 0xe3 , 0x07 , 0x1a , 0x12 , 0x24 , 0x2f , 0x00 , 0x00 , 0x00 , 0x91 , 0x6d , 0x16
-};
-
-unsigned char state_data[1024]={0x68, 0x1d, 0x00, 0x43, 0x05, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 
-	0xf6, 0x46, 0x10, 0x00, 0x08, 0x05, 0x01, 0x02, 0x90, 0x03, 0x02, 0x00, 0x00, 0x01, 0x01, 0x76, 0x6e, 
-	0x8c, 0x16
-};
 
 
 //esam
@@ -75,6 +34,7 @@ struct rt_event HplcEvent;
 #define THREAD_HPLC_TIMESLICE    7
 //下发命令
 CCMRAM struct  _698_FRAME _698_ChgPlanIssue;
+unsigned char _698_ChgPlanIssue_data[1024];
 
 CCMRAM CHARGE_STRATEGY charge_strategy_ChgPlanIssue;//充电计划下发
 
@@ -148,10 +108,6 @@ rt_device_t blue_tooth_serial; 	// 串口设备句柄
 CCMRAM struct _698_STATE hplc_698_state;
 
 
-int test_sizeof(CHARGE_APPLY_EVENT* prive_struct){
-	rt_kprintf("[hplc]  (%s)  sizeof(prive_struct->Token)=%d \n",__func__,sizeof(prive_struct->Token));
-
-}
 
 
 
@@ -201,59 +157,14 @@ void hplc_thread_entry(void * parameter){
 //		rt_thread_mdelay(2000);	
 //		test_dis_check=1;
 	
-
-    if(test_report){
-			test_sizeof(&hplc_CHARGE_APPLY_EVENT);
-			
-			time_past=((bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second))-time;
-			if(System_Time_STR.Minute==0){
-				rt_kprintf("[hplc]  (%s)  Minute==0  \n",__func__);
-				time_past=bcd_to_hex(System_Time_STR.Second)+time-59*60;
-				time=bcd_to_hex(System_Time_STR.Second);			
-			}
-
-			rt_kprintf("[hplc]  (%s)  time_past=%d time= %d\n",__func__,time_past,time);
-			if(time_past>=15){//调发送时间
-				rt_kprintf("[hplc]  (%s)  time_past=%d >=40 \n",__func__,time_past);				
-				time_past=0;
-				time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
-				j=i%4;
-				if(j==0)
-				{
-//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRequestReport \n",__func__);//充电申请事件上送
-//					CtrlUnit_RecResp(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,0);
-
-//					
-//				}else if (j==1)
-//				{
-					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanOffer \n",__func__);//充电计划事件上报
-					CtrlUnit_RecResp(Cmd_ChgPlanOffer,&hplc_PLAN_OFFER_EVENT,0);	
-
-				}else if(j==2)
-				{
-					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState \n",__func__);//充电计划执行状态事件上报
-					CtrlUnit_RecResp(Cmd_ChgPlanExeState,&hplc_CHG_ORDER_EVENT,0);
-					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState out \n",__func__);
-				}	else if(j==3)
-				{
-					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord \n",__func__);//上送充电订单
-					CtrlUnit_RecResp(Cmd_ChgRecord,&hplc_CHG_ORDER_EVENT,0);
-					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord out \n",__func__);
-				}	
-				i++;
-			}	
-		}	
-
-		
 		result=get_single_frame_frome_hplc(&hplc_698_state,&hplc_data_rev,&hplc_data_tx);
-		if(result!=0){//定义成这样，是为了方便其他接口可能的调用，如果错误，接着去接收
+		if(result!=0){
 			if(result==1){//是645协议获取电表，发送电表地址（不发这一帧，hplc不会发送698的要标号协议）
 				hplc_645_addr_response(&hplc_698_state,&hplc_data_rev,&hplc_data_tx);				
 				hplc_tx_frame(&hplc_698_state,hplc_serial,&hplc_data_tx);
 				hplc_698_state.meter_addr_send_ok=1;//重启的时候重新置0
 				clear_data(&hplc_698_state,&hplc_data_rev,&hplc_data_rev._698_frame);//处理完了后清理数据	,只有这个是动态的后面的申请了空间后就不变了
-			}//其他情况认为是超时,去外面处理其他事物
-			
+			}//其他情况认为是超时,去外面处理其他事物			
 			if(result==2){//退出，是因为受到了事件，不执行clear_data
 				//打包发送				
 			}	
@@ -287,39 +198,15 @@ void hplc_thread_entry(void * parameter){
 		}	
 		//rt_kprintf("[hplc]  (%s) link_flag=%d hplc_698_state.connect_flag=%d\n",__func__,hplc_698_state.link_flag,hplc_698_state.connect_flag);
 		
-		if(0){
-			if((hplc_698_state.link_flag==0)||(hplc_698_state.connect_flag==0)){//处理非link的超时重发帧。收了一帧完整帧，或者串口接收超时，会进入到这个里面。
-											
-//				if(hplc_698_state.meter_addr_send_ok==2){//获取电表号是由客户机发起的，和 link_request，是由服务器发起的				
-					if(link_request_package(&hplc_data_tx,&hplc_698_state)==0){  //返回0，就是有需要发送的帧,只发送链接帧，心跳帧在超时里面发
-							hplc_tx_frame(&hplc_698_state,hplc_serial,&hplc_data_tx);
-							get_current_time(hplc_698_state.last_link_requset_time.data);//发送成功了更新发送时间
-							//不用等待列表管理
-					}
-//					printmy(&hplc_data_tx._698_frame);					
-//				}	
-								
-				//rt_kprintf("[hplc]  (%s) link_flag=%d meter_addr_send_ok=%d\n",__func__,hplc_698_state.link_flag,hplc_698_state.meter_addr_send_ok);
-			}else{
-				//发送应用层提交的事物		
-			}
-		}
-		if(1){
-			times++;
-			if(times>10){//50秒左右打印一次
-				times=0;
-				rt_kprintf("[hplc]  (%s)  no data for very long time! \n",__func__);				
-			}
-			
-
-		}
-
-
-
-
-
-		
-	}//while（1）	
+//		if(1){
+//			times++;
+//			if(times>20){
+//				times=0;
+//				rt_kprintf("[hplc]  (%s)  no data for very long time! \n",__func__);				
+//			}
+//		}
+	
+	}
 }
 
 
@@ -362,8 +249,7 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 //		Res=state_data[i];
 		
 		if(tempSize==1){
-//			rt_kprintf("[hplc]  (%s) %0x \n",__func__,Res);
-			
+//			rt_kprintf("[hplc]  (%s) %0x \n",__func__,Res);			
 			times=0;    //判断超时用 ，读到数就清零			 
 			//接收到数据长度
 			if(priv_698_state->USART_RX_STA&0x40000000){             //已经接收到了一帧的第一个0x68				
@@ -2107,7 +1993,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 	//充电申请单号 octet-string（SIZE(16)）
-	len=5;
+
   len=temp_char=priv_struct->cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>(sizeof(priv_struct->cRequestNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
@@ -4714,9 +4600,14 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 	if(data_rev->_698_frame.usrData[0]==security_request){//是安全请求,需要&&已经密钥协商过了？似乎只给密钥下载用
 		rt_kprintf("[hplc]  (%s)  security_request \n",__func__);
     //结构体赋值，共同部分
-
+		if(priv_698_state->connect_flag==0){
+			rt_kprintf("[hplc]  (%s)  not connect so can not ensecurity \n",__func__);
+			return -1;
+		}
+		
 		data_rev->_698_frame.security_flag=1;
 		if(data_rev->_698_frame.usrData[1]==1){//密文
+
 
 			data_rev->_698_frame.needEsam_flag=1;
 			result=unpatch_ScmEsam_Comm(data_rev,&hplc_ScmEsam_Comm);
@@ -4788,7 +4679,12 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		case(connect_request)://客户机发出请求，这里会收到
 			rt_kprintf("[hplc]  (%s)  connect_request  \n",__func__);			
 			result=connect_response_package(&data_rev->_698_frame,priv_698_state,data_tx);//应答connect_request
-			priv_698_state->connect_flag=1;
+			if(result==0){
+				priv_698_state->connect_flag=1;
+			}else{
+//				priv_698_state->connect_flag=0;//先不写这个
+			}
+
 			break;		
 
 		case(connect_response)://服务器（电表）回应。永远都不会收到
@@ -8098,4 +7994,115 @@ MSH_CMD_EXPORT(hplc_thread_init, hplc thread run);
 //		}	
 //	
 //	}
+//}
+//    if(test_report){
+//			test_sizeof(&hplc_CHARGE_APPLY_EVENT);
+//			
+//			time_past=((bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second))-time;
+//			if(System_Time_STR.Minute==0){
+//				rt_kprintf("[hplc]  (%s)  Minute==0  \n",__func__);
+//				time_past=bcd_to_hex(System_Time_STR.Second)+time-59*60;
+//				time=bcd_to_hex(System_Time_STR.Second);			
+//			}
+
+//			rt_kprintf("[hplc]  (%s)  time_past=%d time= %d\n",__func__,time_past,time);
+//			if(time_past>=15){//调发送时间
+//				rt_kprintf("[hplc]  (%s)  time_past=%d >=40 \n",__func__,time_past);				
+//				time_past=0;
+//				time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
+//				j=i%4;
+//				if(j==0)
+//				{
+////					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRequestReport \n",__func__);//充电申请事件上送
+////					CtrlUnit_RecResp(Cmd_ChgRequestReport,&hplc_CHARGE_APPLY_EVENT,0);
+
+////					
+////				}else if (j==1)
+////				{
+//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanOffer \n",__func__);//充电计划事件上报
+//					CtrlUnit_RecResp(Cmd_ChgPlanOffer,&hplc_PLAN_OFFER_EVENT,0);	
+
+//				}else if(j==2)
+//				{
+//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState \n",__func__);//充电计划执行状态事件上报
+//					CtrlUnit_RecResp(Cmd_ChgPlanExeState,&hplc_CHG_ORDER_EVENT,0);
+//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgPlanExeState out \n",__func__);
+//				}	else if(j==3)
+//				{
+//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord \n",__func__);//上送充电订单
+//					CtrlUnit_RecResp(Cmd_ChgRecord,&hplc_CHG_ORDER_EVENT,0);
+//					rt_kprintf("[hplc]  (%s)  	Cmd_ChgRecord out \n",__func__);
+//				}	
+//				i++;
+//			}	
+//		}	
+
+
+
+////获取esam信息
+//unsigned char esam_data[1024]={0x68 , 0x2a , 0x00 , 0x43 , 0x05 , 0x01 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 
+//	0x06 , 0xc2 , 0x05 , 0x02 , 0x20 , 0x03 , 
+//	0xf1 , 0x00 , 0x02 , 0x00 , 
+//	0xf1 , 0x00 , 0x04 , 0x00 , 
+//	0xf1 , 0x00 , 0x07 , 0x00 , 
+//	0x01 , 0x07 , 0xe3 , 0x07 , 0x1a , 0x12 , 0x24 , 0x2f , 0x00 , 0x00 , 0x00 , 0x91 , 0x6d , 0x16
+//};
+
+//unsigned char state_data[1024]={0x68, 0x1d, 0x00, 0x43, 0x05, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x22, 
+//	0xf6, 0x46, 0x10, 0x00, 0x08, 0x05, 0x01, 0x02, 0x90, 0x03, 0x02, 0x00, 0x00, 0x01, 0x01, 0x76, 0x6e, 
+//	0x8c, 0x16
+//};
+
+
+
+//		if(0){
+//			if((hplc_698_state.link_flag==0)||(hplc_698_state.connect_flag==0)){//处理非link的超时重发帧。收了一帧完整帧，或者串口接收超时，会进入到这个里面。
+//											
+////				if(hplc_698_state.meter_addr_send_ok==2){//获取电表号是由客户机发起的，和 link_request，是由服务器发起的				
+//					if(link_request_package(&hplc_data_tx,&hplc_698_state)==0){  //返回0，就是有需要发送的帧,只发送链接帧，心跳帧在超时里面发
+//							hplc_tx_frame(&hplc_698_state,hplc_serial,&hplc_data_tx);
+//							get_current_time(hplc_698_state.last_link_requset_time.data);//发送成功了更新发送时间
+//							//不用等待列表管理
+//					}
+////					printmy(&hplc_data_tx._698_frame);					
+////				}	
+//								
+//				//rt_kprintf("[hplc]  (%s) link_flag=%d meter_addr_send_ok=%d\n",__func__,hplc_698_state.link_flag,hplc_698_state.meter_addr_send_ok);
+//			}else{
+//				//发送应用层提交的事物		
+//			}
+//		}
+
+
+//int test_sizeof(CHARGE_APPLY_EVENT* prive_struct){
+//	rt_kprintf("[hplc]  (%s)  sizeof(prive_struct->Token)=%d \n",__func__,sizeof(prive_struct->Token));
+
+//}
+
+//={
+//0xFE , 0xFE , 0xFE , 0xFE , 0x68 , 0x34 , 
+//0x00 , 0xC3 , 0x05 , 0x02 , 0x00 , 0x04 , 
+//0x12 , 0x18 , 0x00 , 0x00 , 0xB7 , 0x02 , 
+//0x85 , 0x01 , 0x1D , 0x00 , 0x10 , 0x02 , 
+//0x00 , 0x01 , 0x01 , 0x05 , 0x06 , 0x00 , 
+//0x00 , 0x00 , 0x66 , 0x06 , 0x00 , 0x00 , 
+//0x00 , 0x24 , 0x06 , 0x00 , 0x00 , 0x00 , 
+//0x40 , 0x06 , 0x00 , 0x00 , 0x00 , 0x00 , 
+//0x06 , 0x00 , 0x00 , 0x00 , 0x01 , 0x00 , 
+//0x00 , 0xF7 , 0x08 , 0x16,	
+//0xfe, 0xfe, 0xfe, 0xfe, 0xfe,	
+//0xFE, 0xFE, 0xFE, 0xFE, 0x68, 
+//0x17 , 0x00 , 0x43 , 0x45 , 0xAA , 
+//0xAA , 0xAA , 0xAA , 0xAA , 0xAA ,
+//0x00 , 0x5B , 0x4F , 0x05 , 0x01 , 
+//0x00 , 0x40 , 0x01 , 0x02 , 0x00 , 
+//0x00 , 0xED , 0x03 , 0x16	,
+//0xfe, 0xfe, 0xfe, 0xfe, 0xfe,
+//0x68, 0x1e, 0x00, 0x81, 0x05,
+//0x07, 0x09, 0x19, 0x05, 0x16,
+//0x20, 0x00, 0x60, 0x30, 0x01, 
+//0x00, 0x00, 0x00, 0xb4, 0x07,
+//0xe0, 0x05, 0x13, 0x04, 0x08,	
+//0x05, 0x00, 0x00, 0xa4, 0xfc,
+//0x83, 0x16
 //}

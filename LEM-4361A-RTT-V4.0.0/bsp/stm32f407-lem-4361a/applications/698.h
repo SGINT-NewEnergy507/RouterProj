@@ -822,7 +822,7 @@ struct CharPointDataManage        //
 struct _698_STATE        //地址域a
 {
 	unsigned char link_flag;   // 登录后置1 
-	unsigned char connect_flag;//连接后置1
+	unsigned char connect_flag;//连接后置1,用作会话协商后的标志
 	int try_link_type;//返回的没有标志是那种登录类型
 	unsigned char heart_beat_time0;//特例低字节在后，高字节在前，是个正序，单位是秒
 	unsigned char heart_beat_time1;
