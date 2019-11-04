@@ -630,58 +630,61 @@ static void CtrlData_RecProcess(void)
 			if(b_rst == SUCCESSFUL)
 			{
 				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
-				memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-				if(PileIfo.WorkState == ChgSt_Standby)
+				if(Chg_Apply.ChargeMode == DISORDER)//无序充电
 				{
-					CtrlCharge_Event.CtrlType = CTRL_START;
-					CtrlCharge_Event.StartSource = BLE_UNIT;
-					p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
-					
-					if(p_rst == SUCCESSFUL)
+					memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+					if(PileIfo.WorkState == ChgSt_Standby)
 					{
-						PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
-						Chg_ExeState.exeState = EXE_ING;
-						rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+						CtrlCharge_Event.CtrlType = CTRL_START;
+						CtrlCharge_Event.StartSource = BLE_UNIT;
+						p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+						
+						if(p_rst == SUCCESSFUL)
+						{
+							PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+							Chg_ExeState.exeState = EXE_ING;
+							rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+						}
+						else
+						{
+							Chg_ExeState.exeState = EXE_FAILED;
+							rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+						}
 					}
 					else
 					{
 						Chg_ExeState.exeState = EXE_FAILED;
-						rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
 					}
-				}
-				else
-				{
-					Chg_ExeState.exeState = EXE_FAILED;
-				}
+					
+					//上送充电执行事件
+					BLE_ChgExe_Event.OrderNum++;
+					BLE_ChgExe_Event.OccurSource = 0;
+					ExeState_Update();
+					memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+					BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
 				
-				//上送充电执行事件
-				BLE_ChgExe_Event.OrderNum++;
-				BLE_ChgExe_Event.OccurSource = 0;
-				ExeState_Update();
-				memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
-				BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
-			
-				memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-				//存储充电执行事件
-				s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
-				if(s_rst == SUCCESSFUL)
-				{
-					rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
-				}
-				else
-				{
-					rt_lprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
-					SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
-				}
+					memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+					//存储充电执行事件
+					s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
+					if(s_rst == SUCCESSFUL)
+					{
+						rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
+					}
+					else
+					{
+						rt_lprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
+						SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
+					}
 
-				b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
-				if(b_rst == SUCCESSFUL)
-				{
-					rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
-				}
-				else
-				{
-					rt_lprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
+					if(b_rst == SUCCESSFUL)
+					{
+						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
+					}
+					else
+					{
+						rt_lprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+					}
 				}
 			}	
 			else
