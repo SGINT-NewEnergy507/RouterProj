@@ -198,8 +198,7 @@ static void ChgPileStateGet_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgPileStateGet event is timeout!\n");
 	//²éÑ¯³äµç×®×´Ì¬
-	if(PileIfo.WorkState != ChgSt_Finished)
-		ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
+	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 }
 /**************************************************************
  * º¯ÊýÃû³Æ: timer_create_init 
@@ -1095,12 +1094,15 @@ static void ChgOrder_Apply(void)
 ********************************************************************/ 
 static void RtState_Judge(void)
 {
-	if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
-		PileIfo.WorkState = ChgSt_Standby;
-	else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
-		PileIfo.WorkState = ChgSt_InCharging;
-	else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
-		PileIfo.WorkState = ChgSt_Fault;
+	if(PileIfo.WorkState != ChgSt_Finished)
+	{
+		if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
+			PileIfo.WorkState = ChgSt_Standby;
+		else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
+			PileIfo.WorkState = ChgSt_InCharging;
+		else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
+			PileIfo.WorkState = ChgSt_Fault;
+	}
 	
 	switch(PileIfo.WorkState)
 	{
