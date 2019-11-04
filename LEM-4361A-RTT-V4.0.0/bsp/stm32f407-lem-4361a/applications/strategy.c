@@ -198,9 +198,8 @@ static void ChgPileStateGet_Timeout(void *parameter)
 {
     rt_lprintf("[strategy] : ChgPileStateGet event is timeout!\n");
 	//查询充电桩状态
-	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
-	
-//	if(ChargePilePara_Get.ChgPileState == )
+	if(PileIfo.WorkState != ChgSt_Finished)
+		ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 }
 /**************************************************************
  * 函数名称: timer_create_init 
@@ -272,7 +271,7 @@ static void ExeState_Update(void)
 	Chg_ExeState.ucCurrent.A = stgMeter_Analog.ulCur;
 	
 	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
-	Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;
+	Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;//直接取用充电桩的三态
 	memcpy(&Chg_ExeState.cUserID,&Chg_Apply_Event.UserAccount,sizeof(Chg_ExeState.cUserID));	
 }
 /********************************************************************  
@@ -307,7 +306,7 @@ static void CtrlData_RecProcess(void)
 	switch(Ctrl_EventCmd)
 	{
 		//收到充电计划
-		case Cmd_ChgPlanIssueAck:
+		case Cmd_ChgPlanIssue:
 		{
 			PlanAccepted = TRUE;
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//取值
@@ -824,6 +823,7 @@ static void PileData_RecProcess(void)
 			rt_timer_stop(StopChgResp);
 			
 			Ctrl_Stop.cSucIdle = SUCCESSFUL;
+			PileIfo.WorkState = ChgSt_Finished;//状态变更
 			c_rst = CtrlUnit_RecResp(Cmd_StopChgAck,&Ctrl_Stop,0);
 			
 			//记录表底值			
@@ -1083,6 +1083,8 @@ static void ChgOrder_Apply(void)
 			rt_kprintf("[energycon]  (%s) ChgOrder_Event Apply to BLE, Successful!\n",__func__);
 		else
 			rt_kprintf("[energycon]  (%s) 充电订单事件上送至BLE，失败！\n",__func__);
+		
+		PileIfo.WorkState = ChgSt_Standby;//状态变更
 	}
 }
 /********************************************************************  
