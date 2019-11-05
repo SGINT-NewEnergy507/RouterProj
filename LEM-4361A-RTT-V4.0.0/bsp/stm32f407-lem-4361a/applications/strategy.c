@@ -199,8 +199,6 @@ static void ChgPileStateGet_Timeout(void *parameter)
     rt_lprintf("[strategy] : ChgPileStateGet event is timeout!\n");
 	//查询充电桩状态
 	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
-	
-//	if(ChargePilePara_Get.ChgPileState == )
 }
 /**************************************************************
  * 函数名称: timer_create_init 
@@ -272,7 +270,7 @@ static void ExeState_Update(void)
 	Chg_ExeState.ucCurrent.A = stgMeter_Analog.ulCur;
 	
 	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
-	Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;
+	Chg_ExeState.ChgPileState = ChargePilePara_Get.ChgPileState;//直接取用充电桩的三态
 	memcpy(&Chg_ExeState.cUserID,&Chg_Apply_Event.UserAccount,sizeof(Chg_ExeState.cUserID));	
 }
 /********************************************************************  
@@ -307,7 +305,7 @@ static void CtrlData_RecProcess(void)
 	switch(Ctrl_EventCmd)
 	{
 		//收到充电计划
-		case Cmd_ChgPlanIssueAck:
+		case Cmd_ChgPlanIssue:
 		{
 			PlanAccepted = TRUE;
 			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//取值
@@ -632,58 +630,61 @@ static void CtrlData_RecProcess(void)
 			if(b_rst == SUCCESSFUL)
 			{
 				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
-				memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-				if(PileIfo.WorkState == ChgSt_Standby)
+				if(Chg_Apply.ChargeMode == DISORDER)//无序充电
 				{
-					CtrlCharge_Event.CtrlType = CTRL_START;
-					CtrlCharge_Event.StartSource = BLE_UNIT;
-					p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
-					
-					if(p_rst == SUCCESSFUL)
+					memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+					if(PileIfo.WorkState == ChgSt_Standby)
 					{
-						PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
-						Chg_ExeState.exeState = EXE_ING;
-						rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+						CtrlCharge_Event.CtrlType = CTRL_START;
+						CtrlCharge_Event.StartSource = BLE_UNIT;
+						p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+						
+						if(p_rst == SUCCESSFUL)
+						{
+							PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+							Chg_ExeState.exeState = EXE_ING;
+							rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+						}
+						else
+						{
+							Chg_ExeState.exeState = EXE_FAILED;
+							rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+						}
 					}
 					else
 					{
 						Chg_ExeState.exeState = EXE_FAILED;
-						rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
 					}
-				}
-				else
-				{
-					Chg_ExeState.exeState = EXE_FAILED;
-				}
+					
+					//上送充电执行事件
+					BLE_ChgExe_Event.OrderNum++;
+					BLE_ChgExe_Event.OccurSource = 0;
+					ExeState_Update();
+					memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+					BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
 				
-				//上送充电执行事件
-				BLE_ChgExe_Event.OrderNum++;
-				BLE_ChgExe_Event.OccurSource = 0;
-				ExeState_Update();
-				memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
-				BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
-			
-				memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-				//存储充电执行事件
-				s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
-				if(s_rst == SUCCESSFUL)
-				{
-					rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
-				}
-				else
-				{
-					rt_lprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
-					SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
-				}
+					memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+					//存储充电执行事件
+					s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
+					if(s_rst == SUCCESSFUL)
+					{
+						rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
+					}
+					else
+					{
+						rt_lprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
+						SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
+					}
 
-				b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
-				if(b_rst == SUCCESSFUL)
-				{
-					rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
-				}
-				else
-				{
-					rt_lprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
+					if(b_rst == SUCCESSFUL)
+					{
+						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
+					}
+					else
+					{
+						rt_lprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+					}
 				}
 			}	
 			else
@@ -824,6 +825,7 @@ static void PileData_RecProcess(void)
 			rt_timer_stop(StopChgResp);
 			
 			Ctrl_Stop.cSucIdle = SUCCESSFUL;
+			PileIfo.WorkState = ChgSt_Finished;//状态变更
 			c_rst = CtrlUnit_RecResp(Cmd_StopChgAck,&Ctrl_Stop,0);
 			
 			//记录表底值			
@@ -1083,6 +1085,8 @@ static void ChgOrder_Apply(void)
 			rt_kprintf("[energycon]  (%s) ChgOrder_Event Apply to BLE, Successful!\n",__func__);
 		else
 			rt_kprintf("[energycon]  (%s) 充电订单事件上送至BLE，失败！\n",__func__);
+		
+		PileIfo.WorkState = ChgSt_Standby;//状态变更
 	}
 }
 /********************************************************************  
@@ -1093,12 +1097,15 @@ static void ChgOrder_Apply(void)
 ********************************************************************/ 
 static void RtState_Judge(void)
 {
-	if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
-		PileIfo.WorkState = ChgSt_Standby;
-	else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
-		PileIfo.WorkState = ChgSt_InCharging;
-	else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
-		PileIfo.WorkState = ChgSt_Fault;
+	if(PileIfo.WorkState != ChgSt_Finished)
+	{
+		if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
+			PileIfo.WorkState = ChgSt_Standby;
+		else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
+			PileIfo.WorkState = ChgSt_InCharging;
+		else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
+			PileIfo.WorkState = ChgSt_Fault;
+	}
 	
 	switch(PileIfo.WorkState)
 	{

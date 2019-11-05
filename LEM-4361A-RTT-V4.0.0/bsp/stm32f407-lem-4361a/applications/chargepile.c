@@ -687,7 +687,7 @@ static void chargepile_thread_entry(void *parameter)
 				rt_lprintf("chargepile:State_WaitChargeStopFrameAsk\n");
 			
 				break;
-			case state_WaitStop://µÈ´ıÍ£Ö¹³äµçÓ¦´ğÖ¡
+			case state_WaitStop://µÈ´ıÍ£Ö¹³äµçÓ¦´ğÖ¡		
 				rt_lprintf("chargepile:state_WaitStop\n");
 			
 				break;
@@ -697,6 +697,7 @@ static void chargepile_thread_entry(void *parameter)
 				StrStateFrame.YxBackupSendDataFrameReSendFlag = TRUE; 
 
 				STR_ChargePile_A.ChgState = state_Standby;
+				STR_ChargPilePara.ChgPileState = PILE_STANDBY;			//zcx191104
 				rt_lprintf("chargepile:State_ChargEnd->State_Standby\n");
 			
 				break;
