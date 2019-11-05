@@ -5424,14 +5424,14 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			result=0;	
 			break;
 		case(Cmd_RouterExeState)://路由器执行状态查询		
-			rt_kprintf("[hplc]  (%s)   Cmd_RouterExeState  \n",__func__);		
+			rt_kprintf("[hplc]  (%s)   Cmd_RouterExeState  -1\n",__func__);		
 			result=-1;				
 			break;
 		
 	
 	case(Cmd_RouterExeStateAck)://路由器执行状态应答	
 			_698_charge_exe_state.charge_exe_state=(CHARGE_EXE_STATE *)STR_SetPara;
-			rt_kprintf("[hplc]  (%s)   Cmd_RouterExeState %0x \n",__func__,_698_charge_exe_state.charge_exe_state->exeState);	
+			rt_kprintf("[hplc]  (%s)  Cmd_RouterExeStateAck %0x \n",__func__,_698_charge_exe_state.charge_exe_state->exeState);	
 			//这个会有问题，如果变了，但是这个是我往上招的数据，我不动他也应该不动
 			_698_charge_exe_state.array_size=count;
 //				_698_charge_exe_state.array_size=1;
@@ -5485,6 +5485,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx){
 	
 	int result=0;
+	rt_kprintf("[hplc]  (%s)  \n",__func__);
 	while(hplc_698_state.lock1==1){
 		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
 		rt_thread_mdelay(20);
