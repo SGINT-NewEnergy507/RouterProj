@@ -5485,7 +5485,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_tx){
 	
 	int result=0;
-	rt_kprintf("[hplc]  (%s)  \n",__func__);
+//	rt_kprintf("[hplc]  (%s)  \n",__func__);
 	while(hplc_698_state.lock1==1){
 		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
 		rt_thread_mdelay(20);
@@ -6452,11 +6452,11 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 //	_698_oad_omd(0xf209,0x0,hplc_data);	// //ÔØ²¨ Î¢²¨  ÎÞÏß
 
-	temp_char=Data_unsigned;//
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+//	temp_char=Data_unsigned;//
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	temp_char=0;//
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+//	temp_char=0;//
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 
 
