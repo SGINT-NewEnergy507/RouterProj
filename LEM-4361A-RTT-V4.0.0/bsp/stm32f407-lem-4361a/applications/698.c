@@ -2231,7 +2231,7 @@ int oi_charge_strategy_package(struct  _698_FRAME  *_698_frame_rev,struct _698_S
 	}
 	
 	for(i=0;i<_698_charge_strategy.array_size;i++){
-		priv_struct_STRATEGY=(CHARGE_STRATEGY *)_698_charge_strategy.charge_strategy+i;
+		priv_struct_STRATEGY=(CHARGE_STRATEGY *)(_698_charge_strategy.charge_strategy+i);
 		charge_strategy_package(priv_struct_STRATEGY,hplc_data);
 	
 	}
@@ -2896,7 +2896,7 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					my_strcpy(_698_ChgPlanIssueGet_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
 					_698_ChgPlanIssueGet.usrData=_698_ChgPlanIssueGet_data;	
 						
-					strategy_event_send(Cmd_ChgPlanExeState);
+//					strategy_event_send(Cmd_ChgPlanExeState);//有问题体
 					return 2;//发送事件	
 				}
 				//发送信号让下面把充电计划单准备好
@@ -6780,10 +6780,10 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	for(j=0;j<5;j++){
 		len=5;
 		len=priv_EVENT->Chg_ExeState.ulEleBottomValue[j];
-		if(len>sizeof(Chg_ExeState.ulEleBottomValue)){
-			rt_kprintf("[hplc]  (%s) len> array size  Chg_ExeState.ulEleBottomValue\n",__func__);
-			return -1;
-		}	//changed next			
+//		if(len>sizeof(Chg_ExeState.ulEleBottomValue)){
+//			rt_kprintf("[hplc]  (%s) len> array size  Chg_ExeState.ulEleBottomValue\n",__func__);
+//			return -1;
+//		}	//changed next			
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
