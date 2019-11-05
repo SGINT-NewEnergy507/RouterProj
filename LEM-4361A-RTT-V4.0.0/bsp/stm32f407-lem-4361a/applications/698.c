@@ -6797,10 +6797,10 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	for(j=0;j<5;j++){
 		len=5;
 		len=priv_EVENT->Chg_ExeState.ulEleActualValue[j];
-		if(len>sizeof(priv_EVENT->Chg_ExeState.ulEleActualValue)){
-			rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->Chg_ExeState.ulEleActualValue \n",__func__);
-			return -1;
-		}				
+//		if(len>sizeof(priv_EVENT->Chg_ExeState.ulEleActualValue)){
+//			rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->Chg_ExeState.ulEleActualValue \n",__func__);
+//			return -1;
+//		}				
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
