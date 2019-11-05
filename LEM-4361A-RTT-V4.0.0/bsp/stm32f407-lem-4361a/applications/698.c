@@ -44,6 +44,11 @@ CCMRAM CHARGE_STRATEGY_RSP ChgPlanIssue_rsp;
 CCMRAM struct  _698_FRAME _698_ChgPlanIssueGet;
 CCMRAM unsigned char _698_ChgPlanIssueGet_data[100];
 
+
+
+
+
+
 CCMRAM _698_CHARGE_STRATEGY _698_charge_strategy;
 
 CCMRAM _698_PLAN_FAIL_EVENT _698_router_fail_event;
@@ -63,6 +68,10 @@ CCMRAM unsigned char _698_ChgPlanAdjust_data[1024];
 CCMRAM CHARGE_STRATEGY charge_strategy_ChgPlanAdjust;
 
 CCMRAM CHARGE_STRATEGY_RSP ChgPlanAdjust_rsp;
+
+
+//CCMRAM struct CHARGE_EXE_STATE _698_CHARGE_EXE_STATE;
+//CCMRAM unsigned char _698_ChgPlanAdjust_data[1024];
 
 
 CCMRAM struct  _698_FRAME _698_StartChg;
@@ -2922,7 +2931,6 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					}
 					
 					_698_RouterExeState=*_698_frame_rev;//将指针地址赋给了对方
-
 					my_strcpy(_698_RouterExeState_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
 					_698_RouterExeState.usrData=_698_RouterExeState_data;
 					
@@ -5330,9 +5338,9 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;		
 		
 
-		case(Cmd_ChgRecord)://上送充电计划执行状态
+		case(Cmd_ChgRecord)://上送充电订单
 		hplc_CHG_ORDER_EVENT=*((CHG_ORDER_EVENT *)STR_SetPara);//可能赋值不上
-		hplc_event=hplc_event|event;			
+		hplc_event=hplc_event|event;	//测试		
 		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
 		break;		
 		
@@ -5407,6 +5415,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 		
 		case(Cmd_ChgPlanIssueGetAck)://不需要从我这里要数据，只执行就可以了
+			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueGetAck  \n",__func__);		
 			_698_charge_strategy.charge_strategy=(CHARGE_STRATEGY *)STR_SetPara;	
 			//这个会有问题，如果变了，但是这个是我网上招的数据，我不动他也应该不动
 			_698_charge_strategy.array_size=count;
@@ -5414,9 +5423,9 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			//是否还要判断是否运行成功，成功了之后才推出。
 			result=0;	
 			break;
-		case(Cmd_RouterExeState)://路由器执行状态查询	
+		case(Cmd_RouterExeState)://路由器执行状态查询		
+			rt_kprintf("[hplc]  (%s)   Cmd_RouterExeState  \n",__func__);		
 			result=-1;				
-			rt_kprintf("[hplc]  (%s)   Cmd_RouterExeState  \n",__func__);								
 			break;
 		
 	
@@ -5450,19 +5459,18 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 		
 	case(Cmd_ChgPlanOffer)://上送充电计划单	
 			hplc_PLAN_OFFER_EVENT=*((PLAN_OFFER_EVENT *)STR_SetPara);		
-			hplc_event=hplc_event|event;		
+			hplc_event=hplc_event|event;	//测试	
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanOffer  \n",__func__);								
 			break;		
 
 
 		
 		default:
-			rt_kprintf("[hplc]  (%s)   not  \n",__func__);
+			rt_kprintf("[hplc]  (%s)   not support \n",__func__);
 			return 1;
 			break;	
 	}
 	strategy_event&=(~event);
-	rt_kprintf("[hplc]  (%s)   not  \n",__func__);	
 //解锁
 	hplc_698_state.lock2=0;	
 	hplc_698_state.lock1=0;	
@@ -6422,24 +6430,26 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	temp_char=0;//事件发生源    NULL
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-
-	temp_char=Data_array;//事件上报状态  array 通道上报状态
+	temp_char=0;//事件上报状态  array 通道上报状态
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
+//	temp_char=Data_array;//事件上报状态  array 通道上报状态
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=01;//长度
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//	temp_char=01;//长度
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=Data_structure;//
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//	temp_char=Data_structure;//
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=02;//项数
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//	temp_char=02;//项数
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=Data_OAD;//
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//	temp_char=Data_OAD;//
+//	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 
-	_698_oad_omd(0xf209,0x0,hplc_data);	// //载波 微波  无线
+//	_698_oad_omd(0xf209,0x0,hplc_data);	// //载波 微波  无线
 
 	temp_char=Data_unsigned;//
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
@@ -6517,10 +6527,6 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	
 	temp_char=priv_EVENT-> ChargeMode; // 
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
-	
-	
-
-	
 	
 	
 	temp_char=Data_array;//充电启动时电能示值	array double-long
