@@ -44,8 +44,8 @@ static char CrjPileVersion[8] = {"V1.0.05"}; // 版本号
 u8 software_date[8]={0};//软件生成日期 初始化为空格
 u8 software_time[6]={0};//软件生成时间
 static u32 can_heart_count = 0;
-static char  USARTx_TX_BUF[256] = {0};
-static char Printf_buff[8];
+//static char  Printf_Buffer[256] = {0};
+//static char Sprintf_Buffer[8];
 #define FlashBufLenMax             1024
 __align(4) u8 STMFLASH_BUFF[FlashBufLenMax+2];
 u32 STMFLASH_LENTH = 0;
@@ -574,17 +574,17 @@ rt_uint8_t ChargepileDataGetSet(COMM_CMD_P cmd,void *STR_SetGetPara)
 ***************************************************************/
 void print_can_msg(struct rt_can_msg *data)
 {
-	sprintf((char*)USARTx_TX_BUF,"CAN1RecFrame:"); 
-	sprintf((char*)Printf_buff,"%08X",data->id); 
-	strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-	strcat((char*)USARTx_TX_BUF,(const char*)"--");
+	sprintf((char*)Printf_Buffer,"CAN1RecFrame:"); 
+	sprintf((char*)Sprintf_Buffer,"%08X",data->id); 
+	strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+	strcat((char*)Printf_Buffer,(const char*)"--");
 
 	for(int i=0;i<data->len;i++)   //循环发送数据
 	{
-		sprintf((char*)Printf_buff,"%02X",data->data[i]); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+		sprintf((char*)Sprintf_Buffer,"%02X",data->data[i]); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 	}
-	rt_lprintf("%s\n",USARTx_TX_BUF);
+	rt_lprintf("%s\n",Printf_Buffer);
 }
 /**************************************************************
 * 函数名称: can_rx_ind
@@ -617,19 +617,6 @@ static void chargepile_thread_entry(void *parameter)
 	while (1)
 	{
 
-//		if((STR_ChargePile_A.ChgState == state_Standby)&&(RunTime%5 == 0x00))
-//		{
-//			ChargPilePara_TypeDef *STR_CHG_test = NULL;
-//			ChargepileDataGetSet(Cmd_ChargeStart,STR_CHG_test);
-//			rt_lprintf("[chargepile]:下发启动充电命令\n");
-//		}
-//		else if((STR_ChargePile_A.ChgState == state_Charging)&&(RunTime%10 == 0x00))
-//		{
-//			ChargPilePara_TypeDef *STR_CHG_test = NULL;
-//			ChargepileDataGetSet(Cmd_ChargeStop,STR_CHG_test);
-//			rt_lprintf("[chargepile]:下发停止充电命令\n");
-//		}		
-		
 		switch(STR_ChargePile_A.ChgState)
 		{
 			case state_PowerON:// 上电状态
@@ -663,7 +650,6 @@ static void chargepile_thread_entry(void *parameter)
 			
 				break;
 			case state_ChargStart://接收到启动充电命令 开始下发充电命令
-				STR_ChargPilePara.ChgPileState = PILE_WORKING;
 				Inform_Communicate_Can(ChargeStartFrame,FALSE);
 				rt_lprintf("chargepile:ChargeStartFrame\n");
 				STR_ChargePile_A.ChgState = state_WaitChargeStartFrameAsk;
@@ -674,6 +660,7 @@ static void chargepile_thread_entry(void *parameter)
 			
 				break;
 			case state_Charging://交互成功，充电中
+				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
 				rt_lprintf("chargepile:state_Charging\n");
 			
 				break;
@@ -687,7 +674,7 @@ static void chargepile_thread_entry(void *parameter)
 				rt_lprintf("chargepile:State_WaitChargeStopFrameAsk\n");
 			
 				break;
-			case state_WaitStop://等待停止充电应答帧		
+			case state_WaitStop://等待停止充电应答帧
 				rt_lprintf("chargepile:state_WaitStop\n");
 			
 				break;
@@ -695,9 +682,8 @@ static void chargepile_thread_entry(void *parameter)
 				memset(&StrStateFrame,0x00,sizeof(STR_STATE_FRAME));
 				StrStateFrame.YcSendDataFrameReSendFlag = TRUE; 
 				StrStateFrame.YxBackupSendDataFrameReSendFlag = TRUE; 
-
 				STR_ChargePile_A.ChgState = state_Standby;
-				STR_ChargPilePara.ChgPileState = PILE_STANDBY;			//zcx191104
+				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
 				rt_lprintf("chargepile:State_ChargEnd->State_Standby\n");
 			
 				break;
@@ -714,9 +700,9 @@ static void chargepile_thread_entry(void *parameter)
 //		list_mem();
 		
 		/* lock scheduler */
-		rt_enter_critical();
-		/* unlock scheduler */
-		rt_exit_critical();
+//		rt_enter_critical();
+//		/* unlock scheduler */
+//		rt_exit_critical();
 //		rt_event_send(&ChargePileEvent, ChargeStartOK_EVENT);
 //		rt_event_send(&ChargePileEvent, ChargeStartER_EVENT);
 //		rt_uint32_t ch = 0;
@@ -1683,227 +1669,227 @@ void CAN_V110_RecProtocal(void)
 	pRxcmdstate = (pCan->id>>16)&0xFF;
 	if(pRxcmdstate == ChargeStopFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeStopFrameAck:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeStopFrameAck:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == TimingFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecTimingFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecTimingFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == VertionCheckFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecVertionCheckFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecVertionCheckFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeParaInfoFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecChargeParaInfoFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecChargeParaInfoFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeServeOnOffFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecChargeServeOnOffFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecChargeServeOnOffFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ElecLockFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecElecLockFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecElecLockFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == PowerAdjustFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecPowerAdjustFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecPowerAdjustFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == PileParaInfoFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecPileParaInfoFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecPileParaInfoFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeStartStateFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecChargeStartStateFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecChargeStartStateFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeStopStateFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecChargeStopStateFrameAck:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecChargeStopStateFrameAck:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == YcRecDataFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecYcRecDataFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecYcRecDataFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == HeartRecFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecHeartFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecHeartFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == RecErrorStateFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecErrorStateFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecErrorStateFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}	
 	else if(pRxcmdstate == FunPwmFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecFunPwmFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecFunPwmFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == UpdateBeginFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"RecUpdateBeginFrame:"); 
-		sprintf((char*)Printf_buff,"%08X",pCan->id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"RecUpdateBeginFrame:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	else
 	{
-		sprintf((char*)USARTx_TX_BUF,"CAN1_RecFrame:");
-		sprintf((char*)Printf_buff,"%08X",pCan->id);
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"CAN1_RecFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",pCan->id);
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<pCan->len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",pCan->data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);			
+		rt_lprintf("%s\n",Printf_Buffer);			
 	}
 	
 	switch(pRxcmdstate)   //命令号
@@ -2570,213 +2556,213 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 	SendCmd = (Tx_Message.id>>16)&0xFF;
 	if(SendCmd == ChargeStartFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeStartFrameAck:");
-	    sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeStartFrameAck:");
+	    sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == ChargeStopFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeStopFrameAck:"); 
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeStopFrameAck:"); 
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);	
+		rt_lprintf("%s\n",Printf_Buffer);	
 	}
 	else if(SendCmd == YcSendDataFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"YcSendDataFrame:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"YcSendDataFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == TimingFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"TimingFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"TimingFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == VertionCheckFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"VertionCheckFrame:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"VertionCheckFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == ChargeParaInfoFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeParaInfoFrame:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeParaInfoFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeServeOnOffFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeServeOnOffFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeServeOnOffFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ElecLockFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ElecLockFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ElecLockFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == PowerAdjustFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"PowerAdjustFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"PowerAdjustFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == PileParaInfoFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"PileParaInfoFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"PileParaInfoFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeStartStateFrameAck)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeStartStateFrameAck:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeStartStateFrameAck:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeStopStateFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ChargeStopStateFrame:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ChargeStopStateFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == HeartSendFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"HeartSendFrame:");
-	    sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"HeartSendFrame:");
+	    sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}
 	else if(SendCmd == SendErrorStateFrame)
 	{
-		sprintf((char*)USARTx_TX_BUF,"ErrorStateFrame:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"ErrorStateFrame:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);
+		rt_lprintf("%s\n",Printf_Buffer);
 	}	
 	else
 	{
-		sprintf((char*)USARTx_TX_BUF,"CAN1_Send_Msg:");
-		sprintf((char*)Printf_buff,"%08X",Tx_Message.id); 
-		strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);
-		strcat((char*)USARTx_TX_BUF,(const char*)"--");
+		sprintf((char*)Printf_Buffer,"CAN1_Send_Msg:");
+		sprintf((char*)Sprintf_Buffer,"%08X",Tx_Message.id); 
+		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);
+		strcat((char*)Printf_Buffer,(const char*)"--");
 			
 		for(i=0;i<Tx_Message.len;i++)   //循环发送数据
 		{
-			sprintf((char*)Printf_buff,"%02X",Tx_Message.data[i]); 
-			strcat((char*)USARTx_TX_BUF,(const char*)Printf_buff);			
+			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
+			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",USARTx_TX_BUF);		
+		rt_lprintf("%s\n",Printf_Buffer);		
 	}
 
 	rt_device_write(chargepile_can, 0, &Tx_Message, sizeof(struct rt_can_msg));
