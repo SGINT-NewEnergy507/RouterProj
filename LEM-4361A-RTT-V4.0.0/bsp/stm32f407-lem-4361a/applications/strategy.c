@@ -349,7 +349,70 @@ static void CtrlData_RecProcess(void)
 				memcpy(&Plan_Offer_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 				c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);//上报充电计划事件
 				
-				//缺等待确认					
+				//缺等待确认
+//				if(c_rst == SUCCESSFUL)           //wyg191106
+//				{
+//					rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
+//					if(Chg_Apply.ChargeMode == DISORDER)//无序充电
+//					{
+//						memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+//						if(PileIfo.WorkState == ChgSt_Standby)
+//						{
+//							CtrlCharge_Event.CtrlType = CTRL_START;
+//							CtrlCharge_Event.StartSource = BLE_UNIT;
+//							p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+//							
+//							if(p_rst == SUCCESSFUL)
+//							{
+//								PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+//								Chg_ExeState.exeState = EXE_ING;
+//								rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+//							}
+//							else
+//							{
+//								Chg_ExeState.exeState = EXE_FAILED;
+//								rt_lprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+//							}
+//						}
+//						else
+//						{
+//							Chg_ExeState.exeState = EXE_FAILED;
+//						}
+//						
+//						//上送充电执行事件
+//						BLE_ChgExe_Event.OrderNum++;
+//						BLE_ChgExe_Event.OccurSource = 0;
+//						ExeState_Update();
+//						memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+//						BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
+//					
+//						memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+//						//存储充电执行事件
+//						s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
+//						if(s_rst == SUCCESSFUL)
+//						{
+//							rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
+//						}
+//						else
+//						{
+//							rt_lprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
+//							SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
+//						}
+
+//						b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
+//						b_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);//回复	wyg191105
+//						
+//						if(b_rst == SUCCESSFUL)
+//						{
+//							rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
+//						}
+//						else
+//						{
+//							rt_lprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+//						}
+//					}
+//				}
+				
 			}
 			else
 			{
@@ -502,7 +565,9 @@ static void CtrlData_RecProcess(void)
 		case Cmd_RouterExeState:
 		{
 			rt_lprintf("[strategy]  (%s)  收到@控制器@查询工作状态的命令  \n",__func__);  
-				
+			
+			c_rst = CtrlUnit_RecResp(Cmd_RouterExeState,&Chg_ExeState,0);//回复	
+			
 			if(memcmp(ExeState_CtrlAsk.cAssetNO,RouterIfo.AssetNum,sizeof(ExeState_CtrlAsk.cAssetNO)) == 0)
 			{
 				ExeState_Update();	
@@ -510,9 +575,9 @@ static void CtrlData_RecProcess(void)
 			else
 			{
 				Chg_ExeState.exeState = EXE_FAILED;//资产号不匹配，视为“执行失败"
-			}
+			}		
+			c_rst = CtrlUnit_RecResp(Cmd_RouterExeStateAck,&Chg_ExeState,1);//回复	 wyg191105
 			
-			c_rst = CtrlUnit_RecResp(Cmd_RouterExeState,&Chg_ExeState,0);//回复			   	
 			break;
 		}
 		//收到充电申请确认
@@ -677,6 +742,8 @@ static void CtrlData_RecProcess(void)
 					}
 
 					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);
+					b_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);//回复	wyg191105
+					
 					if(b_rst == SUCCESSFUL)
 					{
 						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply, Successful!\n",__func__);				
