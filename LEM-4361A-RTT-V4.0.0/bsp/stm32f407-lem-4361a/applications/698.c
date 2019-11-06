@@ -5331,36 +5331,18 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			hplc_event=hplc_event|event;						
 			break;				
 										
-		case(Cmd_ChgPlanExeState)://只上传，应答忽略 //上送充电计划执行状态
+		case(Cmd_ChgPlanExeState)://上送充电计划执行状态
 			hplc_CHARGE_EXE_EVENT=*((CHARGE_EXE_EVENT *)STR_SetPara);//可能赋值不上
 			hplc_event=hplc_event|event;			
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanExeState  \n",__func__);								
-			break;		
-		
+			break;
+	
 
 		case(Cmd_ChgRecord)://上送充电订单
 		hplc_CHG_ORDER_EVENT=*((CHG_ORDER_EVENT *)STR_SetPara);//可能赋值不上
 		hplc_event=hplc_event|event;	//测试		
 		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
 		break;		
-		
-///**充电计划召测事件***////
-//		case():	//将计划单传给用户
-//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
-//			*((CHARGE_STRATEGY *)STR_SetPara)=_698_ChgPlanIssueGet_data;
-
-//			//拷贝给他,指针结构体直接赋值不成功！？									
-//			break;
-
-//		case()://应答
-//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
-//			rsp=*((CHARGE_STRATEGY_RSP *)STR_SetPara);//可以用
-//			hplc_event=hplc_event|event;						
-//			break;			
-//
-
-		
-		
 		
  		case(Cmd_ChgPlanAdjust)://变更充电计划,应用层得到数据，处理完后才下一步
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanAdjust  \n",__func__);
@@ -5437,9 +5419,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 //				_698_charge_exe_state.array_size=1;
 				hplc_event=hplc_event|event;
 			//是否还要判断是否运行成功，成功了之后才推出。
-			break;
-		
-		
+			break;				
 		
 /****
 	上送类事件	
@@ -5463,7 +5443,6 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanOffer  \n",__func__);								
 			break;		
 
-
 		
 		default:
 			rt_kprintf("[hplc]  (%s)   not support \n",__func__);
@@ -5474,7 +5453,34 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 //解锁
 	hplc_698_state.lock2=0;	
 	hplc_698_state.lock1=0;	
-	return result;			
+	return result;
+
+
+
+
+
+
+///**充电计划召测事件***////
+//		case():	//将计划单传给用户
+//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
+//			*((CHARGE_STRATEGY *)STR_SetPara)=_698_ChgPlanIssueGet_data;
+
+//			//拷贝给他,指针结构体直接赋值不成功！？									
+//			break;
+
+//		case()://应答
+//			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssueAck  \n",__func__);
+//			rsp=*((CHARGE_STRATEGY_RSP *)STR_SetPara);//可以用
+//			hplc_event=hplc_event|event;						
+//			break;			
+//
+
+
+
+
+
+
+	
 }
 
 
@@ -6683,8 +6689,6 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 
-
-
 	event_no=priv_EVENT->OrderNum;//事件记录序号  double-long-unsigned
   _698_double_long_unsigned((unsigned int) event_no, hplc_data);//里面有类型
 
@@ -6739,7 +6743,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
   len=5;
   len=temp_char=priv_EVENT->Chg_ExeState.cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>sizeof(priv_EVENT->Chg_ExeState.cRequestNO)){
-		rt_kprintf("[hplc]  (%s) len> array size  priv_EVENT->Chg_ExeState.cRequestNO\n",__func__);
+		rt_kprintf("[hplc]  (%s) len=%d > array size  priv_EVENT->Chg_ExeState.cRequestNO=%d\n",__func__,len,sizeof(priv_EVENT->Chg_ExeState.cRequestNO));
 		return -1;
 	}				
 	temp_array=( unsigned char *) (priv_EVENT->Chg_ExeState.cRequestNO+1);
@@ -7380,7 +7384,6 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 /**
 上报 report_notification 0x88
 
-
 **/
 	
 int report_notification_package(COMM_CMD_C report_type,void *report_struct,struct CharPointDataManage * hplc_data,struct _698_STATE  * priv_698_state){
@@ -7428,16 +7431,32 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 	//Get-Result
 	if(report_type==Cmd_ChgRequestReport){   //充电申请事件上送
 		rt_kprintf("[hplc]  (%s)  Cmd_CHARGE_APPLY   \n",__func__);
-		result=report_CHARGE_APPLY_package((CHARGE_APPLY_EVENT *)report_struct,priv_698_state,hplc_data);		
+		result=report_CHARGE_APPLY_package((CHARGE_APPLY_EVENT *)report_struct,priv_698_state,hplc_data);	
+		if(result!=0){
+			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
+			return -1;
+		}		
 	}else if(report_type==Cmd_ChgPlanOffer){ //充电计划事件上报
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanOffer   \n",__func__);
-		result=report_PLAN_OFFER_package((PLAN_OFFER_EVENT *)report_struct,priv_698_state,hplc_data);		
+		result=report_PLAN_OFFER_package((PLAN_OFFER_EVENT *)report_struct,priv_698_state,hplc_data);
+		if(result!=0){
+			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
+			return -1;
+		}		
 	}else if(report_type==Cmd_ChgPlanExeState){ //
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanExeState   \n",__func__);
-		result=report_CHARGE_EXE_EVENT_package((CHARGE_EXE_EVENT *)report_struct,priv_698_state,hplc_data);		
+		result=report_CHARGE_EXE_EVENT_package((CHARGE_EXE_EVENT *)report_struct,priv_698_state,hplc_data);	
+		if(result!=0){
+			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
+			return -1;
+		}
 	}else if(report_type==Cmd_ChgRecord){ //
 		rt_kprintf("[hplc]  (%s)  Cmd_ChgRecord   \n",__func__);
-		result=report_CHG_ORDER_package((CHG_ORDER_EVENT *)report_struct,priv_698_state,hplc_data);		
+		result=report_CHG_ORDER_package((CHG_ORDER_EVENT *)report_struct,priv_698_state,hplc_data);	
+		if(result!=0){
+			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
+			return -1;
+		}	
 	}else {
 		rt_kprintf("[hplc]  (%s)  no such cmd   \n",__func__);
 		return -1;
@@ -7470,6 +7489,11 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 //校验头
 	//rt_kprintf("[hplc]  (%s)   link_response_package calculate the HCS_positon=%d \n",__func__,HCS_position); 	
 	result=tryfcs16(hplc_data->priveData, HCS_position);
+	if(result!=0){
+		rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
+		return -1;
+	}
+
 	hplc_data->_698_frame.HCS0=hplc_data->priveData[HCS_position];	
 	hplc_data->_698_frame.HCS1=hplc_data->priveData[HCS_position+1];
 
