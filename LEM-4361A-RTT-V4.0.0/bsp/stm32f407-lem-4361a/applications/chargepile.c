@@ -45,7 +45,7 @@ u8 software_date[8]={0};//软件生成日期 初始化为空格
 u8 software_time[6]={0};//软件生成时间
 static u32 can_heart_count = 0;
 //static char  Printf_Buffer[256] = {0};
-//static char Sprintf_Buffer[8];
+static char Sprintf_Buffer[8];
 #define FlashBufLenMax             1024
 __align(4) u8 STMFLASH_BUFF[FlashBufLenMax+2];
 u32 STMFLASH_LENTH = 0;
