@@ -836,8 +836,13 @@ struct _698_STATE        //地址域a
 	unsigned char connect_overtime[4];
 	struct _698_FactoryVersion FactoryVersion;	
 	struct _698_oad oad_omd;
-	unsigned char lock1;//，标志着使用串口中，最好用lock,锁住设备，但会不会影响其他设备使用
-	unsigned char lock2;//使用软件的双锁来控制临界资源
+	unsigned char lock1;//
+	unsigned char lock2;//
+	
+	unsigned char lock3;//
+	unsigned char lock4;//	
+	
+	
 	int HCS_position;
 	int FCS_position;
 	int len_position;
@@ -847,6 +852,7 @@ struct _698_STATE        //地址域a
 	int len_sa;
 	int FE_no;
 	int session_key_negotiation;
+	COMM_CMD_C current_report;
 };
 
 
@@ -1013,3 +1019,4 @@ int date_time_s_to_STR_SYSTEM_TIME(STR_SYSTEM_TIME * SYSTEM_TIME,unsigned char *
 
 int unsigned_char_to_int(unsigned long *intNo,unsigned char * array);
 unsigned char bcd_to_hex(unsigned char data);
+int current_report_change(COMM_CMD_C cmd);

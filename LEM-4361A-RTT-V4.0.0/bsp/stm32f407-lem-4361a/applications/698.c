@@ -4716,7 +4716,8 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		case(report_response)://直接交给应用层就可以了，或者直接就不给
 			rt_kprintf("[hplc]  (%s)  action_request \n",__func__);
 //			result=report_response_notice_user(&data_rev->_698_frame,priv_698_state);
-//			strategy_event_send();
+			strategy_event_send(priv_698_state->current_report);
+			current_report_change(Cmd_Null);
 			result=3;
 			break;						
 		default:
@@ -5260,6 +5261,31 @@ rt_uint32_t my_strategy_event_get(void){
 	return result;
 }
 
+int current_report_change(COMM_CMD_C cmd){
+	while(hplc_698_state.lock1==1){
+		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_698_state.lock1=1;
+	while(hplc_698_state.lock2==1){
+		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_698_state.lock2=1;	
+	
+	hplc_698_state.current_report=cmd;	
+	
+	
+	hplc_698_state.lock2=0;	
+	hplc_698_state.lock1=0;	
+	return 0;	
+
+
+
+}
+
+
+
 
 /**
 	根据命令
@@ -5309,18 +5335,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			hplc_event=hplc_event|event;						
 			break;				
 										
-		case(Cmd_ChgPlanExeState)://上送充电计划执行状态
-			hplc_CHARGE_EXE_EVENT=*((CHARGE_EXE_EVENT *)STR_SetPara);//可能赋值不上
-			hplc_event=hplc_event|event;			
-			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanExeState  \n",__func__);								
-			break;
 	
-
-		case(Cmd_ChgRecord)://上送充电订单
-		hplc_CHG_ORDER_EVENT=*((CHG_ORDER_EVENT *)STR_SetPara);//可能赋值不上
-		hplc_event=hplc_event|event;	//测试		
-		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
-		break;		
 		
  		case(Cmd_ChgPlanAdjust)://变更充电计划,应用层得到数据，处理完后才下一步
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanAdjust  \n",__func__);
@@ -5402,8 +5417,30 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 /****
 	上送类事件	
 		
-*****/		
+*****/
+
+		case(Cmd_ChgPlanExeState)://上送充电计划执行状态
+			hplc_698_state.current_report=Cmd_ChgPlanExeStateAck;
+			hplc_CHARGE_EXE_EVENT=*((CHARGE_EXE_EVENT *)STR_SetPara);//可能赋值不上
+			hplc_event=hplc_event|event;			
+			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanExeState  \n",__func__);								
+			break;
+	
+
+		case(Cmd_ChgRecord)://上送充电订单
+			
+			hplc_698_state.current_report=Cmd_ChgRecordAck;
+			
+			hplc_CHG_ORDER_EVENT=*((CHG_ORDER_EVENT *)STR_SetPara);//可能赋值不上
+			hplc_event=hplc_event|event;	//测试		
+			rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
+		break;	
+
+
+
+	
 	case(Cmd_ChgRequestReport)://充电申请事件上送
+			hplc_698_state.current_report=Cmd_ChgRequestReportAck;
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgRequestReport  \n",__func__);
 			hplc_CHARGE_APPLY_EVENT=*((CHARGE_APPLY_EVENT *)STR_SetPara);
 				
@@ -5416,6 +5453,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;		
 		
 	case(Cmd_ChgPlanOffer)://上送充电计划单	
+			hplc_698_state.current_report=Cmd_ChgPlanOfferAck;
 			hplc_PLAN_OFFER_EVENT=*((PLAN_OFFER_EVENT *)STR_SetPara);		
 			hplc_event=hplc_event|event;	//测试	
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanOffer  \n",__func__);								
@@ -5982,7 +6020,7 @@ int init_698_state(struct _698_STATE  * priv_698_state){
 	priv_698_state->lock2=0;
 	priv_698_state->link_flag=0;
 	priv_698_state->connect_flag=0;
-	
+	priv_698_state->current_report=Cmd_Null;
 	priv_698_state->session_key_negotiation=0;
 	
 	
