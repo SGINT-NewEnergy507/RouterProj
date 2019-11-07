@@ -248,13 +248,18 @@ typedef enum {
 	Cmd_PowerAdj,							//功率调节参数下发
 	Cmd_PowerAdjAck,						//功率调节应答
 
-	Cmd_ChgRecord,							//上送充电订单
+	Cmd_ChgRecord,							//上送充电订单事件
+	Cmd_ChgRecordAck,						//上送充电订单事件确认
 	Cmd_DeviceFault,                      	//上送路由器异常状态
 	Cmd_PileFault,                 			//上送充电桩异常状态
 	Cmd_ChgPlanIssueGetAck,
 	
-	Cmd_RouterExeState,                    	//路由器执行状态查询
-	Cmd_RouterExeStateAck,                 	//路由器执行状态应答
+	Cmd_RouterExeState,                    	//路由器执行状态查询↓
+	Cmd_RouterExeStateAck,                 	//路由器执行状态应答↑
+	
+	Cmd_STAOnlineState,						//STA监测自身及路由器在线状态↓
+	Cmd_STAOnlineStateAck,					//STA监测自身及路由器在线状态确认↑
+	Cmd_STAOnlineStateAPP,					//在线状态通知APP
 }COMM_CMD_C;//业务传输流程命令号
 #define COMM_CMD_C rt_uint32_t
 

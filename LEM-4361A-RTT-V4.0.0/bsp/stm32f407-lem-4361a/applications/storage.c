@@ -33,7 +33,7 @@ static rt_uint8_t storage_stack[THREAD_STORAGE_STACK_SIZE];//线程堆栈
 static rt_mutex_t storage_ReWr_mutex = RT_NULL;
 #define MAX_DIR_NUM    14
 
-#define MAX_MALLOC_NUM    2048
+#define MAX_MALLOC_NUM    1024
 
 ///* 定义邮箱控制块 */
 //rt_mailbox_t m_save_mail = RT_NULL;
@@ -3200,7 +3200,7 @@ static int Order_Charge_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 static int Plan_Offer_Storage(const char *PATH,void *Storage_Para,rt_uint32_t ordernum,rt_uint32_t cmd)	
 {
 	int fd = 0;
-	char buffer[48]; 
+	char buffer[256]; //wyg191101
 	char path_file[64];
 	PLAN_OFFER_EVENT* pPlan_Offer = (PLAN_OFFER_EVENT*)Storage_Para;
 	

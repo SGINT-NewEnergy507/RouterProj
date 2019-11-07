@@ -77,7 +77,7 @@ typedef struct
 /******************************** 事件信息记录 ***********************************/
 typedef struct
 {
-	unsigned long OfflinePeriod;		//本次离线时常（单位：秒）
+	unsigned long OfflinePeriod;		//本次离线时长（单位：秒）
 	unsigned char OfflineReason;		//离线原因 {未知（0），停电（1），信道变化（2）}
 }OFFLINE_IFO;/*离线信息*/
 
@@ -90,7 +90,7 @@ typedef struct
 	unsigned char ChannelState;				//通道状态
 	unsigned char AutualState;				//状态变化 {上线（0）， 离线（1）}
 	OFFLINE_IFO OfflineIfo;					//离线信息
-}ONLINE_STATE;/*表计在线状态*/
+}ONLINE_STATE;/*表计在线状态事件*/
 
 typedef struct
 {
