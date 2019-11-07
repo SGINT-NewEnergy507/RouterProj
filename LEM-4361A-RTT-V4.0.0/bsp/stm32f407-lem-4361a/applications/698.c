@@ -92,13 +92,10 @@ CCMRAM CHG_ORDER_EVENT hplc_CHG_ORDER_EVENT;
 //CHARGE_EXE_STATE hplc_CHARGE_EXE_STATE;
 CCMRAM CHARGE_EXE_EVENT hplc_CHARGE_EXE_EVENT;
 
-
-
 struct rt_thread hplc;
-
-
+int a[7];
 int hplc_lock1=0,hplc_lock2=0;
-rt_uint32_t strategy_event;
+unsigned int strategyEvent[2];
 rt_uint32_t hplc_event=0;
 rt_uint32_t event_no=1;
 
@@ -4714,7 +4711,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		
 		
 		case(report_response)://直接交给应用层就可以了，或者直接就不给
-			rt_kprintf("[hplc]  (%s)  action_request \n",__func__);
+			rt_kprintf("[hplc]  (%s)  report_response \n",__func__);
 //			result=report_response_notice_user(&data_rev->_698_frame,priv_698_state);
 			strategy_event_send(priv_698_state->current_report);
 			current_report_change(Cmd_Null);
@@ -5132,17 +5129,14 @@ int save_char_point_data(struct CharPointDataManage *hplc_data,int position,unsi
 
 /*
 
-*/
 
+*/
 int copy_ChgPlanIssue_rsp(CHARGE_STRATEGY_RSP *des,CHARGE_STRATEGY_RSP *src){
 	my_strcpy_char(des->cRequestNO,src->cRequestNO,0,17);	
 	my_strcpy_char(des->cAssetNO,src->cAssetNO,0,23);	//路由器资产编号  visible-string（SIZE(22)）
 	des->cSucIdle=src->cSucIdle;
 	return 0;
 }
-
-
-
 
 /*以防有用*/
 int copy_charge_strategy(CHARGE_STRATEGY *des,CHARGE_STRATEGY *src){
@@ -5173,9 +5167,7 @@ int copy_charge_strategy(CHARGE_STRATEGY *des,CHARGE_STRATEGY *src){
 目标是从0开始的
 
 */
-//int hplc_lock1=0,hplc_lock2=0;
-//rt_uint32_t strategy_event;
-//rt_uint32_t hplc_event=0;
+
 
 rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
 //	rt_uint32_t event;
@@ -5190,53 +5182,23 @@ rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
 		rt_thread_mdelay(20);
 	}
 	hplc_lock2=1;	
-	
+//  if(cmd<32){		
 	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);	
-	strategy_event|=(0x00000001<<cmd);
-	
+	strategyEvent[0]|=(0x00000001<<cmd);
+//}else{
+//	strategyEvent[1]|=(0x00000001<<(cmd-32));
+
+//}
+
 	hplc_lock2=0;
 	hplc_lock1=0;		
 	return 0;
-	
 }
+
 /*
-目标是从0开始的
+
 
 */
-//int hplc_lock1=0,hplc_lock2=0;
-//rt_uint32_t strategy_event;
-//rt_uint32_t hplc_event=0;
-
-
-
-/****
-用户来调用这个获取事件strategy_event
-
-****/
-
-rt_uint32_t strategy_event_get(void){
-	rt_uint32_t result=CTRL_NO_EVENT;
-//	rt_uint32_t event;
-//锁资源
-	while(hplc_lock1==1){
-		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
-		rt_thread_mdelay(20);
-	}
-	hplc_lock1=1;
-	while(hplc_lock2==1){
-		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);		
-		rt_thread_mdelay(20);
-	}	
-	hplc_lock2=1;	
-//	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);		
-
-	result=strategy_event;
-//	strategy_event=CTRL_NO_EVENT;	
-	hplc_lock2=0;
-	hplc_lock1=0;		
-	return result;
-}
-
 
 rt_uint32_t my_strategy_event_get(void){
 	rt_uint32_t result=CTRL_NO_EVENT;
@@ -5254,7 +5216,7 @@ rt_uint32_t my_strategy_event_get(void){
 	hplc_lock2=1;	
 //	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);		
 
-	result=strategy_event;
+	result=strategyEvent[0];
 	
 	hplc_lock2=0;
 	hplc_lock1=0;		
@@ -5262,6 +5224,7 @@ rt_uint32_t my_strategy_event_get(void){
 }
 
 int current_report_change(COMM_CMD_C cmd){
+	rt_kprintf("[hplc]  (%s)   cmd==%x  \n",__func__,cmd);
 	while(hplc_698_state.lock1==1){
 		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
 		rt_thread_mdelay(20);
@@ -5273,15 +5236,12 @@ int current_report_change(COMM_CMD_C cmd){
 	}
 	hplc_698_state.lock2=1;	
 	
-	hplc_698_state.current_report=cmd;	
+	hplc_698_state.current_report=cmd;//	
 	
 	
 	hplc_698_state.lock2=0;	
 	hplc_698_state.lock1=0;	
 	return 0;	
-
-
-
 }
 
 
@@ -5298,7 +5258,7 @@ int current_report_change(COMM_CMD_C cmd){
 unsigned char * frome_user_tx;
 rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	rt_uint8_t result=0;
-	rt_uint32_t event;
+	rt_uint32_t event,priv_event;
 	//frome_user_tx=STR_SetPara;//每种指令长度一定？
 	CHARGE_STRATEGY *prive_struct;
 	CHARGE_STRATEGY_RSP * prive_struct_RSP;
@@ -5315,11 +5275,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	}
 	hplc_698_state.lock2=1;	
 	
-//  if(cmd<32){	
 
-	event=0x00000001<<cmd;
-	rt_kprintf("[hplc]  (%s)   event=0x%4x  \n",__func__,event);
-//	}
 	switch(cmd){							//可加策略	
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
@@ -5427,17 +5383,12 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;
 	
 
-		case(Cmd_ChgRecord)://上送充电订单
-			
-			hplc_698_state.current_report=Cmd_ChgRecordAck;
-			
+		case(Cmd_ChgRecord)://上送充电订单			
+			hplc_698_state.current_report=Cmd_ChgRecordAck;			
 			hplc_CHG_ORDER_EVENT=*((CHG_ORDER_EVENT *)STR_SetPara);//可能赋值不上
 			hplc_event=hplc_event|event;	//测试		
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);								
 		break;	
-
-
-
 	
 	case(Cmd_ChgRequestReport)://充电申请事件上送
 			hplc_698_state.current_report=Cmd_ChgRequestReportAck;
@@ -5465,7 +5416,22 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			return 1;
 			break;	
 	}
-	strategy_event&=(~event);
+
+//  if(cmd<32){	
+
+	event=0x00000001<<cmd;
+	strategyEvent[0]&=(~event);
+	rt_kprintf("[hplc]  (%s)   event0=0x%4x  \n",__func__,event);
+//	}else{
+//		event=0x00000001<<(cmd-32);
+//		strategyEvent[1]&=(~event);	
+//		rt_kprintf("[hplc]  (%s)   event1=0x%4x  \n",__func__,event);
+
+//	}
+
+
+	
+
 //解锁
 	hplc_698_state.lock2=0;	
 	hplc_698_state.lock1=0;	
@@ -8136,3 +8102,36 @@ MSH_CMD_EXPORT(hplc_thread_init, hplc thread run);
 //0x05, 0x00, 0x00, 0xa4, 0xfc,
 //0x83, 0x16
 //}
+/*
+目标是从0开始的
+
+*/
+
+
+/****
+用户来调用这个获取事件strategyEvent[0]
+
+****/
+
+rt_uint32_t strategy_event_get(void){
+	rt_uint32_t result=CTRL_NO_EVENT;
+//	rt_uint32_t event;
+//锁资源
+	while(hplc_lock1==1){
+		rt_kprintf("[hplc]  (%s)   lock1==1  \n",__func__);
+		rt_thread_mdelay(20);
+	}
+	hplc_lock1=1;
+	while(hplc_lock2==1){
+		rt_kprintf("[hplc]  (%s)   lock2==1  \n",__func__);		
+		rt_thread_mdelay(20);
+	}	
+	hplc_lock2=1;	
+//	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);		
+
+	result=strategyEvent[0];
+//	strategyEvent[0]=CTRL_NO_EVENT;	
+	hplc_lock2=0;
+	hplc_lock1=0;		
+	return result;
+}
