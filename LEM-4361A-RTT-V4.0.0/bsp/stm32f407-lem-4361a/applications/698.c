@@ -1955,14 +1955,8 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	temp_array=( unsigned char *) (priv_struct->cUserID+1);
 	_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);		
 	
-	
-	
-	
 	return result;
 }
-
-
-
 
 
 
@@ -2334,7 +2328,6 @@ int oi_variable_oib_meterage(struct  _698_FRAME  *_698_frame_rev,struct _698_STA
 	int result=0,i=0,j;
 	unsigned char temp_char;
 	ScmMeter_Analog prv_ScmMeter_Analog;
-//	temp_char=priv_698_state->oad_omd.oi[1];
 	switch (priv_698_state->oad_omd.oi[1]){//判别了两位，还要判断属性或者方法，很少，用if在里面判断
 		case(0x00)://电压
 			rt_kprintf("[hplc]  (%s)  voltage    \n",__func__);
@@ -2348,17 +2341,19 @@ int oi_variable_oib_meterage(struct  _698_FRAME  *_698_frame_rev,struct _698_STA
 				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 				
 				cmMeter_get_data(EMMETER_ANALOG,&prv_ScmMeter_Analog);	
-				
-				temp_char=Data_long_unsigned;//数字类型
-				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);					
+
+
+				_698_long_unsigned((unsigned int)prv_ScmMeter_Analog.ulVol,hplc_data);				
+//				temp_char=Data_long_unsigned;//数字类型
+//				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);					
 
 				rt_kprintf("[hplc]  (%s)  prv_ScmMeter_Analog.ulVol=%d    \n",__func__,prv_ScmMeter_Analog.ulVol);
 
-				temp_char=((prv_ScmMeter_Analog.ulVol&(0x0000ff00))>>8);//
-				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
+//				temp_char=((prv_ScmMeter_Analog.ulVol&(0x0000ff00))>>8);//
+//				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
 
-				temp_char=(prv_ScmMeter_Analog.ulVol&(0x0000ff));//
-				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+//				temp_char=(prv_ScmMeter_Analog.ulVol&(0x0000ff));//
+//				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 			}else{
 				rt_kprintf("[hplc]  (%s)  only deal   attribute_id==2  \n",__func__);
 				return -1;
@@ -2377,16 +2372,16 @@ int oi_variable_oib_meterage(struct  _698_FRAME  *_698_frame_rev,struct _698_STA
 				
 				cmMeter_get_data( EMMETER_ANALOG,&prv_ScmMeter_Analog);	
 
-				
-				temp_char=Data_double_long;//数字类型
-				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
+				_698_double_long((unsigned int)prv_ScmMeter_Analog.ulCur,hplc_data);				
+//				temp_char=Data_double_long;//数字类型
+//				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-				for(i=3;i>=0;i--){
-					
-					temp_char=((prv_ScmMeter_Analog.ulCur&(0xff000000>>((3-(i%4))*8)))>>((i%4)*8));//
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
-				}				
+//				for(i=3;i>=0;i--){
+//										
+//					temp_char=((prv_ScmMeter_Analog.ulCur&(0xff000000>>((3-(i%4))*8)))>>((i%4)*8));//
+//					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
+//				}				
 	
 			}else{
 				rt_kprintf("[hplc]  (%s)  only deal   attribute_id==2  \n",__func__);
@@ -2402,20 +2397,20 @@ int oi_variable_oib_meterage(struct  _698_FRAME  *_698_frame_rev,struct _698_STA
 				result=get_data_class(priv_698_state,hplc_data,Data_array);
 
 
-				temp_char=2;//总 和 a相有功功率
+				temp_char=2;
 				result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 				
 				cmMeter_get_data( EMMETER_ANALOG,&prv_ScmMeter_Analog);	
-				
-				for(i=7;i>=0;i--){
-					if((i+1)%4==0){//总尖峰平谷，反向电压有尖峰平谷么？
-						temp_char=Data_double_long;//数字类型
-						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
-					}	
-							
-					temp_char=((prv_ScmMeter_Analog.ulAcPwr&(0xff000000>>((3-(i%4))*8)))>>((i%4)*8));//
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
-				}
+				_698_double_long((unsigned int)prv_ScmMeter_Analog.ulAcPwr,hplc_data);						
+//				for(i=7;i>=0;i--){
+//					if((i+1)%4==0){//总尖峰平谷，反向电压有尖峰平谷么？
+//						temp_char=Data_double_long;//数字类型
+//						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//					}	
+//							
+//					temp_char=((prv_ScmMeter_Analog.ulAcPwr&(0xff000000>>((3-(i%4))*8)))>>((i%4)*8));//
+//					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);				
+//				}
 			}else{
 				rt_kprintf("[hplc]  (%s)  only deal   attribute_id==2  \n",__func__);
 				result=-1;
@@ -4719,9 +4714,10 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		
 		
 		case(report_response)://直接交给应用层就可以了，或者直接就不给
-//			rt_kprintf("[hplc]  (%s)  action_request \n",__func__);
-//			result=report_response_notice_user(&data_rev->_698_frame,priv_698_state);	
-			result=-1;
+			rt_kprintf("[hplc]  (%s)  action_request \n",__func__);
+//			result=report_response_notice_user(&data_rev->_698_frame,priv_698_state);
+//			strategy_event_send();
+			result=3;
 			break;						
 		default:
 			result=-1;
@@ -5597,8 +5593,6 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}				
 	}		
 	
-
-
 	
 	if(hplc_event&(0x1<<Cmd_ChgRequestReport)){	//转发充电申请		
 		hplc_event&=(~(0x1<<Cmd_ChgRequestReport));	//千万别忘了清理事件	
@@ -5640,8 +5634,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 		}													
 	}
-	
-	
+		
 	if(hplc_event&(0x1<<Cmd_ChgRecord)){	//上送充电订单 REPORT  只有上报若干个对象属性，和上报若干个记录型对象属性两种
 		hplc_event&=(~(0x1<<Cmd_ChgRecord));
 		rt_kprintf("[hplc]  (%s)   Cmd_ChgRecord  \n",__func__);		
