@@ -5274,7 +5274,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	}
 	hplc_698_state.lock2=1;	
 	
-
+	event=0x00000001<<cmd;
 	switch(cmd){							//可加策略	
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
@@ -5369,11 +5369,11 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			//是否还要判断是否运行成功，成功了之后才推出。
 			break;				
 		
-/****
-	上送类事件	
-		
-*****/
-
+/*
+	***
+	上送类事件		
+	***
+	*/
 		case(Cmd_ChgPlanExeState)://上送充电计划执行状态
 			hplc_698_state.current_report=Cmd_ChgPlanExeStateAck;
 			hplc_CHARGE_EXE_EVENT=*((CHARGE_EXE_EVENT *)STR_SetPara);//可能赋值不上
@@ -5430,7 +5430,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 
 //  if(cmd<32){	
 
-	event=0x00000001<<cmd;
+
 	strategyEvent[0]&=(~event);
 	rt_kprintf("[hplc]  (%s)   event0=0x%4x  \n",__func__,event);
 //	}else{
@@ -5439,9 +5439,6 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 //		rt_kprintf("[hplc]  (%s)   event1=0x%4x  \n",__func__,event);
 
 //	}
-
-
-	
 
 //解锁
 	hplc_698_state.lock2=0;	
