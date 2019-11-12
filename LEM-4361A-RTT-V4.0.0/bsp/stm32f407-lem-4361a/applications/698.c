@@ -170,15 +170,13 @@ void hplc_thread_entry(void * parameter){
 				//打包发送				
 			}	
 		}else{//如果正确接收到了一帧
-			if(hplc_priveData_analysis(&hplc_data_rev,&hplc_data_tx)==0){//进行帧解析	,给结构体，并且校验														
-			//处理一且由服务器发来的帧，要区分
+			if(hplc_priveData_analysis(&hplc_data_rev,&hplc_data_tx)==0){//进行帧解析	,给结构体，并且校验					
 				rt_kprintf("[hplc]  (%s)  	RX:\n",__func__);
 				printmy(&hplc_data_rev._698_frame);	//测试
 				if(judge_meter_no(&hplc_698_state,&hplc_data_rev)==0){
 					result=_698_analysis(&hplc_698_state,&hplc_data_tx,&hplc_data_rev,&hplc_data_wait_list);
 					
 					if( result!=0){//是直接赋值，不是强制类型转换，赋完值后就可以直接操作_698_frame_rev	
-						//下面是不需要回复的情况（含出错）
 						if(result==1){//
 							rt_kprintf("[hplc]  (%s)  not need to send and out\n",__func__);//在收到的是应答的时候就不许要去处理了
 						}else if(result==2){
@@ -243,14 +241,13 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 		tempSize=rt_device_read(hplc_serial, 0, &Res, 1) ;//一直在这里读数据，直到读空，超时退出。
 		
 		if(tempSize==1){		
-			times=0;    //判断超时用 ，读到数就清零			 
-		
+			times=0;    //判断超时用 ，读到数就清零			 		
 			if(priv_698_state->USART_RX_STA&0x40000000){             //已经接收到了一帧的第一个0x68				
 				if(save_hplc_data(data_rev,data_rev->dataSize,Res)<0)//将收到的数据全部接收过来，方便发送		
 				{
 					rt_kprintf("[hplc]  (%s) get_single_frame save_hplc_data error\n",__func__);
 					clear_data(priv_698_state,data_rev,&data_rev->_698_frame); 	//其他原因退出，也用这个函数清理。           													
-				}else{//
+				}else{
 					
 					if(priv_698_state->USART_RX_STA&0x20000000){    //接收到数据长度,接收len是接收的数据+2长度的字节
 
@@ -2482,47 +2479,64 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 			if(priv_698_state->oad_omd.attribute_id==0x7f){//下发充电计划
 				if(_698_ChgPlanIssue.need_package==1){
 					_698_ChgPlanIssue.need_package=0;
-					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);					
-					temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
-		
-					temp_char=01;// OPTIONAL=0 表示没有数据
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-					
-					temp_char=Data_structure;//
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-					
-					temp_char=3;//成员数量
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
+					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
+							
+					if((ChgPlanIssue_rsp.cSucIdle==0)&&
+						(0<ChgPlanIssue_rsp.cRequestNO[0]<=sizeof(ChgPlanIssue_rsp.cRequestNO))&&
+						(0<ChgPlanIssue_rsp.cAssetNO[0]<=sizeof(ChgPlanIssue_rsp.cAssetNO))){//DAR， 成功 （ 0）
 
+						temp_char=0;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
+						
+						temp_char=01;// OPTIONAL=0 表示没有数据
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+						
+						temp_char=Data_structure;//
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+						
+						temp_char=3;//成员数量
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
+
+						
+						//充电申请单号 octet-string（SIZE(16)）				
+
+						len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量	
+						if(len>sizeof(ChgPlanIssue_rsp.cRequestNO)){
+							rt_kprintf("[hplc]  (%s) len> array size cRequestNO \n",__func__);
+//							return -1;
+						}							
+						temp_array=(unsigned char *)(ChgPlanIssue_rsp.cRequestNO+1);
+						_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
+
+
+						//路由器资产编号  visible-string（SIZE(22)）
+						len=5;
+						len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量
+						if(len>sizeof(ChgPlanIssue_rsp.cAssetNO)){
+							rt_kprintf("[hplc]  (%s) len> array size  ChgPlanIssue_rsp.cAssetNO \n",__func__);
+//							return -1;
+						}	//changed next								
+						temp_array=(unsigned char *)(ChgPlanIssue_rsp.cAssetNO+1);
+						_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);					
+
+						temp_char=Data_enum;//
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+						
+						temp_char=ChgPlanIssue_rsp.GunNum;//枪号 需要改的地方
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);									
+					}else{
+						rt_kprintf("[hplc]  (%s) the data getted is not right!! \n",__func__);
+						if(ChgPlanIssue_rsp.cSucIdle==0){
+							temp_char=1;
+						}else{
+							temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
+						}						
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+						
+						temp_char=0;// OPTIONAL=0 表示没有数据
+						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);									
+					}	
 					
-					//充电申请单号 octet-string（SIZE(16)）				
- 					len=5;
-					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量	
-					if(len>sizeof(ChgPlanIssue_rsp.cRequestNO)){
-						rt_kprintf("[hplc]  (%s) len> array size cRequestNO \n",__func__);
-						return -1;
-					}							
-					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cRequestNO+1);
-					_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
-
-
-					//路由器资产编号  visible-string（SIZE(22)）
-					len=5;
-					len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量
-					if(len>sizeof(ChgPlanIssue_rsp.cAssetNO)){
-						rt_kprintf("[hplc]  (%s) len> array size  ChgPlanIssue_rsp.cAssetNO \n",__func__);
-						return -1;
-					}	//changed next								
-					temp_array=(unsigned char *)(ChgPlanIssue_rsp.cAssetNO+1);
-					_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);					
-
-					temp_char=Data_enum;//
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-					
-					temp_char=ChgPlanIssue_rsp.GunNum;//枪号 需要改的地方
-					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-				
 				}else{
 					//判断一下用户有没有完成上一次充电计划，没有就退出，如果用，现在处理一下用户上传的业务。
 					if((my_strategy_event_get()&ChgPlanIssue_EVENT)!=0){//用户有没有完成上一次充电计划
@@ -2560,7 +2574,9 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					temp_char=ChgPlanAdjust_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
 					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 		
-		
+					temp_char=01;// OPTIONAL=0 表示没有数据
+					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
+					
 					temp_char=Data_structure;//00 —— Data OPTIONAL=0 表示没有数据
 					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 					
@@ -2587,6 +2603,10 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					}	//changed next			
 					temp_array=( unsigned char *) (ChgPlanAdjust_rsp.cAssetNO+1);
 					_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);	
+					
+					
+					
+					
 				
 				}else{
 					if((my_strategy_event_get()&ChgPlanAdjust_EVENT)!=0){//用户有没有完成上一次充电计划
