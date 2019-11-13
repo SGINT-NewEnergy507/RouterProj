@@ -6028,7 +6028,7 @@ unsigned char tmp_addr[6];
 //			addr[j]=(RouterIfo.Addr[13-i]-0x30)*10;
 //			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[%d]=%0x \n",__func__,13-i,RouterIfo.Addr[13-i]);
 //			
-//			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
+//			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i, addr[i]);
 //		}
 		
 		for(i=0;i<(tmp_addr[0]/2);i++){
