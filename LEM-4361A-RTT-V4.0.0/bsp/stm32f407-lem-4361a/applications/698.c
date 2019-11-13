@@ -148,14 +148,15 @@ void hplc_thread_entry(void * parameter){
 	if(result!=RT_EOK){		
 			rt_kprintf("[hplc]  (%s)  rt_event Hplc faild! \n",__func__);
 	}
-
+	rt_thread_mdelay(5000);
+	
 	hplc_inition(&hplc_data_wait_list,&hplc_data_rev,&hplc_data_tx);
 	init_698_state(&hplc_698_state);
 	rt_memset(hplc_698_state.last_link_requset_time.data,0,10);	//将时间减去
 
 	time=(bcd_to_hex(System_Time_STR.Minute)*60)+bcd_to_hex(System_Time_STR.Second);
 
-	rt_thread_mdelay(5000);
+
 	while(1){
 		
 //	if(1){
