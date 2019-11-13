@@ -6038,8 +6038,6 @@ unsigned char tmp_addr[6];
 		addr[0]=0x11;//²âÊÔ
 		return 0;	
 
-
-
 //	}else{
 //		return -1;
 //	}
