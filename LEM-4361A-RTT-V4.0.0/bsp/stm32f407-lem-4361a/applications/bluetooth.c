@@ -34,45 +34,6 @@ static rt_uint8_t bluetooth_stack[THREAD_BLUETOOTH_STACK_SIZE];//线程堆栈
 
 //static struct serial_configure config = RT_SERIAL_CONFIG_DEFAULT; /* 串口默认配置参数*/
 
-const char* _698_event_char[]={//698 事件名称   打印日志用
-	"null",
-	"Charge_Request",							//蓝牙充电申请
-	"Charge_Request_Ack",						//蓝牙充电申请应答
-	
-	"Charge_PlanIssue", 					//充电计划下发
-	"Charge_PlanIssue_Ack",                 	//充电计划下发应答
-	"Charge_Plan_Offer", 						//充电计划事件上报
-	"Charge_Plan_Offer_Ack",                 	//充电计划上报事件应答
-	
-	"Charge_Plan_Adjust",                 		//充电计划调整
-	"Charge_Plan_Adjust_Ack",                 	//充电计划调整应答
-
-
-	"Charge_Request_Report",					//充电申请事件上送
-	"Charge_Request_Report_Ack",				//充电申请事件上送应答
-	"Charge_Request_Report_APP",				//充电申请事件告知APP
-//	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
-	
-	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
-	"Charge_Plan_Exe_State_Ack",                 //充电计划执行状态事件上报应答
-	
-	"Start_Charge",							//启动充电参数下发
-	"Start_Charge_Ack",						//启动充电应答
-	"Stop_Charge",							//停止充电参数下发
-	"Stop_Charge_Ack",							//停止充电应答
-	"Power_Adj",							//功率调节参数下发
-	"Power_Adj_Ack",						//功率调节应答
-
-	"Charge_Record",							//上送充电订单
-	"Device_Fault",                      	//上送路由器异常状态
-	"Pile_Fault",                 			//上送充电桩异常状态
-	"Charge_Plan_Issue_Get_Ack",
-	
-	"Read_Router_State",                    	//路由器执行状态查询
-	"Read_Router_State_Ack",                 	//路由器执行状态应答
-};//业务传输流程命令号
-
-
 char* AT_CmdDef[]={
 
 	"ATE0\r\n",		//关闭回显功能
@@ -158,6 +119,8 @@ CCMRAM CTL_CHARGE						stBLE_Charge_Stop;//停止充电
 CCMRAM CHG_ORDER_EVENT      stBLE_Charge_Record;//充电订单
 CCMRAM CHARGE_EXE_STATE_ASK stBLE_Charge_State_Ask;//路由器状态
 
+//CCMRAM ROUTER_IFO_UNIT stBLE_Router_Info;
+
 static rt_uint8_t	Esam_KEY_R1[16];//R1数据
 static rt_uint8_t	Esam_KEY_R2[16];//R2数据
 static rt_uint8_t	Esam_KEY_R3[16];//R3数据
@@ -224,7 +187,7 @@ void BLE_Commit_TimeOut(void)
 		g_ulBLE_Rx_Count++;
 		g_ulBLE_Tx_Count++;
 		
-		if((g_ulBLE_Rx_Count>6)||(g_ulBLE_Tx_Count>6))
+		if((g_ulBLE_Rx_Count>8)||(g_ulBLE_Tx_Count>8))
 		{
 			g_ulBLE_Rx_Count = 0;
 			g_ulBLE_Tx_Count = 0;
@@ -250,7 +213,6 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 	g_ulBLE_Rx_Pre = 0;
 	g_ulBLE_Rx_Ptr = 0;
 	
-	BLE_event_get();
 	
 	while(1)
 	{
@@ -340,6 +302,7 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 								stBLE_Comm.DataRx_len = ptr;
 								my_printf((char*)stBLE_Comm.Rx_data,stBLE_Comm.DataRx_len,MY_HEX,1,FUNC_PRINT_RX);
 								g_ulBLE_Rx_Beg = 1;
+								g_ulBLE_Rx_Pre = 0;
 								timeout = 0;
 								return RT_EOK;
 							}
@@ -354,7 +317,6 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 					{
 						ptr = 0;
 						lenth = 0;
-						g_ulBLE_Rx_Pre = 0;
 						stData->Rx_data[ptr++] = Res;//将数据存入缓存
 						g_ulBLE_Rx_Pre = 1;
 					}	
@@ -363,7 +325,7 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 				{
 					rt_thread_mdelay(100);//超时无数据  退出返回
 					timeout++;
-					if(timeout>50)
+					if(timeout>20)
 					{
 						timeout = 0;
 						rt_kprintf("[bluetooth]: (%s)  no data for long time...\n",__func__);
@@ -435,8 +397,8 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 	if(at_cmd == BLE_NAME)
 	{
 		strcat(at_buf,"\"LN");
-		strcat((char*)ble_meter_addr_buf,"\0");
-		strcat(at_buf,(char*)(&ble_meter_addr_buf[1]));
+		strcat((char*)RouterIfo.Addr,"\0");
+		strcat(at_buf,(char*)(&RouterIfo.Addr[1]));
 		strcat(at_buf,"\"\r\n");
 	}
 	else if(at_cmd == BLE_ADDR_SET)
@@ -446,9 +408,9 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 			strncpy(buf,"f",1);
 			strcat(at_buf,buf);
 			if(i <2)
-				strncpy(buf,(char*)(&ble_meter_addr_buf[3+i]),1);
+				strncpy(buf,(char*)(&RouterIfo.Addr[3+i]),1);
 			else
-				strncpy(buf,(char*)(&ble_meter_addr_buf[7+i]),1);
+				strncpy(buf,(char*)(&RouterIfo.Addr[7+i]),1);
 			strcat(at_buf,buf);
 			if(i != 5)
 				strcat(at_buf,":");
@@ -458,10 +420,10 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 	else if(at_cmd == BLE_ADV_DATA)
 	{
 		sprintf((char*)buf,"");
-		for(i = 0 ; i<ble_meter_addr_buf[0];i++)
+		for(i = 0 ; i<RouterIfo.Addr[0];i++)
 		{
-			buf[i*2] = (char)(((ble_meter_addr_buf[1+i]>>4)&0x0f)+0x30);
-			buf[i*2+1] = (char)((ble_meter_addr_buf[1+i]&0x0f)+0x30);
+			buf[i*2] = (char)(((RouterIfo.Addr[1+i]>>4)&0x0f)+0x30);
+			buf[i*2+1] = (char)((RouterIfo.Addr[1+i]&0x0f)+0x30);
 		}
 		strcat((char*)buf,"\0");
 		strcat(at_buf,(char*)(buf));
@@ -748,7 +710,7 @@ rt_err_t BLE_698_Data_UnPackage(struct _698_BLE_FRAME *dev_recv,rt_uint8_t* buf)
 {
 	rt_uint32_t i,addr_lenth,apdu_lenth,total_lenth;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	if(buf[0] != 0x68)//数据头不正确  返回解析失败
 		return RT_ERROR;
@@ -877,7 +839,7 @@ rt_err_t BLE_698_Security_Request_CipherText_Analysis(struct _698_BLE_FRAME *dev
 	rt_uint8_t i,ptr;
 //	rt_uint32_t apdu_oad;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	ptr = 0;
 	cipherdata_lenth = dev_recv->apdu.apdu_data[1];
@@ -958,7 +920,7 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	
 	stBLE_Esam_Comm.DataTx_len = 0;
@@ -1061,7 +1023,7 @@ rt_err_t BLE_698_ESAM_SESS_KEY_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	Esam_Keydata_len = dev_recv->apdu.apdu_data[7]-2;
 	
@@ -1140,7 +1102,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	
 	struct _698_DATE_S _698_date_s;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	gun_oneortwo =0;
 	if(dev_recv->apdu.apdu_data[7] == 0x08)
@@ -1235,7 +1197,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	
 	struct _698_DATE_S _698_date_s;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9];//充电申请单号
@@ -1361,7 +1323,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Start(struct _698_BLE_FRAME *dev_r
 {
 	rt_uint8_t i,ptr,data_len;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[32m%s\033[0m---- \n",__func__);
 
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9+ptr];
@@ -1389,7 +1351,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Start(struct _698_BLE_FRAME *dev_r
 ********************************************************************/
 rt_err_t BLE_698_Action_Request_Normal_Charge_Stop(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
 {	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	stBLE_Charge_Stop.GunNum = dev_recv->apdu.apdu_data[7];
 	rt_kprintf("[bluetooth]: GunNum: %d\n",stBLE_Charge_Stop.GunNum);
@@ -1485,7 +1447,7 @@ rt_err_t BLE_698_Action_Request_Analysis_and_Response(struct _698_BLE_FRAME *dev
 rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
 {
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	switch(dev_recv->apdu.apdu_cmd)
 	{
@@ -1519,8 +1481,8 @@ rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 
 
 /********************************************************************  
-*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
-*	功能说明: 698 Security Request 解析
+*	函 数 名: BLE_698_Charge_Apply_Event_Response
+*	功能说明: 上报充电申请事件
 *	形    参: 无
 *	返 回 值: 无
 ********************************************************************/
@@ -1600,7 +1562,7 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	stBLE_Charge_Apply_Event.UserAccount[3] = 0x33;*/
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Apply_Event.OrderNum);
 	
@@ -1869,8 +1831,8 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 }
 
 /********************************************************************  
-*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
-*	功能说明: 698 Security Request 解析
+*	函 数 名: BLE_698_Charge_Exe_Event_Response
+*	功能说明: 上报充电执行事件 解析
 *	形    参: 无
 *	返 回 值: 无
 ********************************************************************/
@@ -1948,7 +1910,7 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState = 0x02;		//充电桩状态（1：待机 2：工作 3：故障）*/
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Exe_Event.OrderNum);
 	
@@ -1976,36 +1938,40 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	rt_kprintf("[bluetooth]: AssetNO:");
 	my_printf((char*)&stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1],stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0],MY_HEX,1," ");
 	
+	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.GunNum);
+	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
+	
+	rt_kprintf("[bluetooth]: EleBottomValue[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: EleBottomValue[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: EleBottomValue[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: EleBottomValue[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: EleBottomValue[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
+	
+	rt_kprintf("[bluetooth]: EleActualValue[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: EleActualValue[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: EleActualValue[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: EleActualValue[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: EleActualValue[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	
+	rt_kprintf("[bluetooth]: ChargeEle[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]);
+	rt_kprintf("[bluetooth]: ChargeEle[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]);
+	rt_kprintf("[bluetooth]: ChargeEle[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]);
+	rt_kprintf("[bluetooth]: ChargeEle[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]);
+	rt_kprintf("[bluetooth]: ChargeEle[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[4]);
+	
+	rt_kprintf("[bluetooth]: ChargeTime: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime);
+	
+	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower);
+	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower);
 	
 	rt_kprintf("[bluetooth]: Voltage: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage);
 	rt_kprintf("[bluetooth]: Current: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent);
+
 	rt_kprintf("[bluetooth]: ChgPileState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState);
-	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower);
-	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower);
-	
-	
-	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.GunNum);
-	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
+
 	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
 
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
-	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
-	
-	rt_kprintf("[bluetooth]: ChargeEle[0]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ChargeEle[1]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ChargeEle[2]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ChargeEle[3]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ChargeEle[4]: %08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
-	
+
 
 	_698_ble_control &= 0x0f;//主动上报
 	
@@ -2303,7 +2269,7 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 }
 
 /********************************************************************  
-*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
+*	函 数 名: BLE_698_Action_Request_Charge_Apply_Response
 *	功能说明: 698 Security Request 解析
 *	形    参: 无
 *	返 回 值: 无
@@ -2339,11 +2305,11 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 	stBLE_Charge_Apply_RSP.cAssetNO[12] = 0x30;*/
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	rt_kprintf("[bluetooth]: RequestNO:");
-	my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1," ");
-	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,1," ");
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+//	rt_kprintf("[bluetooth]: RequestNO:");
+	my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1,"[bluetooth]: RequestNO: ");
+//	rt_kprintf("[bluetooth]: AssetNO:");
+	my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,1,"[bluetooth]: AssetNO: ");
 	rt_kprintf("[bluetooth]: GunNum: %d\n",stBLE_Charge_Apply_RSP.GunNum);
 	rt_kprintf("[bluetooth]: SucIdle: %d\n",stBLE_Charge_Apply_RSP.cSucIdle);
 	
@@ -2496,23 +2462,15 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 //	stBLE_Charge_State.ChgPileState = 0x01;		//充电桩状态（1：待机 2：工作 3：故障）*/
 	
 
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	rt_kprintf("[bluetooth]: RequestNO:");
-	my_printf((char*)&stBLE_Charge_State.cRequestNO[1],stBLE_Charge_State.cRequestNO[0],MY_HEX,1," ");
-	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_State.cAssetNO[1],stBLE_Charge_State.cAssetNO[0],MY_HEX,1," ");
-	
-	
-	rt_kprintf("[bluetooth]: Voltage: %d \n",stBLE_Charge_State.ucVoltage);
-	rt_kprintf("[bluetooth]: Current: %d \n",stBLE_Charge_State.ucCurrent);
-	rt_kprintf("[bluetooth]: ChgPileState: %d \n",stBLE_Charge_State.ChgPileState);
-	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_State.ucActualPower);
-	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_State.ucPlanPower);
-	
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+//	rt_kprintf("[bluetooth]: RequestNO:");
+	my_printf((char*)&stBLE_Charge_State.cRequestNO[1],stBLE_Charge_State.cRequestNO[0],MY_HEX,1,"[bluetooth]: RequestNO: ");
+//	rt_kprintf("[bluetooth]: AssetNO:");
+	my_printf((char*)&stBLE_Charge_State.cAssetNO[1],stBLE_Charge_State.cAssetNO[0],MY_HEX,1,"[bluetooth]: AssetNO: ");
 	
 	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_State.GunNum);
 	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_State.exeState);
-	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_State.ucTimeSlotNum);
+//	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_State.ucTimeSlotNum);
 
 	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[0]);
 	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[1]);
@@ -2526,14 +2484,23 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_kprintf("[bluetooth]: ulEleActualValue[3]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
 	rt_kprintf("[bluetooth]: ulEleActualValue[4]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ucChargeEle[0]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ucChargeEle[1]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ucChargeEle[2]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ucChargeEle[3]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ucChargeEle[4]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: ucChargeEle[0]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[0]);
+	rt_kprintf("[bluetooth]: ucChargeEle[1]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[1]);
+	rt_kprintf("[bluetooth]: ucChargeEle[2]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[2]);
+	rt_kprintf("[bluetooth]: ucChargeEle[3]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[3]);
+	rt_kprintf("[bluetooth]: ucChargeEle[4]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[4]);
 	
-	rt_kprintf("[bluetooth]: UserID:");
-	my_printf((char*)&stBLE_Charge_State.cUserID[1],stBLE_Charge_State.cUserID[0],MY_HEX,1," ");
+	rt_kprintf("[bluetooth]: ChargeTime: %d \n",stBLE_Charge_State.ucChargeTime);
+	
+	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_State.ucPlanPower);
+	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_State.ucActualPower);
+	
+	rt_kprintf("[bluetooth]: Voltage: %d \n",stBLE_Charge_State.ucVoltage);
+	rt_kprintf("[bluetooth]: Current: %d \n",stBLE_Charge_State.ucCurrent);
+	rt_kprintf("[bluetooth]: ChgPileState: %d \n",stBLE_Charge_State.ChgPileState);
+	
+//	rt_kprintf("[bluetooth]: UserID:");
+	my_printf((char*)&stBLE_Charge_State.cUserID[1],stBLE_Charge_State.cUserID[0],MY_HEX,1,"[bluetooth]: UserID: ");
 	
 
 	ptr = 0;
@@ -2982,7 +2949,7 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	stBLE_Charge_Record.ucChargeTime = 0;*/
 	
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Record.OrderNum);
 	
@@ -3431,7 +3398,7 @@ rt_uint8_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 			break;
 		}
 	}
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	rt_kprintf("[bluetooth]: cmd: \033[32m%s\033[0m\n",_698_event_char[cmd]);
 	
 	switch(cmd)
@@ -3468,11 +3435,11 @@ rt_uint8_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 	
 	if((g_BLE_Get_Strategy_event&(0x00000001<<cmd)) == (0x00000001<<cmd))
 	{
-		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear fail \n",_698_event_char[cmd]);
+		rt_kprintf("[bluetooth]: \033[32m%s\033[0m clear fail \n",_698_event_char[cmd]);
 	}
 	else
 	{
-		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear sucess \n",_698_event_char[cmd]);
+		rt_kprintf("[bluetooth]: \033[32m%s\033[0m clear sucess \n",_698_event_char[cmd]);
 	}
 	return 0;
 }
@@ -3481,7 +3448,7 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 {
 	rt_uint8_t result=1;
 	
-	rt_kprintf("\r\n\r\n[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
 	
 	rt_kprintf("[bluetooth]: cmd: \033[32m%s\033[0m \n",_698_event_char[cmd]);
 
@@ -3569,11 +3536,11 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 	
 	if((g_BLE_Send_to_Strategy_event&(0x00000001<<cmd)) == (0x00000001<<cmd))
 	{
-		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear fail \n",_698_event_char[cmd]);
+		rt_kprintf("[bluetooth]: \033[32m%s\033[0m clear fail \n",_698_event_char[cmd]);
 	}
 	else
 	{
-		rt_kprintf("\n[bluetooth]: \033[32m%s\033[0m clear sucess \n",_698_event_char[cmd]);
+		rt_kprintf("[bluetooth]: \033[32m%s\033[0m clear sucess \n",_698_event_char[cmd]);
 	}
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	
@@ -3607,13 +3574,13 @@ static void bluetooth_thread_entry(void *parabluetooth)
 //		rt_device_control(bluetooth_serial, RT_DEVICE_CTRL_CONFIG, &config);//配置串口参数
 		if (rt_device_open(bluetooth_serial, RT_DEVICE_FLAG_DMA_RX) == RT_EOK)
 		{
-			rt_lprintf("[bluetooth]:Open serial uart3 sucess!\r\n");
+			rt_kprintf("[bluetooth]:Open serial uart3 sucess!\r\n");
 		}
 	}
 	else
 	{
 		res = RT_ERROR;
-		rt_lprintf("[bluetooth]:Open serial uart3 err!\r\n");
+		rt_kprintf("[bluetooth]:Open serial uart3 err!\r\n");
 		return;
 	}
 	//初始化事件对象
@@ -3643,28 +3610,28 @@ static void bluetooth_thread_entry(void *parabluetooth)
 
 //	SetStorageData(Cmd_MeterNumWr,&ble_meter_addr_buf,13);
 //	rt_thread_mdelay(100);
-	if(GetStorageData(Cmd_MeterNumRd,&ble_meter_addr_buf,13) < 0)//读取文件错误 设置为默认值
-	{
-		ble_meter_addr_buf[0] = 0x0C;
-		for(i = 0; i < ble_meter_addr_buf[0];i++)
-		{
-			ble_meter_addr_buf[i+1] = 0x30;
-		}
-		ble_meter_addr_buf[ble_meter_addr_buf[0]+1] = 0x31;
-		
-		rt_lprintf("[bluetooth]:Read meter number err!\r\n");
-	}
+//	if(GetStorageData(Cmd_MeterNumRd,&stBLE_Router_Info,sizeof(stBLE_Router_Info)) < 0)//读取文件错误 设置为默认值
+//	{
+//		stBLE_Router_Info.Addr[0] = 0x0C;
+//		for(i = 0; i < stBLE_Router_Info.Addr[0];i++)
+//		{
+//			stBLE_Router_Info.Addr[i+1] = 0x30;
+//		}
+//		stBLE_Router_Info.Addr[stBLE_Router_Info.Addr[0]+1] = 0x31;
+//		
+//		rt_kprintf("[bluetooth]:Read meter number err!\r\n");
+//	}
 	
 	////////////////////////////////测试用///////////////////////////////
 	stBLE_meter_addr.data = 0x01;
 	stBLE_meter_addr.data_type=0x09;
 	stBLE_meter_addr.addr_len = 0x06;
-	stBLE_meter_addr.addr[0] = (((ble_meter_addr_buf[1]-0x30)<<4) | (ble_meter_addr_buf[2]-0x30));
-	stBLE_meter_addr.addr[1] = (((ble_meter_addr_buf[3]-0x30)<<4) | (ble_meter_addr_buf[4]-0x30));
-	stBLE_meter_addr.addr[2] = (((ble_meter_addr_buf[5]-0x30)<<4) | (ble_meter_addr_buf[6]-0x30));
-	stBLE_meter_addr.addr[3] = (((ble_meter_addr_buf[7]-0x30)<<4) | (ble_meter_addr_buf[8]-0x30));
-	stBLE_meter_addr.addr[4] = (((ble_meter_addr_buf[9]-0x30)<<4) | (ble_meter_addr_buf[10]-0x30));
-	stBLE_meter_addr.addr[5] = (((ble_meter_addr_buf[11]-0x30)<<4) | (ble_meter_addr_buf[12]-0x30));
+	stBLE_meter_addr.addr[0] = (((RouterIfo.Addr[1]-0x30)<<4) | (RouterIfo.Addr[2]-0x30));
+	stBLE_meter_addr.addr[1] = (((RouterIfo.Addr[3]-0x30)<<4) | (RouterIfo.Addr[4]-0x30));
+	stBLE_meter_addr.addr[2] = (((RouterIfo.Addr[5]-0x30)<<4) | (RouterIfo.Addr[6]-0x30));
+	stBLE_meter_addr.addr[3] = (((RouterIfo.Addr[7]-0x30)<<4) | (RouterIfo.Addr[8]-0x30));
+	stBLE_meter_addr.addr[4] = (((RouterIfo.Addr[9]-0x30)<<4) | (RouterIfo.Addr[10]-0x30));
+	stBLE_meter_addr.addr[5] = (((RouterIfo.Addr[11]-0x30)<<4) | (RouterIfo.Addr[12]-0x30));
 	stBLE_meter_addr.optional = 0x00;
 	stBLE_meter_addr.time = 0x00;
 //////////////////////////////////////////////////////////////////////	
@@ -3750,7 +3717,7 @@ void AT_CMD(int argc, char**argv)
 	
 	if(size == sizeof(buf))
 	{
-		rt_lprintf("size = %d,send cmd is %s",size,buf);
+		rt_kprintf("size = %d,send cmd is %s",size,buf);
 	}
 	rt_free(buf);
 }

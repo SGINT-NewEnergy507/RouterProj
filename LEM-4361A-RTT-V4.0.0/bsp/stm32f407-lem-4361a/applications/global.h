@@ -65,15 +65,16 @@ typedef enum {
 
 typedef struct
 {
-	char AssetNum[23];					//路由器资产编号 字符串 maxlen=22
+	char AssetNum[24];					//路由器资产编号 字符串 maxlen=22
+	char Addr[14];					//路由器通讯地址 字符串 maxlen=13
 	ROUTER_WORKSTATE WorkState;			//路由器运行状态
 }ROUTER_IFO_UNIT;/*路由器信息单元*/
 extern ROUTER_IFO_UNIT RouterIfo;
 	
 typedef struct
 {
-	char UserID[65];   			//用户id  visible-string（SIZE(64)）
-	char Token[39];   			//用户登录令牌  visible-string（SIZE(38)）
+	char UserID[66];   			//用户id  visible-string（SIZE(64)）
+	char Token[40];   			//用户登录令牌  visible-string（SIZE(38)）
 	unsigned char AccountState;	//账户状态 {0：正常，1：欠费}
 }WHITE_LIST;/*路由器白名单*/
 
@@ -282,7 +283,7 @@ typedef enum {
 
 extern unsigned long timebin2long(unsigned char *buf);
 CCMRAM extern char Printf_Buffer[1024];
-CCMRAM extern char Srintf_Buffer[1024];
+CCMRAM extern char Sprintf_Buffer[1024];
 
 
 extern const char ProgramVersion[8]; // 版本号

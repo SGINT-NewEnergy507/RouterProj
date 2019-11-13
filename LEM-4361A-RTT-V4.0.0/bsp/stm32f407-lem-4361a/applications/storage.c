@@ -105,9 +105,22 @@ static void storage_thread_entry(void *parameter)
 //	extern void ls(const char *pathname);
 //	ls("/Meter");
 //	ls("/LOG");	
-	rt_thread_delay(5000);
-	char para[9];
+	rt_thread_delay(2000);
+	char i,para[9];
 	char array[9];
+	
+	
+	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo)) < 0)//读取文件错误 设置为默认值
+	{
+		RouterIfo.Addr[0] = 0x0C;
+		for(i = 0; i < RouterIfo.Addr[0];i++)
+		{
+			RouterIfo.Addr[i+1] = 0x30;
+		}
+		RouterIfo.Addr[RouterIfo.Addr[0]+1] = 0x31;
+		
+		rt_kprintf("[Storage]:Read meter number err!\r\n");
+	}
 //	unlink((const char*)ROUTER_PARA_PATH_FILE); //删除oldest_file 必须完整路径
 //	memset(array,0x00,sizeof(array));
 //	memset(para,0x00,sizeof(para));
@@ -987,7 +1000,9 @@ static int Meter_Anolag_Storage(const char *file,void *Storage_Para,rt_uint32_t 
 static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t datalen,rt_uint32_t cmd)	
 {
 	int fd,writelen = 0,readlen = 0;
-	char buffer[64];
+	char buffer[128];
+	
+	sprintf(buffer,"");
 	
 	if(cmd == WRITE)//保存到本地write
 	{
@@ -997,12 +1012,20 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		strcat((char*)Para_Buff,(const char*)"cAssetNum=");
-		for(int i=0;i<datalen;i++)
+		for(int i=0;i<(sizeof(RouterIfo.AssetNum)-1);i++)//资产编号 22位
 		{
 			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i));// 表号
 			strcat((char*)Para_Buff,(const char*)buffer);
 		}
-		strcat((char*)Para_Buff,(const char*)"\n");		
+		strcat((char*)Para_Buff,(const char*)"\n");	
+
+		strcat((char*)Para_Buff,(const char*)"cAddr=");
+		for(int i=0;i<(sizeof(RouterIfo.Addr)-1);i++)//通讯地址12位
+		{
+			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i+sizeof(RouterIfo.AssetNum)));// 表号
+			strcat((char*)Para_Buff,(const char*)buffer);
+		}
+		strcat((char*)Para_Buff,(const char*)"\n");			
 		
 		if(strlen((const char*)Para_Buff)>MAX_MALLOC_NUM)
 		{
@@ -1089,10 +1112,34 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		{
 			if(strcmp((const char*)fpname,(const char*)"cAssetNum")==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)Storage_Para,datalen);//返回当前文件读指针
-				for(int i=0;i<datalen;i++)
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterIfo.AssetNum),sizeof(RouterIfo.AssetNum)-1);//返回当前文件读指针
+				for(int i=0;i<sizeof(RouterIfo.AssetNum);i++)
 				{
-					rt_kprintf((char*)buffer,"0x%02X",*((char*)Storage_Para+i));// 表号
+					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterIfo.AssetNum+i));// 表号
+				}
+				rt_kprintf("\n");
+			}			
+			else
+			{
+				rt_kprintf("[storage]:文件名不符合 ulVol=%s\n",fpname); 
+			}
+			namelen=0;		
+		}
+		else
+		{
+            rt_kprintf("[storage]:namelen=0\n");
+		}
+		
+		////////////////////通讯地址//////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"cAddr")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterIfo.Addr),(sizeof(RouterIfo.Addr)-1));//返回当前文件读指针
+				for(int i=0;i<sizeof(RouterIfo.Addr);i++)
+				{
+					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterIfo.Addr));// 表号
 				}
 				rt_kprintf("\n");
 			}			
@@ -1690,7 +1737,7 @@ static int Meter_HalfPower_Storage(const char *file,void *Storage_Para,rt_uint32
 static int Meter_Power_Storage(const char *file,void *Storage_Para,rt_uint32_t YMD,rt_uint32_t cmd)	
 {
 	int fd,writelen = 0,readlen = 0;
-	char buffer[32]; 
+	char buffer[256]; 
 	char path[14];
 	char path_file[64];
 	ScmMeter_HisData* pMeter_HisData = (ScmMeter_HisData*)Storage_Para;
@@ -1739,6 +1786,22 @@ static int Meter_Power_Storage(const char *file,void *Storage_Para,rt_uint32_t Y
 
 		sprintf((char*)buffer,"ulPowerGmon=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Month.ulPowerG);// 月-总电量
 		strcat((char*)Para_Buff,(const char*)buffer);	
+		
+		        /****************************************************************************************///wyg191112
+		sprintf((char*)buffer,"ulPowerTotal=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Total.ulPowerT);// 总电量
+		strcat((char*)Para_Buff,(const char*)buffer);
+
+		sprintf((char*)buffer,"ulPowerJTotal=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Total.ulPowerJ);// 总电量
+		strcat((char*)Para_Buff,(const char*)buffer);
+
+		sprintf((char*)buffer,"ulPowerFTotal=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Total.ulPowerF);// 总电量
+		strcat((char*)Para_Buff,(const char*)buffer);
+
+		sprintf((char*)buffer,"ulPowerPTotal=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Total.ulPowerP);// 总电量
+		strcat((char*)Para_Buff,(const char*)buffer);
+
+		sprintf((char*)buffer,"ulPowerGTotal=%08u\n",(rt_uint32_t)pMeter_HisData->ulMeter_Total.ulPowerG);// 总电量
+		strcat((char*)Para_Buff,(const char*)buffer);
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
 		{
@@ -2116,6 +2179,106 @@ static int Meter_Power_Storage(const char *file,void *Storage_Para,rt_uint32_t Y
 			else        
 			{
 				rt_lprintf("文件名不符合 ulPowerGmon=%s\n",fpname); 
+			}
+			namelen=0;
+		}
+		else
+		{
+            rt_lprintf("namelen=0\n");
+		}
+////////////////////////////////////////////////////////////////////////////////////////////
+		/////////////////////总电量/////////////////////////////////////////////////////////////////wyg191112
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"ulPowerTotal")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pMeter_HisData->ulMeter_Total.ulPowerT,1);//返回当前文件读指针
+				rt_lprintf("ulPowerTotal=%u;\n",pMeter_HisData->ulMeter_Total.ulPowerT);
+			}			
+			else        
+			{
+				rt_lprintf("文件名不符合 ulPowerTotal=%s\n",fpname); 
+			}
+			namelen=0;			
+		}
+		else
+		{
+            rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////尖总电量///////////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"ulPowerJTotal")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pMeter_HisData->ulMeter_Total.ulPowerJ,1);//返回当前文件读指针
+				rt_lprintf("ulPowerJTotal=%u;\n",pMeter_HisData->ulMeter_Total.ulPowerJ);
+			}			
+			else        
+			{
+				rt_lprintf("文件名不符合 ulPowerJTotal=%s\n",fpname); 
+			}
+			namelen=0;			
+		}
+		else
+		{
+            rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////峰总电量///////////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"ulPowerFTotal")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pMeter_HisData->ulMeter_Total.ulPowerF,1);//返回当前文件读指针
+				rt_lprintf("ulPowerFTotal=%u;\n",pMeter_HisData->ulMeter_Total.ulPowerF);
+			}			
+			else        
+			{
+				rt_lprintf("文件名不符合 ulPowerFTotal=%s\n",fpname); 
+			}
+			namelen=0;			
+		}
+		else
+		{
+            rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////平总电量///////////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"ulPowerPTotal")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pMeter_HisData->ulMeter_Total.ulPowerP,1);//返回当前文件读指针
+				rt_lprintf("ulPowerPTotal=%u;\n",pMeter_HisData->ulMeter_Total.ulPowerP);
+			}			
+			else        
+			{
+				rt_lprintf("文件名不符合 ulPowerPTotal=%s\n",fpname); 
+			}
+			namelen=0;			
+		}
+		else
+		{
+            rt_lprintf("namelen=0\n");
+		}
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////谷总电量///////////////////////////////////////////////////////////////
+		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+		if(namelen)//接收完了
+		{
+			if(strcmp((const char*)fpname,(const char*)"ulPowerGTotal")==0)
+			{
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pMeter_HisData->ulMeter_Total.ulPowerG,1);//返回当前文件读指针
+				rt_lprintf("ulPowerGTotal=%u;\n",pMeter_HisData->ulMeter_Total.ulPowerG);
+			}			
+			else        
+			{
+				rt_lprintf("文件名不符合 ulPowerGTotal=%s\n",fpname); 
 			}
 			namelen=0;
 		}
@@ -6488,7 +6651,7 @@ static rt_uint32_t pow_df(rt_uint8_t m,rt_uint8_t n)
 //argc 的值 这个赋值过程是编译器完成的，我们只需要读出数据就可以了
 void WrAssetNum(int argc, char**argv)//WrAssetNum 191000000035 zichan 191000000035
 {
-	char buf[13];
+	char buf[24];
 	if(argc != 2)
 	{
 		rt_kprintf("Please input single string e.g.\nWrAssetNum *******\n");
@@ -6504,7 +6667,17 @@ void WrAssetNum(int argc, char**argv)//WrAssetNum 191000000035 zichan 1910000000
 	{
 		rt_kprintf("buf[%u]=%02X\n",i,buf[i]);
 	}
-	SetStorageData(Cmd_MeterNumWr,buf,len+1);
+	
+	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo))<0)
+	{
+		memset(&RouterIfo,0,sizeof(RouterIfo));
+	}
+	
+	strcpy(RouterIfo.AssetNum,buf);
+	
+	
+	
+	SetStorageData(Cmd_MeterNumWr,&RouterIfo,sizeof(RouterIfo));
 	rt_kprintf("WrAssetNum success\n");
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);
@@ -6525,15 +6698,87 @@ void RdAssetNum(int argc, char**argv)
 	rt_uint32_t level = rt_hw_interrupt_disable();
 	rt_size_t len = 13;
 //	char *buf = (char*)rt_malloc(len);
-	GetStorageData(Cmd_MeterNumRd,asserr,len);	
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));	
 	for(int i = 0;i < len;i++)
 	{
-		rt_kprintf("asserr[%u]=%02X\n",i,asserr[i]);
+		rt_kprintf("asserr[%u]=%02X\n",i,RouterIfo.AssetNum[i]);
 	}
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);
 }
 MSH_CMD_EXPORT(RdAssetNum, read AssetNum);
+
+
+
+//对于nptr指向的字符串，其开头和结尾处的空格被忽视，字符串中间的空格被视为非法字符。
+//D:\tc2>test myarg1 myarg2 
+//这个时候，argc的值是3，argc[0]的值是”test”，argc[1]的值是”myarg1”，argc[2]的值是”myarg2”。
+//argc 的值 这个赋值过程是编译器完成的，我们只需要读出数据就可以了
+void WrAddr(int argc, char**argv)//WrAddr 191000000035 zichan 191000000035
+{
+	char buf[13];
+	if(argc != 2)
+	{
+		rt_kprintf("Please input single string e.g.\nWrAssetNum *******\n");
+		return;	
+	}
+	rt_uint32_t level = rt_hw_interrupt_disable();
+	rt_size_t len = strlen(argv[1]);
+	rt_kprintf("len:%d\n",len);
+//	char *buf = (char*)rt_malloc(len);
+	buf[0] = len;
+	memcpy(&buf[1],argv[1],buf[0]);
+	for(int i = 0;i < len+1;i++)
+	{
+		rt_kprintf("buf[%u]=%02X\n",i,buf[i]);
+	}
+	
+	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo))<0)
+	{
+		memset(&RouterIfo,0,sizeof(RouterIfo));
+	}
+	
+	strcpy(RouterIfo.Addr,buf);
+	
+	SetStorageData(Cmd_MeterNumWr,&RouterIfo,sizeof(RouterIfo));
+	rt_kprintf("WrAddr success\n");
+//	rt_free(buf);
+	rt_hw_interrupt_enable(level);
+}
+MSH_CMD_EXPORT(WrAddr, set addr);
+//对于nptr指向的字符串，其开头和结尾处的空格被忽视，字符串中间的空格被视为非法字符。
+//D:\tc2>test myarg1 myarg2 
+//这个时候，argc的值是3，argc[0]的值是”test”，argc[1]的值是”myarg1”，argc[2]的值是”myarg2”。
+//argc 的值 这个赋值过程是编译器完成的，我们只需要读出数据就可以了
+void RdAddr(int argc, char**argv)
+{
+	char asserr[13];
+	if(argc != 1)
+	{
+		rt_kprintf("Please input single cmd e.g.\nWrAssetNum\n");
+		return;	
+	}
+	rt_uint32_t level = rt_hw_interrupt_disable();
+	rt_size_t len = 13;
+//	char *buf = (char*)rt_malloc(len);
+	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));	
+	for(int i = 0;i < sizeof(RouterIfo.Addr);i++)
+	{
+		rt_kprintf("asserr[%u]=%02X\n",i,RouterIfo.Addr[i]);
+	}
+//	rt_free(buf);
+	rt_hw_interrupt_enable(level);
+}
+MSH_CMD_EXPORT(RdAddr, read addr);
+
+
+
+
+
+
+
+
+
 /*
 // C prototype : void StrToHex(BYTE *pbDest, BYTE *pbSrc, int nLen)
 // parameter(s): [OUT] pbDest - 输出缓冲区

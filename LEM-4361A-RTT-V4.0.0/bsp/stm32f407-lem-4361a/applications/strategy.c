@@ -27,6 +27,9 @@
 #define THREAD_STRATEGY_STACK_SIZE   2048
 #define THREAD_STRATEGY_TIMESLICE    5
 
+static rt_uint8_t strategy_stack[THREAD_STRATEGY_STACK_SIZE];//线程堆栈
+static struct rt_thread strategy;
+
 #define RELAYA_PIN    GET_PIN(F, 2)
 #define RELAYB_PIN    GET_PIN(F, 3)
 
@@ -56,10 +59,6 @@ static char *err_strfault[] =
 	       "本地订单记录满！       ",             /* ERR             13 */
 		   "RTC通信故障！       ",             	 /* ERR             14 */
 };
-
-	
-static rt_uint8_t strategy_stack[THREAD_STRATEGY_STACK_SIZE];//线程堆栈
-static struct rt_thread strategy;
 
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Set;
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Get;
@@ -150,7 +149,7 @@ void RELAY_OFF(void)
 static void StartChgResp_Timeout(void *parameter)
 {
 	rt_int8_t p_rst;
-	rt_lprintf("[energycon] : StartChgResp event is timeout!\n");
+	rt_lprintf("[strategy] : StartChgResp event is timeout!\n");
 	p_rst = ChargepileDataGetSet(Cmd_ChargeStartResp,0);
 	
 //	if(p_rst != SUCCESSFUL)
@@ -165,7 +164,7 @@ static void StartChgResp_Timeout(void *parameter)
 static void StopChgResp_Timeout(void *parameter)
 {
     rt_uint8_t p_rst;
-	rt_lprintf("[energycon] : StopChgResp event is timeout!\n");
+	rt_lprintf("[strategy] : StopChgResp event is timeout!\n");
 	p_rst = ChargepileDataGetSet(Cmd_ChargeStopResp,0);
 	
 	if(p_rst == SUCCESSFUL)
@@ -320,19 +319,19 @@ static void timer_create_init()
 	ChgPlanOfferAck = rt_timer_create("ChgPlanOfferAck",  /* 定时器名字是 ChgPlanOfferAck */
 									ChgPlanOfferAck_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
-									3000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
+									5000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
 									RT_TIMER_FLAG_PERIODIC|RT_TIMER_FLAG_SOFT_TIMER); /* 周期性定时器 */
 	/* 创建 充电计划执行状态确认 定时器 */
 	ChgPlanExeStateAck = rt_timer_create("ChgPlanExeStateAck",  /* 定时器名字是 ChgPlanExeStateAck */
 									ChgPlanExeStateAck_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
-									3000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
+									5000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
 									RT_TIMER_FLAG_PERIODIC|RT_TIMER_FLAG_SOFT_TIMER); /* 周期性定时器 */
 	/* 创建 充电订单确认 定时器 */
 	ChgRecordAck = rt_timer_create("ChgRecordAck",  /* 定时器名字是 ChgRecordAck */
 									ChgRecordAck_Timeout, /* 超时时回调的处理函数 */
 									RT_NULL, /* 超时函数的入口参数 */
-									3000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
+									5000, /* 定时长度，以OS Tick为单位，即3000个OS Tick */
 									RT_TIMER_FLAG_PERIODIC|RT_TIMER_FLAG_SOFT_TIMER); /* 周期性定时器 */
 	/* 启动定时器 */
 	if (ChgPileStateGet != RT_NULL)
@@ -387,18 +386,27 @@ static void CtrlData_RecProcess(void)
 	Ctrl_EventCmd = strategy_event_get();
 	memset(Cmd,0,sizeof(Cmd));
 	itoa(Ctrl_EventCmd,Cmd,2);		  //转换成字符串，进制基数2 
-	rt_lprintf("[strategy]  (%s)  收到@控制器@命令,事件号编码为：[%s]  \n",__func__,Cmd);
+	
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
 		if(Ctrl_EventCmd&(0x00000001<<i))
 		{
-			Ctrl_EventCmd = i;
-			break;
+			if(i != 0)
+			{
+				Ctrl_EventCmd = i;
+				rt_kprintf("[strategy]:  (%s)  recv event is [%s]  \n",__func__,Cmd);
+				break;
+			}
 		}
 	}
 	
 	switch(Ctrl_EventCmd)
 	{
+		case Cmd_ChgRequestReportAck://充电申请事件应答
+		{
+			c_rst = CtrlUnit_RecResp(Cmd_ChgRequestReportAck,0,0);//取值
+			break;
+		}
 		//收到充电计划
 		case Cmd_ChgPlanIssue:
 		{
@@ -419,14 +427,18 @@ static void CtrlData_RecProcess(void)
 					memcpy(&Chg_StrategyRsp.cRequestNO,&Chg_Strategy.cRequestNO,sizeof(Chg_StrategyRsp.cRequestNO));
 					memcpy(&Chg_StrategyRsp.cAssetNO,&Chg_Strategy.cAssetNO,sizeof(Chg_StrategyRsp.cAssetNO));
 					Chg_StrategyRsp.cSucIdle = SUCCESSFUL;
+					
+					rt_kprintf("[strategy]:  (%s)  recv charge plan sucess \n",__func__);
 				}
 				else
 				{
+					rt_kprintf("[strategy]:  (%s)  recv charge plan assetnum error \n",__func__);
 					Chg_StrategyRsp.cSucIdle = ORTHERS;
 				}
 			}
 			else
 			{
+				rt_kprintf("[strategy]:  (%s)  device fault \n",__func__);
 				Chg_StrategyRsp.cSucIdle = FAILED;
 			}		
 			
@@ -470,16 +482,93 @@ static void CtrlData_RecProcess(void)
 			break;
 		}
 		//收到充电计划事件确认
-		case Cmd_ChgPlanOfferAck:
+		case Cmd_ChgPlanOfferAck://wyg191113
 		{
-			rt_lprintf("[strategy]  (%s) ChgPlanOfferAck Received!\n",__func__);
+			rt_kprintf("[strategy]  (%s) ChgPlanOfferAck Received!\n",__func__);
 			rt_timer_stop(ChgPlanOfferAck);
+			c_rst = CtrlUnit_RecResp(Cmd_ChgPlanOfferAck,&Plan_Offer_Event,0);//回复
+			
+			Chg_Apply.ChargeMode = DISORDER;//  测试用 需要删除  wyg191113
+			Chg_Apply.GunNum = 0;
+			
+				if(Chg_Apply.ChargeMode == DISORDER)//无序充电
+				{
+					memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+					if(PileIfo.WorkState == ChgSt_Standby)
+					{
+						CtrlCharge_Event.CtrlType = CTRL_START;
+						CtrlCharge_Event.StartSource = BLE_UNIT;
+						p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+						
+						if(p_rst == SUCCESSFUL)
+						{
+							PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+							Chg_ExeState.exeState = EXE_ING;
+							rt_kprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+						}
+						else
+						{
+							Chg_ExeState.exeState = EXE_FAILED;
+							rt_kprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+						}
+					}
+					else
+					{
+						Chg_ExeState.exeState = EXE_FAILED;
+						rt_kprintf("[strategy]  (%s) Charge Started, fail! PileIfo.WorkState = %d\n",__func__,PileIfo.WorkState);
+					}
+					
+					//上送充电执行事件
+					BLE_ChgExe_Event.OrderNum++;
+					BLE_ChgExe_Event.OccurSource = 0;
+					ExeState_Update();
+					memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+					BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
+				
+					memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+					//存储充电执行事件
+					s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
+					if(s_rst == SUCCESSFUL)
+					{
+						rt_kprintf("[strategy]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
+					}
+					else
+					{
+						rt_kprintf("[strategy]  (%s) 保存充电执行事件，失败！\n",__func__);
+						SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
+					}
+
+					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);		
+					if(b_rst == SUCCESSFUL)
+					{
+						rt_kprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to BLE, Successful!\n",__func__);				
+					}
+					else
+					{
+						rt_kprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+					}
+					
+					c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);//回复	wyg191105
+					if(c_rst == SUCCESSFUL)
+					{
+						rt_kprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to Controller, Successful!\n",__func__);				
+					}
+					else
+					{
+						rt_kprintf("[strategy]  (%s) 回复控制器关于BLE充电执行事件，失败！\n",__func__);
+					}
+				}
+				
+				break;
+	
 		}
 		//收到充电计划执行事件确认
 		case Cmd_ChgPlanExeStateAck:
 		{
-			rt_lprintf("[strategy]  (%s) ChgPlanExeStateAck Received!\n",__func__);
+			rt_kprintf("[strategy]  (%s) ChgPlanExeStateAck Received!\n",__func__);
 			rt_timer_stop(ChgPlanExeStateAck);
+			CtrlUnit_RecResp(Cmd_ChgPlanExeStateAck,0,0);//取值	
+			break;
 		}
 		//收到充电计划调整
 		case Cmd_ChgPlanAdjust:
@@ -520,7 +609,7 @@ static void CtrlData_RecProcess(void)
 			CtrlCharge_Event.StartSource = CONTRL_UNIT;
 			
 			c_rst = CtrlUnit_RecResp(Cmd_StartChg,&Ctrl_Start,0);//取值
-			rt_lprintf("[energycon]  (%s)  收到@控制器@启动充电命令  \n",__func__);
+			rt_lprintf("[strategy]  (%s)  收到@控制器@启动充电命令  \n",__func__);
 			memcpy(&CtrlCharge_Event,&Ctrl_Start,41);
 			CtrlCharge_Event.CtrlType = CTRL_START;
 			
@@ -557,7 +646,7 @@ static void CtrlData_RecProcess(void)
 			CtrlCharge_Event.StopSource = CONTRL_UNIT;
 			
 			c_rst = CtrlUnit_RecResp(Cmd_StopChg,&Ctrl_Stop,0);//取值			
-			rt_lprintf("[energycon]  (%s)  收到@控制器@停止充电命令  \n",__func__); 
+			rt_lprintf("[strategy]  (%s)  收到@控制器@停止充电命令  \n",__func__); 
 			memcpy(&CtrlCharge_Event,&Ctrl_Stop,41);			
 			CtrlCharge_Event.CtrlType = CTRL_STOP;
 			
@@ -593,7 +682,7 @@ static void CtrlData_RecProcess(void)
 		{
 			adjpower_flag = TRUE;
 			c_rst = CtrlUnit_RecResp(Cmd_PowerAdj,&Ctrl_PowerAdj,0);//取值	
-			rt_lprintf("[energycon]  (%s)  收到@控制器@调整功率命令  \n",__func__);  
+			rt_lprintf("[strategy]  (%s)  收到@控制器@调整功率命令  \n",__func__);  
 			memcpy(&CtrlCharge_Event,&Ctrl_PowerAdj,41);
 			CtrlCharge_Event.CtrlType = CTRL_ADJPOW;
 			
@@ -701,10 +790,13 @@ static void CtrlData_RecProcess(void)
 	rt_lprintf("[strategy]  (%s)  收到@APP@命令,事件号编码为：[%s]  \n",__func__,Cmd);
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
-		if(BLE_EventCmd&(0x00000001<<i))
+		if(i != 0)
 		{
-			BLE_EventCmd = i;
-			break;
+			if(BLE_EventCmd&(0x00000001<<i))
+			{
+				BLE_EventCmd = i;
+				break;
+			}
 		}
 	}
 	switch(BLE_EventCmd)
@@ -796,73 +888,73 @@ static void CtrlData_RecProcess(void)
 			//暂定立即启动充电
 			if(b_rst == SUCCESSFUL)
 			{
-				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
-				if(Chg_Apply.ChargeMode == DISORDER)//无序充电
-				{
-					memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
-					if(PileIfo.WorkState == ChgSt_Standby)
-					{
-						CtrlCharge_Event.CtrlType = CTRL_START;
-						CtrlCharge_Event.StartSource = BLE_UNIT;
-						p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
-						
-						if(p_rst == SUCCESSFUL)
-						{
-							PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
-							Chg_ExeState.exeState = EXE_ING;
-							rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
-						}
-						else
-						{
-							Chg_ExeState.exeState = EXE_FAILED;
-							rt_kprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
-						}
-					}
-					else
-					{
-						Chg_ExeState.exeState = EXE_FAILED;
-					}
-					
-					//上送充电执行事件
-					BLE_ChgExe_Event.OrderNum++;
-					BLE_ChgExe_Event.OccurSource = 0;
-					ExeState_Update();
-					memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
-					BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
-				
-					memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
-					//存储充电执行事件
-					s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
-					if(s_rst == SUCCESSFUL)
-					{
-						rt_lprintf("[energycon]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
-					}
-					else
-					{
-						rt_kprintf("[energycon]  (%s) 保存充电执行事件，失败！\n",__func__);
-						SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
-					}
+//				rt_lprintf("[strategy]  (%s) Charge_Apply Response to BLE, Successful!\n",__func__);
+//				if(Chg_Apply.ChargeMode == DISORDER)//无序充电
+//				{
+//					memcpy(&BLE_ChgExe_Event.StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件发生时间
+//					if(PileIfo.WorkState == ChgSt_Standby)
+//					{
+//						CtrlCharge_Event.CtrlType = CTRL_START;
+//						CtrlCharge_Event.StartSource = BLE_UNIT;
+//						p_rst = ChargepileDataGetSet(Cmd_ChargeStart,0);
+//						
+//						if(p_rst == SUCCESSFUL)
+//						{
+//							PileIfo.WorkState = ChgSt_InCharging;//此处优先置位，下发启动成功视为充电桩已启动
+//							Chg_ExeState.exeState = EXE_ING;
+//							rt_lprintf("[strategy]  (%s) Charge Started, Successful!\n",__func__);				
+//						}
+//						else
+//						{
+//							Chg_ExeState.exeState = EXE_FAILED;
+//							rt_kprintf("[strategy]  (%s) BLE申请后立即启动充电，失败！\n",__func__);
+//						}
+//					}
+//					else
+//					{
+//						Chg_ExeState.exeState = EXE_FAILED;
+//					}
+//					
+//					//上送充电执行事件
+//					BLE_ChgExe_Event.OrderNum++;
+//					BLE_ChgExe_Event.OccurSource = 0;
+//					ExeState_Update();
+//					memcpy(&BLE_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
+//					BLE_ChgExe_Event.Chg_ExeState.GunNum = Chg_Apply.GunNum;//注：这儿取值不同
+//				
+//					memcpy(&BLE_ChgExe_Event.FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//事件结束时间
+//					//存储充电执行事件
+//					s_rst = SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));
+//					if(s_rst == SUCCESSFUL)
+//					{
+//						rt_lprintf("[strategy]  (%s) Storage BLE_ChgExe_Event, Successful!\n",__func__);
+//					}
+//					else
+//					{
+//						rt_kprintf("[strategy]  (%s) 保存充电执行事件，失败！\n",__func__);
+//						SetStorageData(Cmd_ChgExecuteWr,&BLE_ChgExe_Event,sizeof(CHARGE_EXE_EVENT));//再存一次
+//					}
 
-					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);		
-					if(b_rst == SUCCESSFUL)
-					{
-						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to BLE, Successful!\n",__func__);				
-					}
-					else
-					{
-						rt_kprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
-					}
-					
-					c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);//回复	wyg191105
-					if(c_rst == SUCCESSFUL)
-					{
-						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to Controller, Successful!\n",__func__);				
-					}
-					else
-					{
-						rt_kprintf("[strategy]  (%s) 回复控制器关于BLE充电执行事件，失败！\n",__func__);
-					}
-				}
+//					b_rst = BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);		
+//					if(b_rst == SUCCESSFUL)
+//					{
+//						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to BLE, Successful!\n",__func__);				
+//					}
+//					else
+//					{
+//						rt_kprintf("[strategy]  (%s) 回复BLE充电执行事件，失败！\n",__func__);
+//					}
+//					
+//					c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&BLE_ChgExe_Event,0);//回复	wyg191105
+//					if(c_rst == SUCCESSFUL)
+//					{
+//						rt_lprintf("[strategy]  (%s) BLE_ChgExe_Event Apply to Controller, Successful!\n",__func__);				
+//					}
+//					else
+//					{
+//						rt_kprintf("[strategy]  (%s) 回复控制器关于BLE充电执行事件，失败！\n",__func__);
+//					}
+//				}
 			}	
 			else
 			{
@@ -896,7 +988,7 @@ static void CtrlData_RecProcess(void)
 			CtrlCharge_Event.StopSource = BLE_UNIT;
 				
 			c_rst = BLE_CtrlUnit_RecResp(Cmd_StopChg,&BLE_Stop,0);//取值			
-			rt_lprintf("[energycon]  (%s)  收到@蓝牙@停止充电命令  \n",__func__); 
+			rt_lprintf("[strategy]  (%s)  收到@蓝牙@停止充电命令  \n",__func__); 
 			memcpy(&CtrlCharge_Event.OrderSn,&BLE_Stop.OrderSn,sizeof(CtrlCharge_Event.OrderSn));	
 			memcpy(&CtrlCharge_Event.cAssetNO,&BLE_Stop.cAssetNO,sizeof(CtrlCharge_Event.cAssetNO));	
 			CtrlCharge_Event.GunNum = BLE_Stop.GunNum;	
@@ -912,7 +1004,7 @@ static void CtrlData_RecProcess(void)
 					{
 						PileIfo.WorkState = ChgSt_Finished;	
 						Chg_ExeState.exeState = EXE_END;
-						rt_lprintf("[energycon] : APP停机后，收到Chargepile返回\n");
+						rt_lprintf("[strategy] : APP停机后，收到Chargepile返回\n");
 					}					
 				}
 //				else
@@ -968,7 +1060,7 @@ static void PileData_RecProcess(void)
 			else
 			{
 				startchg_flag = FALSE;//清位
-				rt_lprintf("[energycon] : start charge successful!\n");
+				rt_lprintf("[strategy] : start charge successful!\n");
 			}
 		}
 		//启动失败
@@ -986,12 +1078,12 @@ static void PileData_RecProcess(void)
 			else
 			{
 				startchg_flag = FALSE;//清位
-				rt_lprintf("[energycon] : start charge failed,reason:%d!\n",ChargePilePara_Get.StartReson);
+				rt_lprintf("[strategy] : start charge failed,reason:%d!\n",ChargePilePara_Get.StartReson);
 			}
 			
 			c_rst = CtrlUnit_RecResp(Cmd_StartChgAck,&Ctrl_Start,0);		
 		}
-		rt_lprintf("[energycon] : ChargePileEvent 0x%02X\n", start_result);
+		rt_lprintf("[strategy] : ChargePileEvent 0x%02X\n", start_result);
 	}
 	
 	if(stopchg_flag == TRUE)
@@ -1019,7 +1111,7 @@ static void PileData_RecProcess(void)
 			else
 			{
 				stopchg_flag = FALSE;//清位
-				rt_lprintf("[energycon] : stop charge successful!\n");
+				rt_lprintf("[strategy] : stop charge successful!\n");
 			}
 		}
 		//停机失败
@@ -1037,12 +1129,12 @@ static void PileData_RecProcess(void)
 			else
 			{
 				stopchg_flag = FALSE;//清位
-				rt_lprintf("[energycon] : stop charge failed,reason:%d!\n",ChargePilePara_Get.StopReson);
+				rt_lprintf("[strategy] : stop charge failed,reason:%d!\n",ChargePilePara_Get.StopReson);
 			}
 			
 			c_rst = CtrlUnit_RecResp(Cmd_StopChgAck,&Ctrl_Stop,0);			
 		}
-		rt_lprintf("[energycon] : ChargePileEvent 0x%02X\n", stop_result);
+		rt_lprintf("[strategy] : ChargePileEvent 0x%02X\n", stop_result);
 	}
 	
 	if(adjpower_flag == TRUE)
@@ -1062,7 +1154,7 @@ static void PileData_RecProcess(void)
 			else
 			{
 				adjpower_flag = FALSE;//清位
-				rt_lprintf("[energycon] : start charge successful!\n");
+				rt_lprintf("[strategy] : start charge successful!\n");
 			}
 		}
 		//调整功率失败
@@ -1080,12 +1172,12 @@ static void PileData_RecProcess(void)
 			else
 			{
 				adjpower_flag = FALSE;//清位
-				rt_lprintf("[energycon] : adjust power failed,reason:%d!\n",ChargePilePara_Get.AdjPowerReson);
+				rt_lprintf("[strategy] : adjust power failed,reason:%d!\n",ChargePilePara_Get.AdjPowerReson);
 			}
 			
 			c_rst = CtrlUnit_RecResp(Cmd_PowerAdjAck,&Ctrl_PowerAdj,0);		
 		}
-		rt_lprintf("[energycon] : ChargePileEvent 0x%02X\n", adjpow_result);
+		rt_lprintf("[strategy] : ChargePileEvent 0x%02X\n", adjpow_result);
 	}
 }
 /********************************************************************  
@@ -1144,9 +1236,9 @@ static void TimeSolt_PilePowerCtrl(void)
 					
 					p_rst = ChargepileDataGetSet(Cmd_SetPower,&ChargePilePara_Set);//下发充电桩设定功率
 					if(p_rst == SUCCESSFUL)
-						rt_kprintf("[energycon]  (%s) ChargePilePara_Set,Cmd_SetPower,Successful!\n",__func__);
+						rt_kprintf("[strategy]  (%s) ChargePilePara_Set,Cmd_SetPower,Successful!\n",__func__);
 					else
-						rt_kprintf("[energycon]  (%s) 执行充电计划时功率设定，失败！\n",__func__);
+						rt_kprintf("[strategy]  (%s) 执行充电计划时功率设定，失败！\n",__func__);
 					
 					Ctrl_ChgExe_Event.OrderNum++;
 					memcpy(&Ctrl_ChgExe_Event.Chg_ExeState,&Chg_ExeState,sizeof(CHARGE_EXE_STATE));
@@ -1183,7 +1275,7 @@ static void TimeSolt_PilePowerCtrl(void)
 		}
 		else
 		{
-			rt_kprintf("[energycon]  (%s) 执行充电计划时时间内容异常，失败！\n",__func__);		
+			rt_kprintf("[strategy]  (%s) 执行充电计划时时间内容异常，失败！\n",__func__);		
 		}
 	}
 	
@@ -1197,9 +1289,9 @@ static void TimeSolt_PilePowerCtrl(void)
 		
 		c_rst = CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);//上报充电计划执行事件
 		if(c_rst == SUCCESSFUL)
-			rt_kprintf("[energycon]  (%s) Ctrl_ChgExe_Event,Cmd_ChgPlanExeState,The last one,Successful!\n",__func__);
+			rt_kprintf("[strategy]  (%s) Ctrl_ChgExe_Event,Cmd_ChgPlanExeState,The last one,Successful!\n",__func__);
 		else
-			rt_kprintf("[energycon]  (%s) 最后一次上报执行充电计划，失败！\n",__func__);
+			rt_kprintf("[strategy]  (%s) 最后一次上报执行充电计划，失败！\n",__func__);
 	}
 	
 }
@@ -1248,9 +1340,9 @@ static void ChgOrder_Apply(void)
 			ChgOrder_Event.ucChargeEle[i] = ChgOrder_Event.StopMeterValue[i] - ChgOrder_Event.StartMeterValue[i]; 
 		//计算已充时间
 		time_t start_time = 0;
-		rt_kprintf("[energycon]  (%s) calculate start_time!\n",__func__);
+		rt_kprintf("[strategy]  (%s) calculate start_time!\n",__func__);
 		start_time = TimeCalculation(ChgOrder_Event.ChgStartTime);
-		rt_kprintf("[energycon]  (%s) get start_time!\n",__func__);
+		rt_kprintf("[strategy]  (%s) get start_time!\n",__func__);
 		time_t stop_time = 0;
 		stop_time = TimeCalculation(ChgOrder_Event.ChgStopTime);
 		ChgOrder_Event.ucChargeTime = stop_time - start_time;
@@ -1259,11 +1351,11 @@ static void ChgOrder_Apply(void)
 //		s_rst = SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));
 //		if(s_rst == SUCCESSFUL)
 //		{
-//			rt_kprintf("[energycon]  (%s) Storage ChgOrder_Event, Successful!\n",__func__);
+//			rt_kprintf("[strategy]  (%s) Storage ChgOrder_Event, Successful!\n",__func__);
 //		}
 //		else
 //		{
-//			rt_kprintf("[energycon]  (%s) 保存充电订单事件，失败！\n",__func__);
+//			rt_kprintf("[strategy]  (%s) 保存充电订单事件，失败！\n",__func__);
 //			SetStorageData(Cmd_HistoryRecordWr,&ChgOrder_Event,sizeof(CHG_ORDER_EVENT));//再存一次
 //		}
 
@@ -1351,8 +1443,8 @@ static void strategy_thread_entry(void *parameter)
 	
 	rt_thread_mdelay(3000);
 	
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo.AssetNum,13);
-	rt_thread_mdelay(100);
+//	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));
+//	rt_thread_mdelay(100);
 	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
