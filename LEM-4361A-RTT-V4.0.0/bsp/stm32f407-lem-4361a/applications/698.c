@@ -1943,7 +1943,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	temp_char=Data_array;//已充电量	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=priv_struct->ucTimeSlotNum=5;//长度//测试
+	temp_char=priv_struct->ucTimeSlotNum;//长度//测试
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<priv_struct->ucTimeSlotNum;j++){
@@ -2089,7 +2089,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 
 
 	//路由器资产编号   visible-string（SIZE(22)）
-  len=5;
+
   len=temp_char=priv_struct->cAssetNO[0];
 	if(len>(sizeof(priv_struct->cAssetNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cAssetNO \n",__func__);
@@ -2147,7 +2147,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	temp_char=Data_array;//数组类型
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
-	temp_char=priv_struct->ucTimeSlotNum=5;//数组数量//测试
+	temp_char=priv_struct->ucTimeSlotNum;//数组数量//测试
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	if(priv_struct->ucTimeSlotNum==0){
 		return 0;
@@ -2580,7 +2580,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 
 
 						//路由器资产编号  visible-string（SIZE(22)）
-						len=5;
+
 						len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量
 						if(len>sizeof(ChgPlanIssue_rsp.cAssetNO)){
 							rt_kprintf("[hplc]  (%s) len> array size  ChgPlanIssue_rsp.cAssetNO \n",__func__);
@@ -2647,7 +2647,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
 								
 					//充电申请单号 octet-string（SIZE(16)）
-				  len=5;
+
 					len=temp_char=ChgPlanAdjust_rsp.cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 					if(len>sizeof(ChgPlanAdjust_rsp.cRequestNO)){
 						rt_kprintf("[hplc]  (%s) len> array size  ChgPlanAdjust_rsp.cRequestNO\n",__func__);
@@ -2658,7 +2658,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 	
 
 				//路由器资产编号   visible-string（SIZE(22)）
-					len=5;
+
 					len=temp_char=ChgPlanAdjust_rsp.cAssetNO[0];
 					if(len>sizeof(ChgPlanAdjust_rsp.cAssetNO)){
 						rt_kprintf("[hplc]  (%s) len> array size ChgPlanAdjust_rsp.cAssetNO \n",__func__);
