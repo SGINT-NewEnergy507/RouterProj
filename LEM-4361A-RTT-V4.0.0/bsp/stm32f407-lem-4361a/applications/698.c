@@ -6020,21 +6020,21 @@ unsigned char tmp_addr[6];
 //	
 //	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
 
-		for(i=0;i<13;i++){
-			j=i/2;
-			addr[j]=(RouterIfo.Addr[13-i]-0x30);
-			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-			i++;
-			addr[j]=(RouterIfo.Addr[13-i]-0x30)*10;
-			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-			
-			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
-		}
-		
-//		for(i=0;i<(tmp_addr[0]/2);i++){
-//			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
-//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+//		for(i=0;i<13;i++){
+//			j=i/2;
+//			addr[j]=(RouterIfo.Addr[13-i]-0x30);
+//			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[%d]=%0x \n",__func__,13-i,RouterIfo.Addr[13-i]);
+//			i++;
+//			addr[j]=(RouterIfo.Addr[13-i]-0x30)*10;
+//			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[%d]=%0x \n",__func__,13-i,RouterIfo.Addr[13-i]);
+//			
+//			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
 //		}
+		
+		for(i=0;i<(tmp_addr[0]/2);i++){
+			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
+			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
+		}
 		addr[0]=0x11;//测试
 		return 0;	
 
