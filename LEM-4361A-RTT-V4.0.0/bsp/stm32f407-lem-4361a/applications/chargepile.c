@@ -45,7 +45,7 @@ u8 software_date[8]={0};//软件生成日期 初始化为空格
 u8 software_time[6]={0};//软件生成时间
 static u32 can_heart_count = 0;
 //static char  Printf_Buffer[256] = {0};
-static char Sprintf_Buffer[8];
+//static char Sprintf_Buffer[8];
 #define FlashBufLenMax             1024
 __align(4) u8 STMFLASH_BUFF[FlashBufLenMax+2];
 u32 STMFLASH_LENTH = 0;
@@ -584,7 +584,7 @@ void print_can_msg(struct rt_can_msg *data)
 		sprintf((char*)Sprintf_Buffer,"%02X",data->data[i]); 
 		strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 	}
-	rt_lprintf("%s\n",Printf_Buffer);
+	rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 }
 /**************************************************************
 * 函数名称: can_rx_ind
@@ -620,17 +620,17 @@ static void chargepile_thread_entry(void *parameter)
 		switch(STR_ChargePile_A.ChgState)
 		{
 			case state_PowerON:// 上电状态
-				rt_lprintf("chargepile:State_PowerON\n");
+				rt_lprintf("[chargepile]: State_PowerON\n");
 			
 				break;			
 			case state_WaitVertionCheck://等待版本校验应答
 				Inform_Communicate_Can(VertionCheckFrame,FALSE);
-				rt_lprintf("chargepile:State_WaitVertionCheck\n");
+				rt_lprintf("[chargepile]: State_WaitVertionCheck\n");
 			
 				break;
 			case state_WaitPilePara://等待充电桩参数应答
 				Inform_Communicate_Can(ChargeParaInfoFrame,FALSE);
-				rt_lprintf("chargepile:State_WaitPilePara\n");
+				rt_lprintf("[chargepile]: State_WaitPilePara\n");
 			
 				break;
 			case state_Standby://初始化完成->待机
@@ -646,36 +646,36 @@ static void chargepile_thread_entry(void *parameter)
 //					rt_kprintf("chargepile:未接收ChargePileEvent 0x%02X\n", ch);
 //				}				
 			
-				rt_lprintf("chargepile:State_Standby\n");
+				rt_lprintf("[chargepile]: State_Standby\n");
 			
 				break;
 			case state_ChargStart://接收到启动充电命令 开始下发充电命令
 				Inform_Communicate_Can(ChargeStartFrame,FALSE);
-				rt_lprintf("chargepile:ChargeStartFrame\n");
+				rt_lprintf("[chargepile]: ChargeStartFrame\n");
 				STR_ChargePile_A.ChgState = state_WaitChargeStartFrameAsk;
 			
 				break;
 			case state_WaitChargeStartFrameAsk://接收到启动充电命令 开始下发充电命令
-				rt_lprintf("chargepile:State_WaitCharging\n");
+				rt_lprintf("[chargepile]: State_WaitCharging\n");
 			
 				break;
 			case state_Charging://交互成功，充电中
 				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
-				rt_lprintf("chargepile:state_Charging\n");
+				rt_lprintf("[chargepile]: state_Charging\n");
 			
 				break;
 			case state_ToCheck://接收到停机命令 开始下发停机命令
 				Inform_Communicate_Can(ChargeStopFrame,FALSE);
-				rt_lprintf("chargepile:ChargeStopFrame\n");
+				rt_lprintf("[chargepile]: ChargeStopFrame\n");
 				STR_ChargePile_A.ChgState = state_WaitChargeStartFrameAsk;
 			
 				break;
 			case state_WaitChargeStopFrameAsk://等待停止充电应答帧
-				rt_lprintf("chargepile:State_WaitChargeStopFrameAsk\n");
+				rt_lprintf("[chargepile]: State_WaitChargeStopFrameAsk\n");
 			
 				break;
 			case state_WaitStop://等待停止充电应答帧
-				rt_lprintf("chargepile:state_WaitStop\n");
+				rt_lprintf("[chargepile]: state_WaitStop\n");
 			
 				break;
 			case state_ChargEnd://等待停止充电应答帧
@@ -684,16 +684,16 @@ static void chargepile_thread_entry(void *parameter)
 				StrStateFrame.YxBackupSendDataFrameReSendFlag = TRUE; 
 				STR_ChargePile_A.ChgState = state_Standby;
 				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
-				rt_lprintf("chargepile:State_ChargEnd->State_Standby\n");
+				rt_lprintf("[chargepile]: State_ChargEnd->State_Standby\n");
 			
 				break;
 			default:
-				rt_lprintf("chargepile:default\n");
+				rt_lprintf("[chargepile]: default\n");
 				break;			
 		}
 //        extern rt_uint8_t cpu_usage_current,cpu_usage_max;
-//		rt_lprintf("cpu_usage_current=%u%%,cpu_usage_max=%u%%\n",cpu_usage_current,cpu_usage_max);
-//		rt_lprintf("RunTime=%u秒\n",RunTime);
+//		rt_lprintf("[chargepile]: cpu_usage_current=%u%%,cpu_usage_max=%u%%\n",cpu_usage_current,cpu_usage_max);
+//		rt_lprintf("[chargepile]: RunTime=%u秒\n",RunTime);
 //		extern long list_thread(void);
 //		list_thread();
 //		extern void list_mem(void);
@@ -771,7 +771,7 @@ static void chargepileRev_thread_entry(void *parameter)
 			can_heart_count = 0x00; //清空心跳包计数
 			memset(&StrStateFrame,0x00,sizeof(STR_STATE_FRAME));
 			STR_ChargePile_A.ChgState = state_WaitVertionCheck;		
-			rt_lprintf("can1_task:NO Receive Heart,Reboot!\r\n"); //
+			rt_lprintf("[chargepile]: can1_task:NO Receive Heart,Reboot!\r\n"); //
 		}
 
 		rt_thread_mdelay(can1RevCycle);
@@ -1679,7 +1679,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == TimingFrame)
 	{
@@ -1693,7 +1693,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == VertionCheckFrame)
 	{
@@ -1707,7 +1707,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeParaInfoFrame)
 	{
@@ -1721,7 +1721,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeServeOnOffFrame)
 	{
@@ -1735,7 +1735,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ElecLockFrame)
 	{
@@ -1749,7 +1749,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == PowerAdjustFrame)
 	{
@@ -1763,7 +1763,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == PileParaInfoFrame)
 	{
@@ -1777,7 +1777,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeStartStateFrame)
 	{
@@ -1791,7 +1791,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == ChargeStopStateFrameAck)
 	{
@@ -1805,7 +1805,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == YcRecDataFrame)
 	{
@@ -1819,7 +1819,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == HeartRecFrame)
 	{
@@ -1833,7 +1833,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == RecErrorStateFrame)
 	{
@@ -1847,7 +1847,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}	
 	else if(pRxcmdstate == FunPwmFrame)
 	{
@@ -1861,7 +1861,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else if(pRxcmdstate == UpdateBeginFrame)
 	{
@@ -1875,7 +1875,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	else
 	{
@@ -1889,7 +1889,7 @@ void CAN_V110_RecProtocal(void)
 			sprintf((char*)Sprintf_Buffer,"%02X",pCan->data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);			
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);			
 	}
 	
 	switch(pRxcmdstate)   //命令号
@@ -1898,20 +1898,20 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.ChargeStopFrameReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ChargeStopFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ChargeStopFrame!\n");
 				
 				break;
 			}
 
             StrStateFrame.ChargeStopFrameReSendFlag = TRUE;			
-			rt_lprintf("CAN_V110_Rec:Rec ChargeStopFrameAck\n");
+			rt_lprintf("[chargepile]: CAN_V110_Rec:Rec ChargeStopFrameAck\n");
 			StrStateSystem.ChargIdent = pCan->data[0];       //充电接口标识
 //			strCharStop.StopChargReson = pCan->data[1];      //停止充电原因0x01-正常停止0x02-故障终止0x03计费单元判断充电控制器故障停止
 			if(STR_ChargePile_A.ChgState == state_Charging)
 			{				
 				STR_ChargePile_A.ChgState = state_WaitStop;
 				WaitStop_time = 0;
-				rt_lprintf("Waring:state_WaitStop,WaitStop_time\n");
+				rt_lprintf("[chargepile]: Waring:state_WaitStop,WaitStop_time\n");
 			}
 
 			break;
@@ -1920,7 +1920,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.TimingFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double TimingFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double TimingFrame!\n");
 				
 				break;
 			}				
@@ -1943,23 +1943,23 @@ void CAN_V110_RecProtocal(void)
 //					In_RTC_Init(&System_Time_STR);      //初始化片内RTC
 //					SystemTimeToRTC(&System_Time_STR);  //初始化片外RTC
 				
-				rt_lprintf("Date:%02X-%02X-%02X Week:%x Time:%02X:%02X:%02X\n",System_Time_STR.Year,\
+				rt_lprintf("[chargepile]: Date:%02X-%02X-%02X Week:%x Time:%02X:%02X:%02X\n",System_Time_STR.Year,\
 																				System_Time_STR.Month,\
 																				System_Time_STR.Day,\
 																				System_Time_STR.Week,\
 																				System_Time_STR.Hour,\
 																				System_Time_STR.Minute,\
 																				System_Time_STR.Second); 		
-				rt_lprintf("CAN_V110_Rec:timing ok!\n");//									
+				rt_lprintf("[chargepile]: CAN_V110_Rec:timing ok!\n");//									
 			}
 			else
 			{
-				rt_lprintf("CAN_V110_Rec:rec time data error||gap<60s noneed timeing!\n");//
-				rt_lprintf("Date:%02X-%02X-%02X Week:%x",pCan->data[7]&0x7F,\
+				rt_lprintf("[chargepile]: CAN_V110_Rec:rec time data error||gap<60s noneed timeing!\n");//
+				rt_lprintf("[chargepile]: Date:%02X-%02X-%02X Week:%x",pCan->data[7]&0x7F,\
 														pCan->data[6]&0x0F,\
 														pCan->data[5]&0x1F,\
 														pCan->data[5]&0xE0); 		
-				rt_lprintf("Time:%02X:%02X:%02X\n",pCan->data[4]&0x1F,\
+				rt_lprintf("[chargepile]: Time:%02X:%02X:%02X\n",pCan->data[4]&0x1F,\
 													 pCan->data[3]&0x3F,\
 													 temp);
 			}
@@ -1971,7 +1971,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.VertionCheckFrameReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double VertionCheckFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double VertionCheckFrame!\n");
 				break;
 			}				
 			
@@ -1980,12 +1980,12 @@ void CAN_V110_RecProtocal(void)
 			if((STR_ChargePile_A.ChgState == state_WaitVertionCheck)&&(Pro_Version == temp))
 			{			
 				STR_ChargePile_A.ChgState = state_WaitPilePara;	
-				rt_lprintf("CAN_V110_Rec:ChgState = State_WaitPilePara!\n");
+				rt_lprintf("[chargepile]: CAN_V110_Rec:ChgState = State_WaitPilePara!\n");
 				StrStateFrame.VertionCheckFrameReSendFlag = TRUE;
 			}
 			else
 			{
-				rt_lprintf("cuowu:CAN_V110_Rec:ChgState=%u!\n",STR_ChargePile_A.ChgState);
+				rt_lprintf("[chargepile]: cuowu:CAN_V110_Rec:ChgState=%u!\n",STR_ChargePile_A.ChgState);
 			}
 			
 			break;
@@ -1994,7 +1994,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.ChargeParaInfoFrameReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ChargeParaInfoFrameAck\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ChargeParaInfoFrameAck\n");
 				break;
 			}
 			
@@ -2005,15 +2005,15 @@ void CAN_V110_RecProtocal(void)
 				STR_ChargePile_A.ChgState = state_Standby;
 				StrStateFrame.VertionCheckFrameAckReSendFlag = FALSE;
 				StrStateFrame.VertionCheckFrameAckReSendCnt = 0;
-				rt_lprintf("CAN_V110_Rec:State_Standby\n");
+				rt_lprintf("[chargepile]: CAN_V110_Rec:State_Standby\n");
 				
 				StrStateFrame.YcSendDataFrameReSendFlag = TRUE;
 				StrStateFrame.YcSendDataFrameReSendCnt = 0;				
-				rt_lprintf("CAN_V110_Rec:Begin YcSendDataFrameReSendFlag\n");					
+				rt_lprintf("[chargepile]: CAN_V110_Rec:Begin YcSendDataFrameReSendFlag\n");					
 			}
 			else
 			{
-				rt_lprintf("Waring:Receive ChargeParaInfoFrameAck\n");
+				rt_lprintf("[chargepile]: Waring:Receive ChargeParaInfoFrameAck\n");
 				
 			}
 
@@ -2023,7 +2023,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.ChargeServeOnOffFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ChargeServeOnOffFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ChargeServeOnOffFrame!\n");
 				break;
 			}
 
@@ -2035,7 +2035,7 @@ void CAN_V110_RecProtocal(void)
 		{	
 			if(StrStateFrame.ElecLockFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ElecLockFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ElecLockFrame!\n");
 				break;
 			}				
 			
@@ -2073,7 +2073,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.PowerAdjustFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double PowerAdjustFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double PowerAdjustFrame!\n");
 				break;
 			}					
 			
@@ -2087,7 +2087,7 @@ void CAN_V110_RecProtocal(void)
 			//充电控制器向能源路由器发送"充电启动状态"：优先级0X04，PF：0X11
 			if(StrStateFrame.ChargeStartStateFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ChargeStartStateFrame\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ChargeStartStateFrame\n");
 				break;
 			}
 			StrStateSystem.ChargIdent = pCan->data[0];         // 充电接口标识
@@ -2099,13 +2099,13 @@ void CAN_V110_RecProtocal(void)
 				Inform_Communicate_Can(ChargeStartStateFrameAck,FALSE); // 启动状态应答
 				STR_ChargePile_A.ChgState = state_Charging;
 				rt_event_send(&ChargePileEvent, ChargeStartOK_EVENT);
-				rt_lprintf("monitor_task:state_Charging&ChargeStartOK_EVENT\n");
+				rt_lprintf("[chargepile]: monitor_task:state_Charging&ChargeStartOK_EVENT\n");
 			}
 
 			StrStateFrame.ChargeStartStateFrameAckReSendFlag = TRUE;
-			rt_lprintf("CAN_V110_Rec:Receive ChargeStartStateFrame\n");
+			rt_lprintf("[chargepile]: CAN_V110_Rec:Receive ChargeStartStateFrame\n");
 //			rt_timer_stop(DownCount_Time);	//关闭定时器	
-//			rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
+//			rt_lprintf("[chargepile]: CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
 
 			break;
 		}		
@@ -2114,7 +2114,7 @@ void CAN_V110_RecProtocal(void)
 			//充电控制器向能源路由器发送"充电停止状态"：优先级0X04，PF：0X13
 			if(StrStateFrame.ChargeStopStateFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double ChargeStopStateFrame\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double ChargeStopStateFrame\n");
 				break;
 			}
 			StrStateSystem.ChargIdent = pCan->data[0];         // 充电接口标识
@@ -2125,19 +2125,19 @@ void CAN_V110_RecProtocal(void)
 				Inform_Communicate_Can(ChargeStopStateFrameAck,FALSE); // 启动状态应答
 				STR_ChargePile_A.ChgState = state_ChargEnd;
 				rt_event_send(&ChargePileEvent, ChargeStopOK_EVENT);
-				rt_lprintf("monitor_task:State_ChargEnd&ChargeStopOK_EVENT\n");
+				rt_lprintf("[chargepile]: monitor_task:State_ChargEnd&ChargeStopOK_EVENT\n");
 			}
 
 			StrStateFrame.ChargeStopStateFrameAckReSendFlag = TRUE;
-			rt_lprintf("CAN_V110_Rec:Receive ChargeStopStateFrameAckReSendFlag\n");
+			rt_lprintf("[chargepile]: CAN_V110_Rec:Receive ChargeStopStateFrameAckReSendFlag\n");
 //			rt_timer_stop(DownCount_Time);	//关闭定时器	
-//			rt_lprintf("CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
+//			rt_lprintf("[chargepile]: CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
 
 			break;
 		}
 		case YcRecDataFrame://能源路由器向充电控制器周期性发送遥测数据：优先级0X06，PF0X31。
 		{
-//				rt_lprintf("CAN_V110_Rec:Rec YcRecDataFrame!\n");
+//				rt_lprintf("[chargepile]: CAN_V110_Rec:Rec YcRecDataFrame!\n");
 			chgYC.MesNum = pCan->data[0]; //当前报文序号
 			if(chgYC.MesNum == 1)
 			{
@@ -2158,8 +2158,8 @@ void CAN_V110_RecProtocal(void)
 				strYC.ChargVc = (pCan->data[3]<<8) + pCan->data[2];
 				strYC.ChargIa = (pCan->data[5]<<8) + pCan->data[4];
 				strYC.ChargIb = (pCan->data[7]<<7) + pCan->data[6];
-				rt_lprintf("ChargIa=%u(.xx安)\n",strYC.ChargIa);
-				rt_lprintf("ChargIb=%u(.xx安)\n",strYC.ChargIb);				
+				rt_lprintf("[chargepile]: ChargIa=%u(.xx安)\n",strYC.ChargIa);
+				rt_lprintf("[chargepile]: ChargIb=%u(.xx安)\n",strYC.ChargIb);				
 				for(i=1;i<8;i++)
 				{
 					chgYC.Addition += pCan->data[i];
@@ -2168,7 +2168,7 @@ void CAN_V110_RecProtocal(void)
 			else if(chgYC.MesNum == 3)
 			{
 				strYC.ChargIc = (pCan->data[2]<<8) + pCan->data[1];
-				rt_lprintf("ChargIc=%u(.xx安)\n",strYC.ChargIc);
+				rt_lprintf("[chargepile]: ChargIc=%u(.xx安)\n",strYC.ChargIc);
 				strYC.V_cp1 = (pCan->data[4]<<8) + pCan->data[3];
 				STR_ChargePile_A.PWM_Duty = ((pCan->data[6]<<8) + pCan->data[5])/10;
 				strYC.Tempt1 = pCan->data[7];			   
@@ -2190,12 +2190,12 @@ void CAN_V110_RecProtocal(void)
 				
 			   if(chgYC.Addition == chgYC.TotalCheck)
 			   {
-					rt_lprintf("CAN_V110_Rec:Rec YC,Send YcSendDataFrame!\n");
+					rt_lprintf("[chargepile]: CAN_V110_Rec:Rec YC,Send YcSendDataFrame!\n");
 //					Inform_Communicate_Can(YcSendDataFrame,FALSE);							
 			   }
 			   else
 			   {
-					rt_lprintf("CAN_V110_Rec:YcRecDataFrame TotalCheck error!\n");// 接收校验失败
+					rt_lprintf("[chargepile]: CAN_V110_Rec:YcRecDataFrame TotalCheck error!\n");// 接收校验失败
 			   }
 			}
 			break;
@@ -2247,7 +2247,7 @@ void CAN_V110_RecProtocal(void)
 			StrStateSystem.RecStatus = pCan->data[2];  // 心跳报文接收状态
 			if(StrStateSystem.RecStatus == FAILED)
 			{
-				rt_lprintf("Error:接收到异常心跳帧\n");
+				rt_lprintf("[chargepile]: Error:接收到异常心跳帧\n");
 			}
 			
 			break;
@@ -2261,7 +2261,7 @@ void CAN_V110_RecProtocal(void)
 //				StrErrData.WStartCharTimeOut = pCan->data[1]&0x08;   // 等待启动充电完成状态超时
 //				StrErrData.StopCharConTimeOut = pCan->data[1]&0x10;  // 停止充电命令确认超时  
 //				StrErrData.WStopCharTimeOut = pCan->data[1]&0x20;    // 等待停止充电完成状态超时 
-			rt_lprintf("Error:Receive RecErrorStateFrame\n");
+			rt_lprintf("[chargepile]: Error:Receive RecErrorStateFrame\n");
 			
 			break;
 		}
@@ -2269,7 +2269,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.PileParaInfoFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double PileParaInfoFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double PileParaInfoFrame!\n");
 				break;
 			}
 			Inform_Communicate_Can(PileParaInfoFrameAck,FALSE);
@@ -2282,7 +2282,7 @@ void CAN_V110_RecProtocal(void)
 //				STR_Charge_B.PWM_Duty = pCan->data[1]*10;     // 设置B枪PWM占空比	
 //				PWM_SET_B(STR_Charge_B.PWM_Duty); 			
 
-//				rt_lprintf("CAN_V110_Rec:STR_Charge_B.PWM_Duty=%u!\n",STR_Charge_B.PWM_Duty);
+//				rt_lprintf("[chargepile]: CAN_V110_Rec:STR_Charge_B.PWM_Duty=%u!\n",STR_Charge_B.PWM_Duty);
 			
 			break;
 		}
@@ -2290,7 +2290,7 @@ void CAN_V110_RecProtocal(void)
 		{
 			if(StrStateFrame.UpdateBeginFrameAckReSendFlag == TRUE)  // 收到重复命令
 			{
-				rt_lprintf("Waring:Receive Double UpdateBeginFrame!\n");
+				rt_lprintf("[chargepile]: Waring:Receive Double UpdateBeginFrame!\n");
 				
 				break;
 			}				
@@ -2302,7 +2302,7 @@ void CAN_V110_RecProtocal(void)
 //					if(g_flash_txt == NULL)  
 //					{
 //						g_flash_txt=(FIL *)mymalloc(SRAMCCM,sizeof(FIL));//开辟FIL字节的内存区域
-//						rt_lprintf("Can_Update:g_flash_txt=%u\n",g_flash_txt);
+//						rt_lprintf("[chargepile]: Can_Update:g_flash_txt=%u\n",g_flash_txt);
 //					}	
 //					//目标文件夹存在该文件,先删除
 //					rt_lprintf("%s file delete,res=%u!\n",FLASH_FILE_PROGRAM_BIN_FILE,f_unlink((const TCHAR *)FLASH_FILE_PROGRAM_BIN_FILE));
@@ -2319,7 +2319,7 @@ void CAN_V110_RecProtocal(void)
 //	                chgUpdate.NoDownloadReason = 0x00;          //禁止下载原因	0x00：无 0x01：本身不支持此功能 0x02：数据合法性校验失败
 //					ProgramUpdatePara(WRITE);
 //					STR_ChargePile_A.ChgState = State_Update;
-//					rt_lprintf("CAN_V110_Rec:ChgState:State_Update\n");
+//					rt_lprintf("[chargepile]: CAN_V110_Rec:ChgState:State_Update\n");
 
 				rt_timer_stop(CAN_Heart_Tx);// 关闭定时器
 				rt_timer_stop(CAN_250ms_Tx);// 关闭定时器
@@ -2331,9 +2331,9 @@ void CAN_V110_RecProtocal(void)
 //	                chgUpdate.UpdateConfIdent = 0x01;//确认标识 0x00：允许下载 0x01：禁止下载 其他：无效
 //	                chgUpdate.NoDownloadReason = 0x01;//禁止下载原因	0x00：无 0x01：本身不支持此功能 0x02：数据合法性校验失败					
 //					Inform_Communicate_Can(UpdateBeginFrameAck,FALSE);										
-				rt_lprintf("CAN_V110_Rec:ChgState=%u,App_Mark=%u\n",STR_ChargePile_A.ChgState,STR_ProgramUpdate.App_Mark);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:ChgState=%u,App_Mark=%u\n",STR_ChargePile_A.ChgState,STR_ProgramUpdate.App_Mark);
 			}
-			rt_lprintf("CAN_V110_Rec:接收到升级命令!!!!!!!!!!!!\n");
+			rt_lprintf("[chargepile]: CAN_V110_Rec:接收到升级命令!!!!!!!!!!!!\n");
 			
 			break;
 		}
@@ -2345,12 +2345,12 @@ void CAN_V110_RecProtocal(void)
 				StrStateSystem.DeviceType = pCan->data[1];
 				STR_ProgramUpdate.file_totalNo = (pCan->data[3]<<8) + pCan->data[2];
 				STR_ProgramUpdate.file_ByteNo = (pCan->data[7]<<24) + (pCan->data[6]<<16) + (pCan->data[5]<<8) + pCan->data[4];									
-				rt_lprintf("CAN_V110_Rec:file_totalNo=%u,file_ByteNo=%u\n",STR_ProgramUpdate.file_totalNo,STR_ProgramUpdate.file_ByteNo);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:file_totalNo=%u,file_ByteNo=%u\n",STR_ProgramUpdate.file_totalNo,STR_ProgramUpdate.file_ByteNo);
 //					OSSemPost(MY_CAN_A);//发送信号量 收到请求发送数据帧
 			}
 			else
 			{										
-				rt_lprintf("CAN_V110_Rec:ChgState=%u\n",STR_ChargePile_A.ChgState);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:ChgState=%u\n",STR_ChargePile_A.ChgState);
 			}
 			
 			break;
@@ -2364,11 +2364,11 @@ void CAN_V110_RecProtocal(void)
 				chgUpdate.ValDataLen = (pCan->data[3]<<8) + pCan->data[2];//报文有效数据长度
 				StrStateSystem.ChargIdent = pCan->data[4];//充电接口标识
 				StrStateSystem.DeviceType = pCan->data[5];//设备类型
-				rt_lprintf("CAN_V110_Rec:FrameNum=%u,ValDataLen=%u\n",chgUpdate.FrameNum,chgUpdate.ValDataLen);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:FrameNum=%u,ValDataLen=%u\n",chgUpdate.FrameNum,chgUpdate.ValDataLen);
 				memcpy(STMFLASH_BUFF+STMFLASH_LENTH,&(pCan->data[6]),2);	        //将当前数据包放入缓存中
 				STMFLASH_LENTH += 2;															
 				STR_ProgramUpdate.Update_Message_No++;					
-				rt_lprintf("CAN_V110_Rec:STMFLASH_LENTH=%u,Update_Message_No=%u\n",STMFLASH_LENTH,STR_ProgramUpdate.Update_Message_No);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:STMFLASH_LENTH=%u,Update_Message_No=%u\n",STMFLASH_LENTH,STR_ProgramUpdate.Update_Message_No);
 				chgUpdate.AdditionUp = 0x0000;
 				for(i=1;i<8;i++)
 				{
@@ -2384,7 +2384,7 @@ void CAN_V110_RecProtocal(void)
 				//判断最后一帧数据
 				if(chgUpdate.FrameNum == STR_ProgramUpdate.Update_Message_No)
 				{
-					rt_lprintf("CAN_V110_Rec:ValDataLen=%u,STMFLASH_LENTH=%u\n",chgUpdate.ValDataLen,STMFLASH_LENTH);
+					rt_lprintf("[chargepile]: CAN_V110_Rec:ValDataLen=%u,STMFLASH_LENTH=%u\n",chgUpdate.ValDataLen,STMFLASH_LENTH);
 					memcpy(STMFLASH_BUFF+STMFLASH_LENTH,&(pCan->data[1]),chgUpdate.ValDataLen - STMFLASH_LENTH);//将当前数据包放入缓存中
 					STMFLASH_LENTH = chgUpdate.ValDataLen - 2;
 					for(i=2;i<STMFLASH_LENTH;i++)//前两个数据已经在第一帧中校验
@@ -2397,7 +2397,7 @@ void CAN_V110_RecProtocal(void)
 					if(chgUpdate.AdditionUp == chgUpdate.RevCheckUp)
 					{
 //							Bin_Write_File((char *)FLASH_FILE_PROGRAM_BIN_FILE,STMFLASH_BUFF,STMFLASH_LENTH);
-//							rt_lprintf("CAN_V110_Rec:接收第%u包-序号%u帧正确\n",STR_ProgramUpdate.Update_Package_No,STR_ProgramUpdate.Update_Message_No);
+//							rt_lprintf("[chargepile]: CAN_V110_Rec:接收第%u包-序号%u帧正确\n",STR_ProgramUpdate.Update_Package_No,STR_ProgramUpdate.Update_Message_No);
 //							//判断不是最后一包数据
 //							if(STR_ProgramUpdate.file_totalNo == STR_ProgramUpdate.Update_Package_No)
 //							{
@@ -2417,7 +2417,7 @@ void CAN_V110_RecProtocal(void)
 					else
 					{
 						chgUpdate.ErrResendCount++;
-						rt_lprintf("CAN_V110_Rec:CRC错误-AdditionUp=%u,RevCheckUp=%u,ErrResendCount=%u\n",chgUpdate.AdditionUp,chgUpdate.RevCheckUp,chgUpdate.ErrResendCount);
+						rt_lprintf("[chargepile]: CAN_V110_Rec:CRC错误-AdditionUp=%u,RevCheckUp=%u,ErrResendCount=%u\n",chgUpdate.AdditionUp,chgUpdate.RevCheckUp,chgUpdate.ErrResendCount);
 
 						if(chgUpdate.ErrResendCount >= 3)
 						{
@@ -2432,7 +2432,7 @@ void CAN_V110_RecProtocal(void)
 							Inform_Communicate_Can(SendErrorStateFrame,FALSE);
 							chgUpdate.ErrResendCount = 0;
 							STR_ChargePile_A.ChgState = state_Standby;
-							rt_lprintf("CAN_V110_Rec:升级失败,回到待机\n");
+							rt_lprintf("[chargepile]: CAN_V110_Rec:升级失败,回到待机\n");
 							rt_timer_start(CAN_Heart_Tx);	// 开启定时器
 							rt_timer_start(CAN_250ms_Tx);	// 开启定时器
 						}
@@ -2455,10 +2455,10 @@ void CAN_V110_RecProtocal(void)
 			}
 			else
 			{
-				rt_lprintf("CAN_V110_Rec:错误-MessageNum=%u\n",chgUpdate.MessageNum);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:错误-MessageNum=%u\n",chgUpdate.MessageNum);
 			}
 //				OSSemPost(MY_CAN_A);//发送信号量 离线上传成功
-			rt_lprintf("CAN_V110_Rec:接收到数据帧序号=%u\n",chgUpdate.MessageNum);
+			rt_lprintf("[chargepile]: CAN_V110_Rec:接收到数据帧序号=%u\n",chgUpdate.MessageNum);
 			break; 
 		}
 		case UpdateCheckFrame:	//接收程序校验数据帧
@@ -2476,7 +2476,7 @@ void CAN_V110_RecProtocal(void)
 				STR_ProgramUpdate.Update_Confirm = 0x01;    //升级标志  0成功   1失败
 				chgUpdate.UpdateConfIdent = 0x01;           //确认标识 0x00：成功 0x01：失败 其他：无效
 				chgUpdate.NoDownloadReason = 0x01;          //禁止下载原因	0x00：无 0x01：校验不成功 0x02：檫除失败 0x03：接收不完整
-				rt_lprintf("CAN_V110_Rec:Error AdditionAll=0x%08X\n",STR_ProgramUpdate.AdditionAll);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:Error AdditionAll=0x%08X\n",STR_ProgramUpdate.AdditionAll);
 			}
 			Inform_Communicate_Can(UpdateCheckFrameAck,FALSE);
 //				OSSemPost(MY_CAN_A);//发送信号量 离线上传成功	
@@ -2494,7 +2494,7 @@ void CAN_V110_RecProtocal(void)
 //					if(g_flash_txt != NULL)  
 //					{
 //						myfree(SRAMCCM,g_flash_txt);
-//						rt_lprintf("CAN_V110_Rec:g_flash_txt=%u\n",g_flash_txt);
+//						rt_lprintf("[chargepile]: CAN_V110_Rec:g_flash_txt=%u\n",g_flash_txt);
 //						g_flash_txt = NULL;
 //						if(ProgramUpdatePara(WRITE))
 //						{
@@ -2503,7 +2503,7 @@ void CAN_V110_RecProtocal(void)
 //						}
 //						else
 //						{
-//							rt_lprintf("CAN_V110_Rec:ProgramUpdatePara WRITE_OK\n");									
+//							rt_lprintf("[chargepile]: CAN_V110_Rec:ProgramUpdatePara WRITE_OK\n");									
 //						}						
 //					}
 //					if(usbx.hdevclass==1)//优先存储到U盘
@@ -2517,7 +2517,7 @@ void CAN_V110_RecProtocal(void)
 			}
 			else
 			{
-				rt_lprintf("CAN_V110_Rec:Error ResetAct=%u!\n",StrStateSystem.ResetAct);
+				rt_lprintf("[chargepile]: CAN_V110_Rec:Error ResetAct=%u!\n",StrStateSystem.ResetAct);
 			}
 			
 			break;
@@ -2566,7 +2566,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == ChargeStopFrameAck)
 	{
@@ -2580,7 +2580,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);	
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);	
 	}
 	else if(SendCmd == YcSendDataFrame)
 	{
@@ -2594,7 +2594,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == TimingFrameAck)
 	{
@@ -2608,7 +2608,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == VertionCheckFrame)
 	{
@@ -2622,7 +2622,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}	
 	else if(SendCmd == ChargeParaInfoFrame)
 	{
@@ -2636,7 +2636,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeServeOnOffFrameAck)
 	{
@@ -2650,7 +2650,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ElecLockFrameAck)
 	{
@@ -2664,7 +2664,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == PowerAdjustFrameAck)
 	{
@@ -2678,7 +2678,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == PileParaInfoFrameAck)
 	{
@@ -2692,7 +2692,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeStartStateFrameAck)
 	{
@@ -2706,7 +2706,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == ChargeStopStateFrame)
 	{
@@ -2720,7 +2720,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == HeartSendFrame)
 	{
@@ -2734,7 +2734,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}
 	else if(SendCmd == SendErrorStateFrame)
 	{
@@ -2748,7 +2748,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);
 	}	
 	else
 	{
@@ -2762,7 +2762,7 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 length)
 			sprintf((char*)Sprintf_Buffer,"%02X",Tx_Message.data[i]); 
 			strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);			
 		}
-		rt_lprintf("%s\n",Printf_Buffer);		
+		rt_lprintf("[chargepile]: %s\n",Printf_Buffer);		
 	}
 
 	rt_device_write(chargepile_can, 0, &Tx_Message, sizeof(struct rt_can_msg));
