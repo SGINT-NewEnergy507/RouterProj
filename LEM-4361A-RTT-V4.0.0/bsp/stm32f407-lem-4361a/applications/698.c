@@ -1652,6 +1652,46 @@ int print_charge_strategy(CHARGE_STRATEGY * charge_strategy){
 
 
 /*****
+保存下发的功率调节参数
+*******/
+
+int action_response_power_adjust(CTL_CHARGE * CTL_CHARGE_Adj ,struct  _698_FRAME  *_698_frame_rev){
+	int i=0,j=0,count,len=0,position;
+	rt_kprintf("[hplc]  (%s) \n",__func__);
+	i=6;//指向了这个数,注意这个数
+	i++;//
+	i++;
+	if(_698_frame_rev->usrData[i]!=3){//—— 成员数量位置
+		rt_kprintf("[hplc]  (%s)  struct no. is not right _698_frame_rev->usrData[%d]=%x!! \n",__func__,i,_698_frame_rev->usrData[i]);				
+	}
+	//路由器资产编号 visible-stringg（SIZE(22)）
+	i+=2;//跳过上面的一个成员数量，一个类型
+	len=_698_frame_rev->usrData[i]+1;//
+	if(len>sizeof(CTL_CHARGE_Adj->cAssetNO)){
+		rt_kprintf("[hplc]  (%s) len=%d>sizeof(charge_strategy->cRequestNO)=%d  \n",__func__,len,sizeof(CTL_CHARGE_Adj->cAssetNO));						
+		return -1;	
+	}else{
+		rt_kprintf("[hplc]  (%s) len=%d<=sizeof(charge_strategy->cRequestNO)=%d  \n",__func__,len,sizeof(CTL_CHARGE_Adj->cAssetNO));						
+
+	}
+	my_strcpy_char(CTL_CHARGE_Adj->cAssetNO,(char *)_698_frame_rev->usrData,i,len);	
+
+
+	//枪序号
+	i+=len+1;//跳过上面的位，一个类型
+	//my_strcpy(&charge_strategy->ucDecMaker,_698_frame_rev->usrData,i,1);
+	CTL_CHARGE_Adj->GunNum=_698_frame_rev->usrData[i];
+	
+	//有功功率设定
+	i+=1+1;//跳过上面的位，一个类型,
+	unsigned_char_to_int(&CTL_CHARGE_Adj->SetPower,_698_frame_rev->usrData+i);	
+	
+}
+
+
+
+
+/*****
 下发充电计划单时，给结构体赋值
 *******/
 
@@ -1967,7 +2007,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 	
-	//用户ID visible-string（SIZE(64)）
+	//用户ID visible-string（SIZE(64)）//王云光说加上了
   len=5;
   len=temp_char=priv_struct->cUserID[0];
 	if(len>(sizeof(priv_struct->cUserID)-1)){
@@ -2699,8 +2739,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					rt_kprintf("[hplc]  (%s) start  rt_event_send \n",__func__);
 					
 //					action_response_charge_StartStop(&StartStopChg_ZHOU,_698_frame_rev);//存到周的里面
-					
-					
+				
 					strategy_event_send(Cmd_StartChg);
 					return 2;//发送事件	
 				}
@@ -2745,8 +2784,43 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					//rt_kprintf("[hplc]  (%s) stop  rt_event_send is ok \n",__func__);
 					return 2;//发送事件	
 				}
+			} else if(priv_698_state->oad_omd.attribute_id==129){//功率调节（参数）
+			
+
+				if(_698_ChgPlanIssue.need_package==1){
+					_698_ChgPlanIssue.need_package=0;
+					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
+
+					temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）					
+					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+					
+					temp_char=01;// OPTIONAL=0 表示没有数据
+					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+
+				}else{
+
+					if(1){//再处理一下用户上传的业务。
+						check_afair_from_botom(priv_698_state,hplc_data);
+					}					
+					if(_698_frame_rev->usrData_len>sizeof(_698_CTL_CHARGE_Adj_data)){
+						rt_kprintf("[hplc]  (%s)  usrData_len> array size  \n",__func__);
+						return -1;					
+					}
+
+					_698_CTL_CHARGE_Adj=*_698_frame_rev;
+					my_strcpy(_698_CTL_CHARGE_Adj_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
+					_698_CTL_CHARGE_Adj.usrData=_698_ChgPlanIssue_data;						
+					
+					_698_CTL_CHARGE_Adj.time_flag_positon=_698_frame_rev->usrData_len;//最后一位，只给方法用时有效
+		
+
+					action_response_power_adjust(&CTL_CHARGE_Adj,_698_frame_rev);					
+					strategy_event_send(Cmd_PowerAdj);						
+					return 2;//发送事件	
+				}
+		
 			}else{
-				rt_kprintf("[hplc]  (%s)  only deal   attribute_id==2  \n",__func__);
+				rt_kprintf("[hplc]  (%s)  can not deal the affair  \n",__func__);
 				return -1;
 			}				
 			break;					
@@ -3744,9 +3818,6 @@ int report_response_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struc
 	int result=0,num=0;//不发送返回1,如果发送，result=0;
 	unsigned char temp_char;
 
-
-	
-	
 	oad_package(&priv_698_state->oad_omd,_698_frame_rev,3);//跟oad复用
 	if(_698_frame_rev->need_package!=1){
 		_698_frame_rev->time_flag_positon+=4;	//也用做数据的开始帧
@@ -4753,7 +4824,7 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		
 		
 		case(report_response)://直接交给应用层就可以了，或者直接就不给
-			rt_kprintf("[hplc]  (%s)  report_response \n",__func__);
+			rt_kprintf("[hplc]  (%s)  report_response priv_698_state->current_report=%d\n",__func__,priv_698_state->current_report);
 //			result=report_response_notice_user(&data_rev->_698_frame,priv_698_state);
 			strategy_event_send(priv_698_state->current_report);
 			current_report_change(Cmd_Null);
@@ -5318,11 +5389,23 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	hplc_698_state.lock2=1;	
 	
 	event=0x00000001<<cmd;
-	switch(cmd){							//可加策略	
+	switch(cmd){	//可加策略
+		
+		case(Cmd_PowerAdj):	//将功率调节参数传给用户
+			rt_kprintf("[hplc]  (%s)  Cmd_PowerAdj  \n",__func__);	
+			*((CTL_CHARGE *)STR_SetPara)=CTL_CHARGE_Adj;								
+			break;
+
+		case(Cmd_PowerAdjAck)://功率调节应答,似乎没有参数
+			rt_kprintf("[hplc]  (%s)   Cmd_PowerAdjAck  \n",__func__);
+//			ChgPlanIssue_rsp=*((CHARGE_STRATEGY_RSP *)STR_SetPara);//可以用
+			hplc_event=hplc_event|event;						
+			break;				
+
+		
 		case(Cmd_ChgPlanIssue):	//将计划单传给用户
 			rt_kprintf("[hplc]  (%s)   Cmd_ChgPlanIssue  \n",__func__);	
 			*((CHARGE_STRATEGY *)STR_SetPara)=charge_strategy_ChgPlanIssue;
-
 		
 			//拷贝给他,指针结构体直接赋值不成功！？									
 			break;
@@ -5511,6 +5594,25 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	hplc_698_state.lock2=1;
 	
 
+	if(hplc_event&(0x1<<Cmd_PowerAdjAck)){	//功率调节应答	
+		hplc_event&=(~(0x1<<Cmd_PowerAdjAck));	
+		rt_kprintf("[hplc]  (%s)   Cmd_PowerAdjAck  \n",__func__);
+		_698_CTL_CHARGE_Adj.need_package=1;
+		//用小周的来填充我的_698_ChgPlanIssue，然后进行组应答帧		
+		result=action_response_package(&_698_CTL_CHARGE_Adj,priv_698_state,data_tx);//发送
+
+		if( result!=0){
+				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
+		}else{//下面是需要回复的情况
+			if(Cmd_security_package(&_698_CTL_CHARGE_Adj,priv_698_state,data_tx)==0){
+				hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
+				printmy(&data_tx->_698_frame);
+			}		
+		}		
+	}		
+	
+	
+	
 
 	if(hplc_event&(0x1<<Cmd_ChgPlanIssueAck)){	//充电计划下发应答	
 		hplc_event&=(~(0x1<<Cmd_ChgPlanIssueAck));	
@@ -5905,35 +6007,38 @@ int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 int get_meter_addr(unsigned char * addr){//需要别人提供接口
 unsigned char tmp_addr[6];
 	int i=0,j=0;
-	addr[0]=0x11;
-	addr[1]=0x00;	
-	addr[2]=0x00;
-	addr[3]=0x00;
-	addr[4]=0x00;	
-	addr[5]=0x00;
+//	addr[0]=0x11;
+//	addr[1]=0x00;	
+//	addr[2]=0x00;
+//	addr[3]=0x00;
+//	addr[4]=0x00;	
+//	addr[5]=0x00;
 	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
 	
 
 //	
 //	if(GetStorageData(Cmd_MeterNumRd,tmp_addr,13)==0){
 
-//		for(i=0;i<13;i++){
-////			j=i/2;
-////			addr[j]=(tmp_addr[13-i]-0x30);
-////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-////			i++;
-////			addr[j]=(tmp_addr[13-i]-0x30)*10;
-////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
-//			
-//			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
+		for(i=0;i<13;i++){
+			j=i/2;
+			addr[j]=(RouterIfo.Addr[13-i]-0x30);
+			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+			i++;
+			addr[j]=(RouterIfo.Addr[13-i]-0x30)*10;
+			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x \n",__func__,13-i,tmp_addr[13-i]);
+			
+			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i,tmp_addr[i]);
+		}
+		
+//		for(i=0;i<(tmp_addr[0]/2);i++){
+//			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
+//			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
 //		}
-//		
-////		for(i=0;i<(tmp_addr[0]/2);i++){
-////			addr[i]=((tmp_addr[tmp_addr[0]-i*2-1]-0x30)<<4 | (tmp_addr[tmp_addr[0]-i*2]-0x30));
-////			rt_kprintf("[hplc]  (%s)  tmp_addr[%d]=%0x addr[]=%0x\n",__func__,i,tmp_addr[i],addr[i]);//重要信息需要打印		
-////		}
-////		addr[0]=0x11;
-//		return 0;	
+		addr[0]=0x11;//测试
+		return 0;	
+
+
+
 //	}else{
 //		return -1;
 //	}
