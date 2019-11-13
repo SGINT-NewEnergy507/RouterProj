@@ -11,7 +11,7 @@
 
 const char ProgramVersion[8] = {"V1.0.06"}; // 版本号 //故意给数组预留一个空位存放结束符 '\0'
 CCMRAM char Printf_Buffer[1024];
-CCMRAM char Srintf_Buffer[1024];
+CCMRAM char Sprintf_Buffer[1024];
 //rt_mq_t storage_mq;
 ROUTER_IFO_UNIT RouterIfo;
 PILE_IFO_UNIT PileIfo;
@@ -448,8 +448,8 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 		{
 			for(i = 0; i <datalenth; i++)
 			{			 
-				sprintf((char*)Srintf_Buffer,"%02X ",*(buf+i)); 
-				strcat((char*)Printf_Buffer,(const char*)Srintf_Buffer);								
+				sprintf((char*)Sprintf_Buffer,"%02X ",*(buf+i)); 
+				strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);								
 			}
 			if(cmd)
 				rt_kprintf("%s%s\n",function,Printf_Buffer);
