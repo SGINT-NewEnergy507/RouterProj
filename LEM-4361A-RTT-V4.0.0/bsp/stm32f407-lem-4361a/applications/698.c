@@ -5673,7 +5673,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		_698_RouterExeState.need_package=1;
 		
 		result=get_response_package(&_698_RouterExeState,priv_698_state,data_tx);//发送
-		printmy(&data_tx->_698_frame);
+//		printmy(&data_tx->_698_frame);
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况	
@@ -7198,7 +7198,7 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	
-	temp_char=priv_EVENT->Chg_Strategy.ucTimeSlotNum=5;//数组数量//测试
+	temp_char=priv_EVENT->Chg_Strategy.ucTimeSlotNum;//数组数量//测试
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	if(priv_EVENT->Chg_Strategy.ucTimeSlotNum==0){
 		return 0;
