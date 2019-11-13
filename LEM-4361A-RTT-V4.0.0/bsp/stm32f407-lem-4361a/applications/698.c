@@ -64,6 +64,11 @@ CCMRAM struct  _698_FRAME _698_ChgPlanAdjust;
 CCMRAM unsigned char _698_ChgPlanAdjust_data[1024];
 CCMRAM CHARGE_STRATEGY charge_strategy_ChgPlanAdjust;
 
+//功率调节
+CCMRAM struct  _698_FRAME _698_CTL_CHARGE_Adj;
+CCMRAM unsigned char _698_CTL_CHARGE_Adj_data[50];
+CCMRAM CTL_CHARGE CTL_CHARGE_Adj;
+
 CCMRAM CHARGE_STRATEGY_RSP ChgPlanAdjust_rsp;
 
 
@@ -79,6 +84,9 @@ CCMRAM unsigned char _698_StartChg_data[50];
 CCMRAM struct  _698_FRAME _698_StopChg;
 CCMRAM unsigned char _698_StopChg_data[50];
 //START_STOP_CHARGE stop_charge;
+
+
+
 
 
 //上送结构体
@@ -107,10 +115,6 @@ rt_device_t hplc_serial; 	// 串口设备句柄
 rt_device_t blue_tooth_serial; 	// 串口设备句柄 
 
 CCMRAM struct _698_STATE hplc_698_state;
-
-
-
-
 
 
 /*
@@ -160,12 +164,12 @@ void hplc_thread_entry(void * parameter){
 	
 		result=get_single_frame_frome_hplc(&hplc_698_state,&hplc_data_rev,&hplc_data_tx);
 		if(result!=0){
-			if(result==1){//是645协议获取电表，发送电表地址（不发这一帧，hplc不会发送698的要标号协议）
+			if(result==1){//645协议获取电表
 				hplc_645_addr_response(&hplc_698_state,&hplc_data_rev,&hplc_data_tx);				
 				hplc_tx_frame(&hplc_698_state,hplc_serial,&hplc_data_tx);
 				hplc_698_state.meter_addr_send_ok=1;//重启的时候重新置0
-				clear_data(&hplc_698_state,&hplc_data_rev,&hplc_data_rev._698_frame);//处理完了后清理数据	,只有这个是动态的后面的申请了空间后就不变了
-			}//其他情况认为是超时,去外面处理其他事物			
+				clear_data(&hplc_698_state,&hplc_data_rev,&hplc_data_rev._698_frame);
+			}			
 			if(result==2){//退出，是因为受到了事件，不执行clear_data
 				//打包发送				
 			}	
@@ -360,11 +364,20 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 	}	
 }
 
-int hplc_645_addr_response(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct CharPointDataManage *data_tx){
+
+/*
+*	 函数名：
+*	 函数参数：
+*	 函数返回值：
+*	 函数功能：	应答645获取电表的帧
 //68 32 00 00 00 
 //00 00 68 93 06 
 //65 33 33 33 33 
 //33 FF 16 //18个
+*/
+
+int hplc_645_addr_response(struct _698_STATE  * priv_698_state,struct CharPointDataManage *data_rev,struct CharPointDataManage *data_tx){
+
 	int i;
 	data_tx->priveData[0]=0x68;
 	my_strcpy(data_tx->priveData+1,priv_698_state->addr.s_addr,0,priv_698_state->addr.s_addr_len);
@@ -380,7 +393,6 @@ int hplc_645_addr_response(struct _698_STATE  * priv_698_state,struct CharPointD
 		//rt_kprintf("\n[hplc]  (%s)  hplc_645_addr_response  priveData[%d]=%02x\n",__func__,i,data_tx->priveData[i]);
 		data_tx->priveData[16]+=data_tx->priveData[i];	
 	}
-
 
 	data_tx->priveData[17]=0x16;
 	data_tx->dataSize=18;
@@ -452,6 +464,13 @@ int hplc_inition(struct CharPointDataManage *  data_wait_list,struct CharPointDa
 	init_698_FRAME(&_698_ChgPlanAdjust);
 	_698_ChgPlanAdjust.usrData=_698_ChgPlanAdjust_data;
 	_698_ChgPlanAdjust.usrData_size=1024;
+
+	init_698_FRAME(&_698_CTL_CHARGE_Adj);
+	_698_CTL_CHARGE_Adj.usrData=_698_CTL_CHARGE_Adj_data;
+	_698_CTL_CHARGE_Adj.usrData_size=50;
+
+	
+	
 	
 	init_698_FRAME(&_698_StartChg);
 	_698_StartChg.usrData=_698_StartChg_data;
@@ -460,6 +479,8 @@ int hplc_inition(struct CharPointDataManage *  data_wait_list,struct CharPointDa
 	init_698_FRAME(&_698_StopChg);
 	_698_StopChg.usrData=_698_StopChg_data;
 	_698_StopChg.usrData_size=50;	
+	
+	
 	return 0;	
 }
 
@@ -832,47 +853,57 @@ int iterate_wait_request_list(struct _698_STATE  * priv_698_state,struct CharPoi
 	return 0;
 }	
 
-/*
 
+
+/*
 功能：拦截处理分帧
+//先判断是从客户机到服务器还是从服务器到客户机，但是对控制器和对电表时是不同的，还得要区分这个？
+	由服务器发起的情况(CON_UTS_S)：
+		显然是回应，处理应答发送的分帧；处理来的应答，但是分帧发送的（回应答），整合后就可以处理了；
+		跟分帧应答整合后是一个过程，往下走；如果want_affair涉及到oad就找到是那种oad，后面用到，这个
+		暂时不实现，毕竟服务器主动发送的有限，而且，连接好像也不用实现了；只处理分帧	，和分针的应答；
+		只有分帧情况才进去；打包完后让后面的策略来处理；如果组帧成功了，就赋值给data_rev，然后处理；	
+		找到那个帧并且删掉,如果来的是分帧就拼帧，并返回应答	；目前这三种情况：收到的不是想要的帧；
+		请求帧是分帧，且还没有发完所有帧，收应答帧；应答帧是分帧，而且还没组成整包；如果不是上述情况，
+		让_698_del_affairs处理。
+
+	由控制器发起的情况(CON_UTS_U)：
+		即客户机发起。来的是分帧的数据，到hplc_data_wait_list，并返回分帧应答；如果满了复制回data_rev，
+		删除list正常应答，返回0；分帧的应答也在iterate_wait_request_list处理，发下一分帧分帧的应答也在
+		这里处理，发下一分帧；目前这三种情况：收到的是没有的帧，且不是第一帧；应答帧是分帧，且不是最后
+		一帧；请求帧是分帧，而且还没组成整包；如果不是上述情况，让_698_del_affairs处理。如果来的不是分
+		帧，什么也不做，向下面处理事务	
+
+参数：
+											 
 result==1，不需要发送
 */
-
 
 int _698_analysis(struct _698_STATE  * priv_698_state,struct CharPointDataManage * data_tx,struct CharPointDataManage * data_rev,struct CharPointDataManage * hplc_data_wait_list){
 //	unsigned char *p,current_meter_serial=0;
 //	unsigned char want_affair;
 	int result=0;//不发送返回1
-// current_meter_serial=get_meter_serial();set_meter_serial();
-//先判断是从客户机到服务器还是从服务器到客户机，但是对控制器和对电表时是不同的，还得要区分这个？
+// current_meter_serial=get_meter_serial();
 		
 	switch ( data_rev->_698_frame.control&CON_DIR_START_MASK){//先打印为了调试，后期可能会用到
-		case(CON_UTS_S)://由服务器发起的，显然是回应，处理应答发送的分帧；处理来的应答，但是分帧发送的（回应答），整合后就可以处理了；跟分帧应答整合后是一个过程，往下走；
-//			rt_kprintf("[hplc]  (%s)  UTS_S \n",__func__);
-						
-			//如果want_affair涉及到oad就找到是那种oad，后面用到，这个暂时不实现，毕竟服务器主动发送的有限，而且，连接好像也不用实现了
-			//只处理分帧	，和分针的应答；只有分帧情况才进去；打包完后让后面的策略来处理	
-			result=iterate_wait_response_list(priv_698_state,data_tx,data_rev,hplc_data_wait_list);	//如果组帧成功了，就赋值给data_rev，然后处理；	
-			//找到那个帧并且删掉,如果来的是分帧就拼帧，并返回应答
-			if(result!=0){//目前这三种情况：收到的不是想要的帧；请求帧是分帧，且还没有发完所有帧，收应答帧；应答帧是分帧，而且还没组成整包；。
+		case(CON_UTS_S):
+			rt_kprintf("[hplc]  (%s)  UTS_S \n",__func__);						
+			result=iterate_wait_response_list(priv_698_state,data_tx,data_rev,hplc_data_wait_list);	
+			if(result!=0){
 				return result;				
-			}//如果不是上述情况，让_698_del_affairs处理
+			}
 			break;
 		case(CON_UTS_U):
-			//由控制器发起,即客户机发起。来的是分帧的数据，到hplc_data_wait_list，并返回分帧应答；如果满了复制回data_rev，删除list正常应答，返回0；
-			//分帧的应答也在iterate_wait_request_list处理，发下一分帧，；
-//			rt_kprintf("[hplc]  (%s)  UTS_U \n",__func__);
+			rt_kprintf("[hplc]  (%s)  UTS_U \n",__func__);
 			if((data_rev->_698_frame.control&CON_MORE_FRAME)){
 				
 				rt_kprintf("[hplc]  (%s)   CON_MORE_FRAME  so go on ! \n",__func__);				
 				result=iterate_wait_request_list(priv_698_state,data_tx,data_rev,hplc_data_wait_list);
-				//分帧的应答也在这里处理，发下一分帧				
-				if(result!=0){//目前这三种情况：收到的是没有的帧，且不是第一帧；应答帧是分帧，且不是最后一帧；请求帧是分帧，而且还没组成整包；。
-					return result;				
-				}//如果不是上述情况，让_698_del_affairs处理		
-				
-			}else{//如果来的不是分帧，什么也不做，向下面处理事务
-//				rt_kprintf("[hplc]  (%s) UTS_U is not  CON_MORE_FRAME   ! \n",__func__);							
+			
+				if(result!=0){					return result;				
+				}					
+			}else{
+				rt_kprintf("[hplc]  (%s) UTS_U is not  CON_MORE_FRAME   ! \n",__func__);							
 			}			
 			break;				
 		default:
@@ -883,9 +914,6 @@ int _698_analysis(struct _698_STATE  * priv_698_state,struct CharPointDataManage
 //	rt_kprintf("[hplc]  (%s)   result %d \n",__func__,result);	
 	return result;
 }
-
-
-
 /*
 *
 *
@@ -5196,8 +5224,9 @@ rt_uint8_t strategy_event_send(COMM_CMD_C cmd){
 	}
 	hplc_lock2=1;	
 //  if(cmd<32){		
-	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);	
-	strategyEvent[0]|=(0x00000001<<cmd);
+	rt_kprintf("[hplc]  (%s)   cmd=%d  \n",__func__,cmd);
+	if(cmd>0)
+		strategyEvent[0]|=(0x00000001<<cmd);
 //}else{
 //	strategyEvent[1]|=(0x00000001<<(cmd-32));
 
