@@ -2480,13 +2480,14 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 				if(_698_ChgPlanIssue.need_package==1){
 					_698_ChgPlanIssue.need_package=0;
 					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
-							
-					if((ChgPlanIssue_rsp.cSucIdle==0)&&
-						(0<ChgPlanIssue_rsp.cRequestNO[0]<=sizeof(ChgPlanIssue_rsp.cRequestNO))&&
-						(0<ChgPlanIssue_rsp.cAssetNO[0]<=sizeof(ChgPlanIssue_rsp.cAssetNO))){//DAR， 成功 （ 0）
 
-						temp_char=0;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
-						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);							
+					temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）					
+					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+					
+					if((0<ChgPlanIssue_rsp.cRequestNO[0]<=sizeof(ChgPlanIssue_rsp.cRequestNO))&&
+						(0<ChgPlanIssue_rsp.cAssetNO[0]<=sizeof(ChgPlanIssue_rsp.cAssetNO))){//DAR， 成功 （ 0）
+						
 						
 						temp_char=01;// OPTIONAL=0 表示没有数据
 						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
@@ -2525,14 +2526,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 						temp_char=ChgPlanIssue_rsp.GunNum;//枪号 需要改的地方
 						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);									
 					}else{
-						rt_kprintf("[hplc]  (%s) the data getted is not right!! \n",__func__);
-						if(ChgPlanIssue_rsp.cSucIdle==0){
-							temp_char=1;
-						}else{
-							temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）
-						}						
-						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-						
+						rt_kprintf("[hplc]  (%s) the data getted is not right!! \n",__func__);					
 						temp_char=0;// OPTIONAL=0 表示没有数据
 						result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);									
 					}	
