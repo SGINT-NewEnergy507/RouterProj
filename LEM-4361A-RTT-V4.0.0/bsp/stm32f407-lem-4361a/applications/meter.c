@@ -38,6 +38,7 @@ static rt_uint32_t ulMeter_Half[48];		//每天每半个小时的电量
 
 //static ScmMeter_Power	ulMeter_Day;
 static ScmMeter_Power	ulMeter_MonthOld;
+static ScmMeter_Power	ulMeter_TotalOld;
 //static ScmMeter_Power	ulMeter_Month;
 
 static rt_uint32_t s_ulevmin_start;//每半个小时起始的电量值
@@ -82,7 +83,7 @@ static void save_meter_data(Power_Analog_TypeDef* analog)//系统掉电 保存电量信息
 		l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Day;
 		SetStorageData(Cmd_MeterPowerWr,&stMeter_HisData,l_ulmeter_time);//保存电量信息
 	
-	SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,l_ulmeter_time);//保存电量信息
+		SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,l_ulmeter_time);//保存电量信息
 	}
 	else if(analog->Pow_5V > 4500)//系统恢复  清除标志
 	{
@@ -96,7 +97,7 @@ static void meter_thread_entry(void *parameter)//meter 线程
 {
 	rt_err_t res;
 	rt_uint8_t l_uchour;
-	rt_uint32_t e;
+	rt_uint32_t e,time;
 	int ret;
 	rt_uint8_t buf[8]={0x01,0x03,0x00,0x48,0x00,0x08,0xC4,0x1A};
 	
@@ -111,13 +112,13 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		rt_device_control(meter_serial, RT_DEVICE_CTRL_CONFIG, &config);//配置串口参数
 		if (rt_device_open(meter_serial, RT_DEVICE_FLAG_DMA_RX) == RT_EOK)//打开设备
 		{
-			rt_lprintf("[Meter]:Open serial %s sucess!\r\n",RT_METER_USART);
+			rt_lprintf("[meter]:Open serial %s sucess!\r\n",RT_METER_USART);
 		}
 	}
 	else
 	{
 		res = RT_ERROR;
-		rt_lprintf("[Meter]:Open serial %s err!\r\n",RT_METER_USART);
+		rt_lprintf("[meter]:Open serial %s err!\r\n",RT_METER_USART);
 		return;
 	}
 	
@@ -140,7 +141,7 @@ static void meter_thread_entry(void *parameter)//meter 线程
 	{
 		cmMeter_GJFModeInit(&stMeter_PriceModle);
 		SetStorageData(Cmd_MeterGJFModeWr,&stMeter_PriceModle,sizeof(stMeter_PriceModle));
-		rt_lprintf("[Meter]:JFmode is not exist,clear stMeter_PriceModle!\r\n");
+		rt_lprintf("[meter]:JFmode is not exist,clear stMeter_PriceModle!\r\n");
 	}
 	
 	BCD_toInt(&l_uchour,&System_Time_STR.Hour,1);
@@ -151,9 +152,33 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		if(ret < 0)
 		{
 			SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,sizeof(ulMeter_Half));
-			rt_lprintf("[Meter]:half meter is not exist,clear half meter!\r\n");
+			rt_lprintf("[meter]:half meter is not exist,clear half meter!\r\n");
 		}
 		s_ulevmin_start = stMeter_Analog.ulMeterTotal - ulMeter_Half[l_uchour*2];//若半小时内存在重启 需减去半小时内存储的电量 作为该时段的起始值
+	}
+	
+	if((System_Time_STR.Year > 0x19)&&(System_Time_STR.Month<13))
+	{
+		time = 0x20;
+		time = (((time <<8)&0xff00) | System_Time_STR.Year);
+		time = (((time <<8)&0xffff00) | System_Time_STR.Month);
+		time = (((time <<8)&0xffffff00) | System_Time_STR.Day);
+		
+		ret = GetStorageData(Cmd_MeterPowerRd,&stMeter_HisData,sizeof(stMeter_HisData));//读取电量
+		if(ret < 0)
+		{
+			memset(&stMeter_HisData.ulMeter_Day,0,sizeof(stMeter_HisData));
+			SetStorageData(Cmd_MeterPowerWr,&stMeter_HisData,sizeof(stMeter_HisData));
+			rt_lprintf("[meter]:total meter is not exist,clear half meter!\r\n");
+		}
+		else
+		{
+			ulMeter_TotalOld.ulPowerT = stMeter_HisData.ulMeter_Total.ulPowerT;
+			ulMeter_TotalOld.ulPowerJ = stMeter_HisData.ulMeter_Total.ulPowerJ;
+			ulMeter_TotalOld.ulPowerF = stMeter_HisData.ulMeter_Total.ulPowerF;
+			ulMeter_TotalOld.ulPowerP = stMeter_HisData.ulMeter_Total.ulPowerP;
+			ulMeter_TotalOld.ulPowerG = stMeter_HisData.ulMeter_Total.ulPowerG;
+		}
 	}
 	
 	while (1)
@@ -166,12 +191,12 @@ static void meter_thread_entry(void *parameter)//meter 线程
 			if(rt_device_read(meter_serial, 0, g_ucMeter_rxbuf, g_ucMeter_rxlenth) != 1)
 			{		
 				cmMeterModbus_RecProtocal(&stMeter);
-				my_printf((char*)stMeter.Rx_data,stMeter.DataRx_len,MY_HEX,0,"[Meter]:RX:");				
+				my_printf((char*)stMeter.Rx_data,stMeter.DataRx_len,MY_HEX,0,"[meter]:RX:");				
 			}
 		}
 		else
 		{
-				rt_lprintf("[Meter]:meter_serial sem timeout. reply:%s\r\n", res);
+				rt_lprintf("[meter]:meter_serial sem timeout. reply:%s\r\n", res);
 		}
 		cmMeter_electricity_calc();//每月每日尖峰平谷电量计算
 		save_meter_data(&ScmAnalog);
@@ -244,20 +269,19 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		memcpy(&temp,tmp_arry,sizeof(char)*4);
 		stMeter_Analog.ulFrequency = (unsigned long)(temp);    // XXXXXX.XX		频率
 		
-		rt_lprintf("[Meter]:ChargVa = %d.%dV----",stMeter_Analog.ulVol/10,stMeter_Analog.ulVol%10);
-		rt_lprintf("ChargIa = %d.%03dA----",stMeter_Analog.ulCur/1000,stMeter_Analog.ulCur%1000);
-		rt_lprintf("MeterTotal = %d.%03dKWH----\r\n",stMeter_Analog.ulMeterTotal/1000,stMeter_Analog.ulMeterTotal%1000);
-		
-		rt_lprintf("[Meter]:AcPwr = %d.%03dW----",stMeter_Analog.ulAcPwr/1000,stMeter_Analog.ulAcPwr%1000);
-		rt_lprintf("PwrFactor = %d.%02d ----",stMeter_Analog.ulPwrFactor/100,stMeter_Analog.ulPwrFactor%100);
-		rt_lprintf("Frequency = %d.%02dHZ----\r\n",stMeter_Analog.ulFrequency/100,stMeter_Analog.ulFrequency%100);
+		rt_lprintf("[meter]:---ChargVa = %d.%dV  ChargIa = %d.%03dA  MeterTotal = %d.%03dKWH----\n",stMeter_Analog.ulVol/10,stMeter_Analog.ulVol%10,\
+			stMeter_Analog.ulCur/1000,stMeter_Analog.ulCur%1000,stMeter_Analog.ulMeterTotal/1000,stMeter_Analog.ulMeterTotal%1000);
+
+		rt_lprintf("[meter]:----AcPwr = %d.%03dW  PwrFactor = %d.%02d  Frequency = %d.%02dHZ----\n",stMeter_Analog.ulAcPwr/1000,stMeter_Analog.ulAcPwr%1000,\
+			stMeter_Analog.ulPwrFactor/100,stMeter_Analog.ulPwrFactor%100,stMeter_Analog.ulFrequency/100,stMeter_Analog.ulFrequency%100);
+
 				
 		return 0;
 	}
 	else
 	{
 
-		rt_lprintf("[Meter]:CRC16 ERR!!! CRC16 = %04X  Rec_crc=%02X%02X\r\n",Crc16,pSTR->Rx_data[pSTR->DataRx_len-2],pSTR->Rx_data[pSTR->DataRx_len-1]);
+		rt_lprintf("[meter]:CRC16 ERR!!! CRC16 = %04X  Rec_crc=%02X%02X\r\n",Crc16,pSTR->Rx_data[pSTR->DataRx_len-2],pSTR->Rx_data[pSTR->DataRx_len-1]);
 		return 1;
 	}
 }
@@ -322,33 +346,38 @@ static void cmMeter_GJFModeInit(ScmMeter_PriceModle *pSTR)//山东地区计费信息
 	pSTR->ulPriceNo[2] = 6559;
 	pSTR->ulPriceNo[3] = 3425;
 	
-	for(i = 0;i < 2;i++)//10:30~11:30 尖 21-22
-		pSTR->ulTimeNo[21+i] = 0x02;
-		
-	for(i = 0;i < 4;i++)//19:00~21:00 尖 38-41
-		pSTR->ulTimeNo[38+i] = 0x02;
+	for(i = 0; i < 48;	i++)
+	{
+		pSTR->ulTimeNo[i] = 0;
+	}
 	
-	for(i = 0;i < 4;i++)//8:30~10:30 峰 17-20
-		pSTR->ulTimeNo[17+i] = 0x02;
-		
-	for(i = 0;i < 6;i++)//16:00~19:00 峰 32-37
-		pSTR->ulTimeNo[32+i] = 0x02;
-	
-	
-	for(i = 0;i < 3;i++)//7:00~8:30 平 14-16
-		pSTR->ulTimeNo[14+i] = 0x02;
-		
-	for(i = 0;i < 9;i++)//11:30~16:00 平 23-31
-		pSTR->ulTimeNo[23+i] = 0x02;
-		
-	for(i = 0;i < 4;i++)//21:00~23:00 平 42-45
-		pSTR->ulTimeNo[42+i] = 0x02;
-	
-	for(i = 0;i < 14;i++)//23:00~7:00 谷 0-13
-		pSTR->ulTimeNo[i] = 0x03;
-		
-	pSTR->ulTimeNo[46] = 0x03;//23:00~7:00 谷
-	pSTR->ulTimeNo[47] = 0x03;
+//	for(i = 0;i < 2;i++)//10:30~11:30 尖 21-22
+//		pSTR->ulTimeNo[21+i] = 0x02;
+//		
+//	for(i = 0;i < 4;i++)//19:00~21:00 尖 38-41
+//		pSTR->ulTimeNo[38+i] = 0x02;
+//	
+//	for(i = 0;i < 4;i++)//8:30~10:30 峰 17-20
+//		pSTR->ulTimeNo[17+i] = 0x02;
+//		
+//	for(i = 0;i < 6;i++)//16:00~19:00 峰 32-37
+//		pSTR->ulTimeNo[32+i] = 0x02;
+//	
+//	
+//	for(i = 0;i < 3;i++)//7:00~8:30 平 14-16
+//		pSTR->ulTimeNo[14+i] = 0x02;
+//		
+//	for(i = 0;i < 9;i++)//11:30~16:00 平 23-31
+//		pSTR->ulTimeNo[23+i] = 0x02;
+//		
+//	for(i = 0;i < 4;i++)//21:00~23:00 平 42-45
+//		pSTR->ulTimeNo[42+i] = 0x02;
+//	
+//	for(i = 0;i < 14;i++)//23:00~7:00 谷 0-13
+//		pSTR->ulTimeNo[i] = 0x03;
+//		
+//	pSTR->ulTimeNo[46] = 0x03;//23:00~7:00 谷
+//	pSTR->ulTimeNo[47] = 0x03;
 }
 
 static void cmMeter_electricity_calc(void)
@@ -368,7 +397,7 @@ static void cmMeter_electricity_calc(void)
 	
 	if((l_ucmonth>12)||(l_ucmonth<1)||(l_ucDay>31)||(l_ucDay<1)||(l_uchour>24)||(l_ucminute>60))//时间合法开始计算电量
 	{
-		rt_lprintf("[Meter]:meter electricity calc time error!!!\r\n");//时间段计算错误  返回
+		rt_lprintf("[meter]:meter electricity calc time error!!!\r\n");//时间段计算错误  返回
 		return;
 	}
 	
@@ -385,7 +414,7 @@ static void cmMeter_electricity_calc(void)
 		
 		SetStorageData(Cmd_MeterPowerWr,&stMeter_HisData,l_ulmeter_time);//保存电量信息
 
-		rt_lprintf("[Meter]:new day start,save day meter to nandflash!\r\n");
+		rt_lprintf("[meter]:new day start,save day meter to nandflash!\r\n");
 	}
 	else if(l_uchour)
 	{
@@ -400,7 +429,7 @@ static void cmMeter_electricity_calc(void)
 		memset(&ulMeter_MonthOld,0,sizeof(ScmMeter_Power));
 		memset(&stMeter_HisData.ulMeter_Month,0,sizeof(ScmMeter_Power));
 
-		rt_lprintf("[Meter]:new month start,save month meter to nandflash!\r\n");
+		rt_lprintf("[meter]:new month start,save month meter to nandflash!\r\n");
 	}
 	else if(l_ucDay-1)
 	{
@@ -439,6 +468,14 @@ static void cmMeter_electricity_calc(void)
 	
 	stMeter_HisData.ulMeter_Month.ulPowerT = stMeter_HisData.ulMeter_Month.ulPowerJ+stMeter_HisData.ulMeter_Month.ulPowerF\
 																					+stMeter_HisData.ulMeter_Month.ulPowerP+stMeter_HisData.ulMeter_Month.ulPowerG;//月总
+	
+	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerJ+stMeter_HisData.ulMeter_Day.ulPowerJ;//月尖总
+	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerF+stMeter_HisData.ulMeter_Day.ulPowerF;//月峰总
+	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerP;//月平总
+	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerG+stMeter_HisData.ulMeter_Day.ulPowerG;//月谷总
+	
+	stMeter_HisData.ulMeter_Total.ulPowerT = stMeter_HisData.ulMeter_Total.ulPowerJ+stMeter_HisData.ulMeter_Total.ulPowerF\
+																					+stMeter_HisData.ulMeter_Total.ulPowerP+stMeter_HisData.ulMeter_Total.ulPowerG;//月总
 }
 
 void cmMeter_get_data(unsigned char cmd,void* str_data)//其他线程调用函数 获取Meter数据信息
