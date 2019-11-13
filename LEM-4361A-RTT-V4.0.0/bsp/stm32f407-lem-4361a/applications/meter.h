@@ -57,6 +57,7 @@ typedef struct
 {
 	ScmMeter_Power	ulMeter_Day;			//每日尖峰平谷总电量
 	ScmMeter_Power 	ulMeter_Month;     //每月尖峰平谷总电量
+	ScmMeter_Power	ulMeter_Total;     //尖峰平谷总
 }ScmMeter_HisData;
 
 enum cmEMMETER
