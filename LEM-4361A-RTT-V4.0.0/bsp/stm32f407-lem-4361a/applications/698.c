@@ -5427,7 +5427,10 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	hplc_698_state.lock2=1;	
 	
 	event=0x00000001<<cmd;
-	switch(cmd){	//可加策略
+	
+	
+	if(count>=0){
+		switch(cmd){	//可加策略
 		
 		case(Cmd_PowerAdj):	//将功率调节参数传给用户
 			rt_kprintf("[hplc]  (%s)  Cmd_PowerAdj  \n",__func__);	
@@ -5598,6 +5601,10 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 			break;	
 	}
 
+	
+	
+	
+	}
 //  if(cmd<32){	
 
 
