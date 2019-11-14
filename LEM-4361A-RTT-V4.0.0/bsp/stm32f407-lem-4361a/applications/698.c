@@ -2616,7 +2616,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 						len=temp_char=(unsigned char )ChgPlanIssue_rsp.cRequestNO[0];//数量	
 						if(len>sizeof(ChgPlanIssue_rsp.cRequestNO)){
 							rt_kprintf("[hplc]  (%s) len> array size cRequestNO \n",__func__);
-//							return -1;
+							return -1;
 						}							
 						temp_array=(unsigned char *)(ChgPlanIssue_rsp.cRequestNO+1);
 						_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
@@ -2627,7 +2627,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 						len=temp_char=(unsigned char )ChgPlanIssue_rsp.cAssetNO[0];//数组数量
 						if(len>sizeof(ChgPlanIssue_rsp.cAssetNO)){
 							rt_kprintf("[hplc]  (%s) len> array size  ChgPlanIssue_rsp.cAssetNO \n",__func__);
-//							return -1;
+							return -1;
 						}	//changed next								
 						temp_array=(unsigned char *)(ChgPlanIssue_rsp.cAssetNO+1);
 						_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);					
@@ -2644,11 +2644,7 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					}	
 					
 				}else{
-					//判断一下用户有没有完成上一次充电计划，没有就退出，如果用，现在处理一下用户上传的业务。
-//					if((my_strategy_event_get()&ChgPlanIssue_EVENT)!=0){//用户有没有完成上一次充电计划
-//						rt_kprintf("[hplc]  (%s) ()&ChgPlanIssue_EVENT)!=0     \n",__func__);
-////						return 2;
-//					};
+
 //					if(1){//再处理一下用户上传的业务。
 //						check_afair_from_botom(priv_698_state,hplc_data);
 //					}
