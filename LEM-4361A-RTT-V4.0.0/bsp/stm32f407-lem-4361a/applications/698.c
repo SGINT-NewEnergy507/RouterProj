@@ -1871,7 +1871,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 
-  len=5;
+
   len=temp_char=priv_struct->cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>(sizeof(priv_struct->cRequestNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO \n",__func__);
@@ -1882,7 +1882,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	
 	
 	//路由器资产编号   visible-string（SIZE(22)）
-  len=5;
+
   len=temp_char=priv_struct->cAssetNO[0];
 	if(len>(sizeof(priv_struct->cAssetNO)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cAssetNO\n",__func__);
@@ -1913,7 +1913,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_struct->ulEleBottomValue[j];
 //		if(len>sizeof(priv_struct->ulEleBottomValue)){
 //			rt_kprintf("[hplc]  (%s) len> array size ulEleBottomValue\n",__func__);
@@ -1930,7 +1930,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_struct->ulEleActualValue[j];
 //		if(len>sizeof(priv_struct->ulEleActualValue)){
 //			rt_kprintf("[hplc]  (%s) len> array size ulEleActualValue\n",__func__);
@@ -1943,33 +1943,33 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	temp_char=Data_array;//已充电量	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=priv_struct->ucTimeSlotNum;//长度//测试
+	temp_char=priv_struct->ucTimeSlotNum;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<priv_struct->ucTimeSlotNum;j++){
-		len=5;
+
 		len=priv_struct->ucChargeEle[j];
-//		if(len>sizeof(priv_struct->ucChargeEle)){
-//			rt_kprintf("[hplc]  (%s) len> array size ucChargeEle\n",__func__);
-//			return -1;
-//		}	
+		if(j>sizeof(priv_struct->ucChargeEle)){
+			rt_kprintf("[hplc]  (%s) len> array size priv_struct->ucChargeEle\n",__func__);
+			return -1;
+		}	
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
 	
 
 	//已充时间	double-long-unsigned单位：秒
- 	len=5;
+
   len=priv_struct->ucChargeTime;
   _698_double_long_unsigned((unsigned int) len, hplc_data);	
 	
 	
 	//计划充电功率	double-long（单位：W，换算：-1）
- 	len=5;
+
   len=priv_struct->ucPlanPower;
   _698_double_long((unsigned int) len, hplc_data);	
 	
 	//当前充电功率	double-long（单位：W，换算：-1）
-	len=5;
+
   len=priv_struct->ucActualPower;
   _698_double_long((unsigned int) len, hplc_data);
 	
@@ -1981,7 +1981,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<1;j++){//单相或三相
-		len=5;
+
 		len=priv_struct->ucVoltage.A;
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
@@ -1995,7 +1995,7 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<1;j++){
-		len=5;
+
 		len=priv_struct->ucCurrent.A;
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
@@ -2009,8 +2009,9 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 
 	
 	//用户ID visible-string（SIZE(64)）//王云光说加上了
-  len=5;
+
   len=temp_char=priv_struct->cUserID[0];
+	//这个的零返回
 	if(len>(sizeof(priv_struct->cUserID)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
 		return -1;
@@ -2055,7 +2056,7 @@ int charge_strategy_package(CHARGE_STRATEGY *priv_struct,struct CharPointDataMan
 	
 	
 	//用户ID visible-string（SIZE(64)）
-  len=5;
+
   len=temp_char=priv_struct->cUserID[0];
 	if(len>(sizeof(priv_struct->cUserID)-1)){
 		rt_kprintf("[hplc]  (%s) len> array size cRequestNO\n",__func__);
@@ -6569,7 +6570,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 
 
-  len=5;
+
 	len=temp_char=priv_EVENT->RequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>sizeof(priv_EVENT->RequestNO)){
 		rt_kprintf("[hplc]  (%s) len> array size  priv_EVENT->RequestNO\n",__func__);
@@ -6579,7 +6580,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
 	
 
-	len=5;
+
   len=temp_char=priv_EVENT->cUserID[0];//用户ID      visible-string（SIZE(64)），
 	if(len>sizeof(priv_EVENT->cUserID)){
 		rt_kprintf("[hplc]  (%s) len> array size  priv_EVENT->cUserID\n",__func__);
@@ -6590,7 +6591,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 
 	//路由器资产编号   visible-string（SIZE(22)）
-  len=5;
+
   len=temp_char=priv_EVENT->AssetNO[0];
 	if(len>sizeof(priv_EVENT->AssetNO)){
 		rt_kprintf("[hplc]  (%s) len> array size  priv_EVENT->AssetNO\n",__func__);
@@ -6607,7 +6608,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 
 	//充电需求电量   double-long-unsigned（单位：kWh，换算：-2）
- 	len=5;
+
   len=priv_EVENT->ChargeReqEle;
   _698_double_long_unsigned((unsigned int) len, hplc_data);	
 
@@ -6645,7 +6646,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_EVENT->StartMeterValue[i];
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
@@ -6659,7 +6660,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_EVENT->StopMeterValue[i];
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
@@ -6688,14 +6689,14 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_EVENT->ucChargeEle[i];
 		_698_double_long_unsigned((unsigned int) len, hplc_data);		
 	}			
 	
 	//充电持续时间	double-long-unsigned单位：秒
 
-	len=5;
+
   len=priv_EVENT->ucChargeTime;
 	_698_double_long_unsigned((unsigned int) len, hplc_data);	
 
@@ -6842,7 +6843,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 
 
 
-  len=5;
+
   len=temp_char=priv_EVENT->Chg_ExeState.cRequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>sizeof(priv_EVENT->Chg_ExeState.cRequestNO)){
 		rt_kprintf("[hplc]  (%s) len=%d > array size  priv_EVENT->Chg_ExeState.cRequestNO=%d\n",__func__,len,sizeof(priv_EVENT->Chg_ExeState.cRequestNO));
@@ -6853,7 +6854,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	
 	
 	//路由器资产编号   visible-string（SIZE(22)）
-  len=5;
+
   len=temp_char=priv_EVENT->Chg_ExeState.cAssetNO[0];
 	if(len>sizeof(priv_EVENT->Chg_ExeState.cAssetNO)){
 		rt_kprintf("[hplc]  (%s) len> array size  priv_EVENT->Chg_ExeState.cAssetNO\n",__func__);
@@ -6884,7 +6885,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
-		len=5;
+
 		len=priv_EVENT->Chg_ExeState.ulEleBottomValue[j];
 //		if(len>sizeof(Chg_ExeState.ulEleBottomValue)){
 //			rt_kprintf("[hplc]  (%s) len> array size  Chg_ExeState.ulEleBottomValue\n",__func__);
@@ -6914,7 +6915,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	temp_char=Data_array;//已充电量	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=priv_EVENT->Chg_ExeState.ucTimeSlotNum;//长度//测试
+	temp_char=priv_EVENT->Chg_ExeState.ucTimeSlotNum;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<priv_EVENT->Chg_ExeState.ucTimeSlotNum;j++){
@@ -7229,7 +7230,7 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 
 //		充电功率    double-long（单位：kW，换算：-4）
 //		Value=priv_struct_TIMESOLT->ulChargePow;
-		len=5;
+
 		len=priv_struct_TIMESOLT->ulChargePow;
 		_698_double_long((unsigned int) len, hplc_data);
 	
@@ -7379,7 +7380,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 
-//	len=5;
+
 	len=temp_char=priv_EVENT->RequestNO[0];//充电申请单号   octet-string（SIZE(16)）
 	if(len>sizeof(priv_EVENT->RequestNO)){
 		rt_kprintf("[hplc]  (%s) len=%d > array size priv_EVENT->RequestNO=%d \n",__func__,len,sizeof(priv_EVENT->RequestNO));
@@ -7390,7 +7391,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 
 
 	//路由器资产编号   visible-string（SIZE(22)）
-//  len=5;
+
   len=temp_char=priv_EVENT->AssetNO[0];
 	if(len>sizeof(priv_EVENT->AssetNO)){
 		rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->AssetNO \n",__func__);
@@ -7416,22 +7417,22 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 
 	//当前SOC  long-unsigned（单位：%，换算：-2）,
-//	len=5;
+
   len=priv_EVENT->actSOC;
   _698_long_unsigned((unsigned int)len , hplc_data);
 	
 	//目标SOC  long-unsigned（单位：%，换算：-2）,
-//	len=5;
+
   len=priv_EVENT->aimSOC;
   _698_long_unsigned((unsigned int)len , hplc_data);
 	
 	//电池容量 double-long-unsigned（单位：kWh，换算：-2），
-	len=5;
+
   len=priv_EVENT->CellCapacity;
   _698_double_long_unsigned((unsigned int) len, hplc_data);
 	
 	//充电需求电量   double-long-unsigned（单位：kWh，换算：-2）
- 	len=5;
+
   len=priv_EVENT->ChargeReqEle;
   _698_double_long_unsigned((unsigned int) len, hplc_data);
 
@@ -7452,7 +7453,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 	
 
 	//身份认证Token   visible-string（SIZE(38)），	
-  len=5;
+
   len=temp_char=priv_EVENT->Token[0];
 	if(len>sizeof(priv_EVENT->Token)){
 		rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->Token \n",__func__);
@@ -7463,7 +7464,7 @@ int report_CHARGE_APPLY_package(CHARGE_APPLY_EVENT *priv_EVENT,struct _698_STATE
 
 
 	//充电用户账号   visible-string（SIZE(9)），
-  len=5;
+
   len=temp_char=priv_EVENT->UserAccount[0];
 	if(len>sizeof(priv_EVENT->UserAccount)){
 		rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->UserAccount \n",__func__);
