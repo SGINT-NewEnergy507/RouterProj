@@ -1974,10 +1974,6 @@ int charge_exe_state_package(CHARGE_EXE_STATE *priv_struct,struct CharPointDataM
 	for(j=0;j<5;j++){
 
 		len=priv_struct->ulEleActualValue[j];
-//		if(len>sizeof(priv_struct->ulEleActualValue)){
-//			rt_kprintf("[hplc]  (%s) len> array size ulEleActualValue\n",__func__);
-//			return -1;
-//		}	
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
@@ -6988,7 +6984,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
   len=priv_EVENT->Chg_ExeState.ucActualPower;
   _698_double_long((unsigned int) len, hplc_data);
 	
-	//电压	arraylong-unsigned，（单位：V，换算：-1）
+	//电压	array  long-unsigned，（单位：V，换算：-1）
 	temp_char=Data_array;//当前电能示值	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
@@ -6997,7 +6993,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 
 	for(j=0;j<1;j++){
 		len=priv_EVENT->Chg_ExeState.ucVoltage.A;
-		_698_double_long((unsigned int) len, hplc_data);		
+		_698_long_unsigned((unsigned int) len, hplc_data);		
 	}	
 	
 	
@@ -7009,7 +7005,6 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<1;j++){
-
 		len=priv_EVENT->Chg_ExeState.ucCurrent.A;
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
@@ -7092,10 +7087,10 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	temp_char=Data_TSA;//数据类型
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);		
 
-	temp_char=(priv_698_state->addr.s_addr_len+1);//数据长度
+	temp_char=(priv_698_state->addr.s_addr_len+1);//数据长度0
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	temp_char=(priv_698_state->addr.s_addr_len-1);//数据长度
+	temp_char=(priv_698_state->addr.s_addr_len-1);//数据长度1
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
 	save_meter_no_backward(hplc_data,hplc_data->dataSize,priv_698_state->addr.s_addr,priv_698_state->addr.s_addr_len);	
@@ -7105,8 +7100,6 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 
 	temp_char=16;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
-
-
 
 
 	event_no=priv_EVENT->OrderNum;
@@ -7119,8 +7112,6 @@ int report_PLAN_OFFER_package(PLAN_OFFER_EVENT *priv_EVENT,struct _698_STATE  * 
 	STR_SYSTEM_TIME_to_date_time_s(&priv_EVENT->StartTimestamp,&priv_date_time_s);
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,priv_date_time_s.data,7);	
 	
-
-
 
 	temp_char=Data_date_time_s;//结束时间
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
