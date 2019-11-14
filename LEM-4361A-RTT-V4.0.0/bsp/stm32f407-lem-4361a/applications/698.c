@@ -69,6 +69,13 @@ CCMRAM struct  _698_FRAME _698_CTL_CHARGE_Adj;
 CCMRAM unsigned char _698_CTL_CHARGE_Adj_data[50];
 CCMRAM CTL_CHARGE CTL_CHARGE_Adj;
 
+
+
+
+
+
+
+
 CCMRAM CHARGE_STRATEGY_RSP ChgPlanAdjust_rsp;
 
 
@@ -115,6 +122,19 @@ rt_device_t hplc_serial; 	// 串口设备句柄
 rt_device_t blue_tooth_serial; 	// 串口设备句柄 
 
 CCMRAM struct _698_STATE hplc_698_state;
+
+
+//获取esam信息
+unsigned char esam_data[1024]={
+0x68, 0x4f, 0x0, 0x43, 0x05, 0x11, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x84, 0x53, 0x10, 0x01, 0x30, 0x7d, 0x01, 0x4b, 0x86, 0xc0, 0x9f, 0x52, 0xf9,
+0x8e, 0x91, 0x3b, 0x86, 0xd8, 0x69, 0x79, 0x77, 0x9f, 0x65, 0xa9, 0xd3, 0x65, 0xc2, 0x57, 0xd9, 0xc3, 0xf1, 0xdc, 0x95, 0x8b, 0xd8, 0xf7, 
+0x2c, 0x2a, 0x07, 0x36, 0xba, 0xb7, 0xa2, 0xd4, 0x58, 0x2d, 0xbb, 0x34, 0xf6, 0x52, 0x20, 0xcd, 0xe3, 0x00, 0x81, 0x1c, 0x33, 0x10, 0x02, 
+0x00, 0x34, 0x04, 0x29, 0x18, 0xa7, 0xb2, 0x69, 0xca, 0x16
+};
+
+
+
+
 
 
 /*
@@ -244,6 +264,11 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 	result=init_698_FRAME(&data_rev->_698_frame);		
 	while(1){
 		tempSize=rt_device_read(hplc_serial, 0, &Res, 1) ;//一直在这里读数据，直到读空，超时退出。
+
+//	tempSize=1;//测试
+//	priv_698_state->connect_flag=1;
+//	for(int i=0;i<1024;i++){
+//		Res=esam_data[i];	
 		
 		if(tempSize==1){		
 			times=0;    //判断超时用 ，读到数就清零			 		
@@ -2534,13 +2559,13 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 	int result=0,len;
 	unsigned char temp_char,*temp_array;
 
-//	rt_kprintf("[hplc]  (%s)   priv_698_state->oad_omd.oi[1]=%0x   \n",__func__,priv_698_state->oad_omd.oi[1]);
+	rt_kprintf("[hplc]  (%s)   \n",__func__);
 	switch (priv_698_state->oad_omd.oi[1]){//判别了两位，还要判断属性或者方法，很少，用if在里面判断
-		/*case(0)://日期时间
 
-			rt_kprintf("[hplc]  (%s)  not the operation     \n",__func__);
-			result=-1;		
-			break;*/
+//		case(0)://日期时间
+//			rt_kprintf("[hplc]  (%s)  not the operation     \n",__func__);
+//			result=-1;		
+//			break;
 		
 		
 		
@@ -2603,10 +2628,10 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					
 				}else{
 					//判断一下用户有没有完成上一次充电计划，没有就退出，如果用，现在处理一下用户上传的业务。
-					if((my_strategy_event_get()&ChgPlanIssue_EVENT)!=0){//用户有没有完成上一次充电计划
-						rt_kprintf("[hplc]  (%s) ()&ChgPlanIssue_EVENT)!=0     \n",__func__);
-//						return 2;
-					};
+//					if((my_strategy_event_get()&ChgPlanIssue_EVENT)!=0){//用户有没有完成上一次充电计划
+//						rt_kprintf("[hplc]  (%s) ()&ChgPlanIssue_EVENT)!=0     \n",__func__);
+////						return 2;
+//					};
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}
@@ -2667,16 +2692,13 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					}	//changed next			
 					temp_array=( unsigned char *) (ChgPlanAdjust_rsp.cAssetNO+1);
 					_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);	
-					
-					
-					
-					
+				
 				
 				}else{
-					if((my_strategy_event_get()&ChgPlanAdjust_EVENT)!=0){//用户有没有完成上一次充电计划
-						rt_kprintf("[hplc]  (%s) ()&ChgPlanAdjust_EVENT)!=0     \n",__func__);
-//						return 2;
-					};
+//					if((my_strategy_event_get()&ChgPlanAdjust_EVENT)!=0){//用户有没有完成上一次充电计划
+//						rt_kprintf("[hplc]  (%s) ()&ChgPlanAdjust_EVENT)!=0     \n",__func__);
+////						return 2;
+//					};
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}
@@ -2718,10 +2740,10 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					result=0;
 				
 				}else{
-					if((my_strategy_event_get()&StartChg_EVENT)!=0){//用户有没有完成上一次
-						rt_kprintf("[hplc]  (%s) ()&StartChg_EVENT)!=0     \n",__func__);
-//						return 2;
-					};
+//					if((my_strategy_event_get()&StartChg_EVENT)!=0){//用户有没有完成上一次
+//						rt_kprintf("[hplc]  (%s) ()&StartChg_EVENT)!=0     \n",__func__);
+////						return 2;
+//					};
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}
@@ -2760,10 +2782,10 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 					result=0;
 				
 				}else{
-					if((my_strategy_event_get()&StopChg_EVENT)!=0){//用户有没有完成上一次充电计划
-						rt_kprintf("[hplc]  (%s) ()&StopChg_EVENT)!=0     \n",__func__);
-//						return 2;
-					};
+//					if((my_strategy_event_get()&StopChg_EVENT)!=0){//用户有没有完成上一次充电计划
+//						rt_kprintf("[hplc]  (%s) ()&StopChg_EVENT)!=0     \n",__func__);
+////						return 2;
+//					};
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}					
@@ -2789,29 +2811,30 @@ int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _69
 			} else if(priv_698_state->oad_omd.attribute_id==129){//功率调节（参数）
 			
 
-				if(_698_ChgPlanIssue.need_package==1){
-					_698_ChgPlanIssue.need_package=0;
+				if(_698_frame_rev->need_package==1){
+					_698_frame_rev->need_package=0;
 					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
 
-					temp_char=ChgPlanIssue_rsp.cSucIdle;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）					
+					temp_char=0;//DAR， 成功 （ 0），硬件失效 （ 1），其他 （255）					
 					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 					
-					temp_char=01;// OPTIONAL=0 表示没有数据
+					temp_char=0;// OPTIONAL=0 表示没有数据
 					result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 				}else{
 
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
-					}					
+					}
+					
 					if(_698_frame_rev->usrData_len>sizeof(_698_CTL_CHARGE_Adj_data)){
 						rt_kprintf("[hplc]  (%s)  usrData_len> array size  \n",__func__);
 						return -1;					
 					}
 
-					_698_CTL_CHARGE_Adj=*_698_frame_rev;
+					_698_CTL_CHARGE_Adj=*_698_frame_rev;//将接收698帧给
 					my_strcpy(_698_CTL_CHARGE_Adj_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
-					_698_CTL_CHARGE_Adj.usrData=_698_ChgPlanIssue_data;						
+					_698_CTL_CHARGE_Adj.usrData=_698_CTL_CHARGE_Adj_data;						
 					
 					_698_CTL_CHARGE_Adj.time_flag_positon=_698_frame_rev->usrData_len;//最后一位，只给方法用时有效
 		
@@ -2971,10 +2994,10 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					result=oi_charge_strategy_package(_698_frame_rev,priv_698_state,hplc_data);
 					//保存用户数据				
 				}else{
-					if((my_strategy_event_get()&ChgPlanIssueGet_EVENT)!=0){//用户有没有完成上一次充电计划
-							rt_kprintf("[hplc]  (%s) ()&ChgPlanIssueGet_EVENT)!=0     \n",__func__);
-//						return 2;
-						};
+//					if((my_strategy_event_get()&ChgPlanIssueGet_EVENT)!=0){//用户有没有完成上一次充电计划
+//							rt_kprintf("[hplc]  (%s) ()&ChgPlanIssueGet_EVENT)!=0     \n",__func__);
+////						return 2;
+//						};
 						if(1){//再处理一下用户上传的业务。
 							check_afair_from_botom(priv_698_state,hplc_data);
 						}										
@@ -3009,9 +3032,9 @@ int oi_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_
 					result=oi_router_exe_state_package(_698_frame_rev,priv_698_state,hplc_data);
 					//保存用户数据				
 				}else{
-					if((my_strategy_event_get()&AskState_EVENT)!=0){//用户有没有完成上一次充电计划
-							rt_kprintf("[hplc]  (%s) ()&AskState_EVENT!=0     \n",__func__);
-					};
+//					if((my_strategy_event_get()&AskState_EVENT)!=0){//用户有没有完成上一次充电计划
+//							rt_kprintf("[hplc]  (%s) ()&AskState_EVENT!=0     \n",__func__);
+//					};
 					if(1){//再处理一下用户上传的业务。
 						check_afair_from_botom(priv_698_state,hplc_data);
 					}	
@@ -3478,7 +3501,7 @@ int unpatch_ScmEsam_Comm(struct CharPointDataManage * hplc_data,ScmEsam_Comm* l_
 		rt_kprintf("[hplc]  (%s)  [1]!=1\n",__func__);	
 	}
 	
-	if((hplc_data->_698_frame.usrData[2]==0x81)||(hplc_data->_698_frame.usrData_len==0x82)){//超过7f，在长度前面会加0x81
+	if((hplc_data->_698_frame.usrData[2]==0x81)||(hplc_data->_698_frame.usrData[2]==0x82)){//超过7f，在长度前面会加0x81
 		rt_kprintf("[hplc]  (%s) length more then 1024   \n",__func__);
 		len_data=hplc_data->_698_frame.usrData[3]*256+hplc_data->_698_frame.usrData[4];//data长度
 
@@ -3493,13 +3516,15 @@ int unpatch_ScmEsam_Comm(struct CharPointDataManage * hplc_data,ScmEsam_Comm* l_
 	
 	if(hplc_data->_698_frame.usrData[(position_data+len_data)]==0){
 		//这个是类型，0是数据验证码 [0] SID_MAC，主站的；2是  [2]随机数+数据MAC  
-		rt_kprintf("[hplc]  (%s)  [2+len_data]=%0x!=0!!!!  \n",__func__,hplc_data->_698_frame.usrData[(position_data+len_data)]);		
+		rt_kprintf("[hplc]  (%s)  [2+len_data]=%0x?=0!!!!  \n",__func__,hplc_data->_698_frame.usrData[(position_data+len_data)]);		
 		len_sid=4;
 		position_sid=position_data+len_data+1;//开始位置就是(3+len_data)+1(这个1是上面的类型)
 
 		len_a_data=hplc_data->_698_frame.usrData[position_sid+len_sid];
-		position_a_data=position_sid+len_data+1;
+		position_a_data=position_sid+len_sid+1;
 		
+		
+	
 		len_mac=hplc_data->_698_frame.usrData[position_a_data+len_a_data];
 		position_mac=position_a_data+len_a_data+1;
 		
@@ -3515,10 +3540,13 @@ int unpatch_ScmEsam_Comm(struct CharPointDataManage * hplc_data,ScmEsam_Comm* l_
 		my_strcpy(l_stEsam_Comm->Tx_data+l_stEsam_Comm->DataTx_len,hplc_data->_698_frame.usrData,position_mac,len_mac);//	
 		l_stEsam_Comm->DataTx_len+=len_mac;
 	
-	
+
+		rt_kprintf("[hplc]  (%s)  len_a_data=%d len_mac=%d\n",__func__,len_a_data,len_mac);		
+
+
 	}	else 	if(hplc_data->_698_frame.usrData[(position_data+len_data)]==2){
 		//这个是类型，2是控制器的  [2]随机数+数据MAC  
-		rt_kprintf("[hplc]  (%s)  [2+len_data]=%0x!=0!!!!  \n",__func__,hplc_data->_698_frame.usrData[(position_data+len_data)]);		
+		rt_kprintf("[hplc]  (%s)  [2+len_data]=%0x?=2!!!!  \n",__func__,hplc_data->_698_frame.usrData[(position_data+len_data)]);		
 
 		len_rn=hplc_data->_698_frame.usrData[position_data+len_data+1];//可能是0
 		position_rn=position_data+len_data+1+1;//开始位置
@@ -3568,17 +3596,21 @@ int security_get_package(int security_style,struct _698_STATE  * priv_698_state,
 	ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);
 
 
-	if((hplc_ScmEsam_Comm.Rx_data[2]+hplc_ScmEsam_Comm.Rx_data[3]*256)==0){//esam高字节在前
+	if((hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[3])==0){//esam高字节在前
 		rt_kprintf("[hplc]  (%s) not get the right ack \n",__func__);
 //		result =-1;
 		return -1;
 	}else{
-		len_data=(hplc_ScmEsam_Comm.Rx_data[2]+hplc_ScmEsam_Comm.Rx_data[3]*256)-4;
+		len_data=(hplc_ScmEsam_Comm.Rx_data[3]+hplc_ScmEsam_Comm.Rx_data[2]*256)-4;
 		len_mac=4;//返回的mac的长度
 		rt_kprintf("[hplc]  (%s)  len_mac=%d\n",__func__,len_mac);
 	}
 
-	hplc_data->dataSize=hplc_data->_698_frame.usrData[4]+1+8;	//前面的长度
+	hplc_data->dataSize=hplc_data->_698_frame.addr.s_addr_len+8;	//前面的长度
+	
+	rt_kprintf("[hplc]  (%s)  hplc_data->dataSize=%d\n",__func__,hplc_data->dataSize);
+	
+	
 	temp_char=security_response;//
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
@@ -4705,18 +4737,20 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		data_rev->_698_frame.security_flag=1;
 		if(data_rev->_698_frame.usrData[1]==1){//密文
 
-
 			data_rev->_698_frame.needEsam_flag=1;
 			result=unpatch_ScmEsam_Comm(data_rev,&hplc_ScmEsam_Comm);
 			
 			hplc_current_ESAM_CMD=HOST_SESS_VERI_MAC;//主站会话解密验证MAC
 			ESAM_Communicattion(hplc_current_ESAM_CMD,&hplc_ScmEsam_Comm);//spi会打印结果
 
-			if(data_rev->_698_frame.usrData[2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1])){
-				rt_kprintf("[hplc]  (%s)  [2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256 \n",__func__);		
+			if(data_rev->_698_frame.usrData[2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[3])){
+				rt_kprintf("[hplc]  (%s)  usrData[2]!=(hplc_ScmEsam_Comm.Rx_data[2]*256 \n",__func__);		
 			}
 
-			data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[1]);
+			data_rev->_698_frame.usrData_len=(hplc_ScmEsam_Comm.Rx_data[2]*256+hplc_ScmEsam_Comm.Rx_data[3]);
+			rt_kprintf("[hplc]  (%s)  usrData_len=%d  Rx_data[2]=%d Rx_data[3]=%d\n",__func__,data_rev->_698_frame.usrData_len,hplc_ScmEsam_Comm.Rx_data[2],hplc_ScmEsam_Comm.Rx_data[3]);
+			
+			
 			my_strcpy(data_rev->_698_frame.usrData,hplc_ScmEsam_Comm.Rx_data,4,data_rev->_698_frame.usrData_len);//	
 			
 			data_rev->_698_frame.needEsam_flag=1;
@@ -5436,9 +5470,7 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 
 		case(Cmd_StartChg)://启动充电参数下发,无参数传递
 			rt_kprintf("[hplc]  (%s)   Cmd_StartChg  \n",__func__);
-		
-		
-							
+					
 			break;
 		
 		case(Cmd_StartChgAck)://启动充电应答，应当无参数		
@@ -5696,10 +5728,12 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 
 		_698_StartChg.need_package=1;
 		result=action_response_package(&_698_StartChg,priv_698_state,data_tx);//发送
+		rt_kprintf("[hplc]  (%s)    not security \n",__func__);//	
+		printmy(&data_tx->_698_frame);
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
-
+			rt_kprintf("[hplc]  (%s)    ok \n",__func__);
 			if(Cmd_security_package(&_698_StartChg,priv_698_state,data_tx)==0){
 				printmy(&data_tx->_698_frame);
 				hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
@@ -5719,9 +5753,13 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 		}else{//下面是需要回复的情况
 
 			if(Cmd_security_package(&_698_StopChg,priv_698_state,data_tx)==0){
+					
 				printmy(&data_tx->_698_frame);
 				hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
 				
+			}else{
+				rt_kprintf("[hplc]  (%s)    data_tx!=0 \n",__func__);//
+			
 			}
 		}				
 	}		
@@ -6034,9 +6072,14 @@ unsigned char tmp_addr[6];
 		
 		for(i=0;i<(RouterIfo.Addr[0]/2);i++){
 			addr[i]=((RouterIfo.Addr[RouterIfo.Addr[0]-i*2-1]-0x30)<<4 | (RouterIfo.Addr[RouterIfo.Addr[0]-i*2]-0x30));
-			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[]=%0x\n",__func__,i,RouterIfo.Addr[i]);//重要信息需要打印		
+			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[%d]=%0x\n",__func__,i,RouterIfo.Addr[i]);//重要信息需要打印		
 		}
 		addr[0]=0x11;//测试
+		
+		for(i=0;i<(RouterIfo.Addr[0]/2);i++){
+			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x\n",__func__,i,addr[i]);//重要信息需要打印		
+		}
+
 		return 0;	
 
 //	}else{
@@ -8163,7 +8206,6 @@ MSH_CMD_EXPORT(hplc_thread_init, hplc thread run);
 //				i++;
 //			}	
 //		}	
-
 
 
 ////获取esam信息
