@@ -1825,7 +1825,7 @@ int action_response_charge_strategy(CHARGE_STRATEGY * charge_strategy,struct  _6
 		unsigned_char_to_int(&charge_strategy->strChargeTimeSolts[j].ulChargePow,_698_frame_rev->usrData+i);
 		i+=4;//跳过上面的位
 	}
-	print_charge_strategy(charge_strategy);
+//	print_charge_strategy(charge_strategy);
 	
 	return 0;
 }
@@ -6944,11 +6944,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 
 	for(j=0;j<5;j++){
 
-		len=priv_EVENT->Chg_ExeState.ulEleBottomValue[j];
-//		if(len>sizeof(Chg_ExeState.ulEleBottomValue)){
-//			rt_kprintf("[hplc]  (%s) len> array size  Chg_ExeState.ulEleBottomValue\n",__func__);
-//			return -1;
-//		}	//changed next			
+		len=priv_EVENT->Chg_ExeState.ulEleBottomValue[j];			
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
@@ -6956,16 +6952,12 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	temp_char=Data_array;//当前电能示值	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-
+	temp_char=5;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<5;j++){
 
-		len=priv_EVENT->Chg_ExeState.ulEleActualValue[j];
-//		if(len>sizeof(priv_EVENT->Chg_ExeState.ulEleActualValue)){
-//			rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->Chg_ExeState.ulEleActualValue \n",__func__);
-//			return -1;
-//		}				
+		len=priv_EVENT->Chg_ExeState.ulEleActualValue[j];			
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
@@ -6977,12 +6969,7 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 	for(j=0;j<priv_EVENT->Chg_ExeState.ucTimeSlotNum;j++){
-
-		len=priv_EVENT->Chg_ExeState.ucChargeEle[j];
-//		if(len>sizeof(priv_EVENT->Chg_ExeState.ucChargeEle)){
-//			rt_kprintf("[hplc]  (%s) len> array size priv_EVENT->Chg_ExeState.ucChargeEle \n",__func__);
-//			return -1;
-//		}				
+		len=priv_EVENT->Chg_ExeState.ucChargeEle[j];			
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
 	
