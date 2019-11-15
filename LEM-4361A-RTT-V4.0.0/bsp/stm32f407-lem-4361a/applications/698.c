@@ -6553,7 +6553,7 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	_698_oad_omd(0x2a02,0x0200,hplc_data);	// 第1列OAD
+	_698_oad_omd(0x202a,0x0200,hplc_data);	// 第1列OAD
 
 
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
@@ -6701,7 +6701,7 @@ int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	_698_oad_omd(0x2a02,0x0200,hplc_data);	// 第1列OAD
+	_698_oad_omd(0x202a,0x0200,hplc_data);	// 第1列OAD
 
 
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
@@ -6848,7 +6848,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 	temp_char=0x00;//CSD   [0] 代表OAD，
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 	
-	_698_oad_omd(0x2a02,0x0200,hplc_data);	// 第1列OAD
+	_698_oad_omd(0x202a,0x0200,hplc_data);	// 第1列OAD
 
 
 	temp_char=0x01;//CSD 记录型对象属性描述符 [1] ROAD
