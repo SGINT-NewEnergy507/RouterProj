@@ -852,6 +852,9 @@ struct _698_STATE        //地址域a
 	int len_sa;
 	int FE_no;
 	int session_key_negotiation;
+	int time;//给定时
+	int report_esam_f;//上报esam标志，0需要上报；1 不需要了
+	
 	COMM_CMD_C current_report;
 };
 
