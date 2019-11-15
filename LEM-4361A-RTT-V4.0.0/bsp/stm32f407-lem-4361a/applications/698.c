@@ -6978,7 +6978,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 		return -1;
 	}				
 	temp_array=( unsigned char *) (priv_EVENT->cUserID+1);
-	_698_visible_octet_string(Data_octet_string,len,temp_array,hplc_data);
+	_698_visible_octet_string(Data_visible_string,len,temp_array,hplc_data);
 
 
 	//路由器资产编号   visible-string（SIZE(22)）
