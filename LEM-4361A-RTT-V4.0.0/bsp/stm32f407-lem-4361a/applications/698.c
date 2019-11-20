@@ -1880,6 +1880,8 @@ int plan_fail_event_package(PLAN_FAIL_EVENT *priv_struct,struct CharPointDataMan
 	
 	return result;
 }
+
+
 /*
 *	 函数名：
 *	 函数参数：
@@ -6119,13 +6121,13 @@ unsigned char tmp_addr[6];
 //			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x \n",__func__,i, addr[i]);
 //		}
 		
-		for(i=0;i<(RouterIfo.Addr[0]/2);i++){
-			addr[i]=((RouterIfo.Addr[RouterIfo.Addr[0]-i*2-1]-0x30)<<4 | (RouterIfo.Addr[RouterIfo.Addr[0]-i*2]-0x30));
-			rt_kprintf("[hplc]  (%s)  RouterIfo.Addr[%d]=%0x\n",__func__,i,RouterIfo.Addr[i]);//重要信息需要打印		
+		for(i=0;i<(RouterInfo.Addr[0]/2);i++){
+			addr[i]=((RouterInfo.Addr[RouterInfo.Addr[0]-i*2-1]-0x30)<<4 | (RouterInfo.Addr[RouterInfo.Addr[0]-i*2]-0x30));
+			rt_kprintf("[hplc]  (%s)  RouterInfo.Addr[%d]=%0x\n",__func__,i,RouterInfo.Addr[i]);//重要信息需要打印		
 		}
-		addr[0]=0x11;//测试
+//		addr[0]=0x11;//测试
 		
-		for(i=0;i<(RouterIfo.Addr[0]/2);i++){
+		for(i=0;i<(RouterInfo.Addr[0]/2);i++){
 			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x\n",__func__,i,addr[i]);//重要信息需要打印		
 		}
 

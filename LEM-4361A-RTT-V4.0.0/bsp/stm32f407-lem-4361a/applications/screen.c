@@ -4,6 +4,7 @@
 #include <screen.h>
 #include <board.h>
 #include <meter.h>
+#include <storage.h>
 
 const unsigned char gImage_logo[8000] = { /* 0X10,0X10,0X00,0X64,0X00,0X28,0X01,0X1B, */
 0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,0XFF,
@@ -1086,7 +1087,7 @@ const unsigned char gImage_alarm[1250] = { /* 0X10,0X10,0X00,0X19,0X00,0X19,0X01
 #define DEVICE_NAME			"lcd"//串口5设备名
 
 #define THREAD_SCREEN_PRIORITY     14
-#define THREAD_SCREEN_STACK_SIZE   1024
+#define THREAD_SCREEN_STACK_SIZE   1024*2
 #define THREAD_SCREEN_TIMESLICE    5
 
 
@@ -1113,8 +1114,8 @@ static char s_cStrBuf[20];//屏幕显示字符缓存
 
 static STR_SYSTEM_TIME stSystem_PasTime;//判断是否要刷新的时间
 
-static ScmMeter_Analog stMeter_Analog;//电度表计量数据
-//static ScmMeter_HisData stMeter_HisData;//meter历史数据缓存结构体
+CCMRAM static ScmMeter_Analog stLcd_Meter_Analog;//电度表计量数据
+CCMRAM static ScmMeter_HisData stLcd_Meter_HisData;//meter历史数据缓存结构体
 
 void key_callback(void *args);//按键回调函数
 void touch_callback(void *args);//触摸回调函数
@@ -1154,7 +1155,7 @@ static void screen_thread_entry(void *parameter)//lcd显示任务
 	
 	LCD_DisPlayScreen000();
 	
-	rt_thread_mdelay(100);
+	rt_thread_mdelay(3000);
 	
 
 	while (1)
@@ -1175,11 +1176,11 @@ static void screen_thread_entry(void *parameter)//lcd显示任务
 			lcddev->control(lcddev,RTGRAPHIC_CTRL_BACKOFF,0);
 			rt_lprintf("[Screen]:lcd backlight off!\r\n");
 		}
-		if(s_ucLCD_TPfinish == 1)//超间隔后 使能触摸中断
-		{
-			s_ucLCD_TPfinish = 0;
-			rt_pin_irq_enable(TOUCH_PIN,PIN_IRQ_ENABLE);
-		}
+//		if(s_ucLCD_TPfinish == 1)//超间隔后 使能触摸中断
+//		{
+//			s_ucLCD_TPfinish = 0;
+//			rt_pin_irq_enable(TOUCH_PIN,PIN_IRQ_ENABLE);
+//		}
 		rt_thread_mdelay(500);
 	}
 }
@@ -1193,10 +1194,14 @@ void key_callback(void *args)//按键回调函数
 	rt_lprintf("[Screen]:key down %s!\r\n",a);
 	if(s_ucLCD_BKstate != 1)
 	{
-		s_ucLCD_ScrNum++;
-		if(s_ucLCD_ScrNum>4)
+		rt_thread_mdelay(5);
+		if(rt_pin_read(KEY_PIN) == PIN_LOW)
 		{
-			s_ucLCD_ScrNum = SCR_001;
+			s_ucLCD_ScrNum++;
+			if(s_ucLCD_ScrNum>4)
+			{
+				s_ucLCD_ScrNum = SCR_001;
+			}
 		}
 	}
 	s_ucLCD_BKtime = 0;
@@ -1257,16 +1262,16 @@ void touch_callback(void *args)//按键回调函数
 //	s_ucLCD_tpy = y;
 	
 	
-	if(rt_pin_read(TOUCH_PIN) == PIN_LOW)
-	{
-		temp = lmt028_get_touch_location();
-		x = temp>>16;
-		y = temp&0xffff;
-		s_ucLCD_tp = 1;
-	}
-	s_ucLCD_tpx = x;
-	s_ucLCD_tpy = y;
-	s_ucLCD_TPfinish = 1;
+//	if(rt_pin_read(TOUCH_PIN) == PIN_LOW)
+//	{
+//		temp = lmt028_get_touch_location();
+//		x = temp>>16;
+//		y = temp&0xffff;
+//		s_ucLCD_tp = 1;
+//	}
+//	s_ucLCD_tpx = x;
+//	s_ucLCD_tpy = y;
+//	s_ucLCD_TPfinish = 1;
 	
 	
 //	rt_pin_irq_enable(TOUCH_PIN,PIN_IRQ_ENABLE);
@@ -1366,7 +1371,12 @@ static void LCD_DisPlayScreen001(void)
 	
 	rt_graphix_ops(lcddev)->draw_hline(RED,35,135,160);
 
-	rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
+	if(Router_WorkState.Router_State == ChgState_Standby)	
+		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
+	else if(Router_WorkState.Router_State == ChgState_InCharging)
+		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"充电",BLUE,WHITE);
+	else if(Router_WorkState.Router_State == ChgState_Fault)
+		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"故障",BLUE,WHITE);
 	
 	rt_graphix_ops(lcddev)->set_bmp(170,70,(void*)gImage_logo,100,40);
 	rt_graphix_ops(lcddev)->set_font24(170,130,(void*)"欢迎使用",BLUE,WHITE);
@@ -1378,14 +1388,32 @@ static void LCD_DisPlayScreen001(void)
 }
 static void LCD_DisPlayScreen002(void)
 {
-	rt_uint8_t i,month;
+//	rt_uint8_t i,month;
+	
+	rt_uint32_t time;
+	
+	time = 0x20;
+	if(System_Time_STR.Month == 0x01)
+	{
+		time = (rt_uint32_t)((((time<<8)&0xff00)| (System_Time_STR.Year-1))&0xffff);
+		time = (rt_uint32_t)((((time<<8)&0xffff00)| 0x12)&0xffffff);
+	}
+	else
+	{
+		time = (rt_uint32_t)((((time<<8)&0xff00)| System_Time_STR.Year)&0xffff);
+		time = (rt_uint32_t)((((time<<8)&0xffff00)| (System_Time_STR.Month-1))&0xffffff);
+	}
+	time = (rt_uint32_t)((((time<<8)&0xffffff00)| System_Time_STR.Day)&0xffffffff);
 	
 	s_ucLCD_ScrNum = SCR_002;
 	s_ucLCD__PasPageNum = SCR_002;
 	
-	BCD_toInt(&month,&System_Time_STR.Month,1);
+//	BCD_toInt(&month,&System_Time_STR.Month,1);
 	
 //	cmMeter_get_data(EMMETER_HISDATA,&stMeter_HisData.ulMeter_Total);//获取电表计量数据
+	
+	
+	GetStorageData(Cmd_MeterPowerRd,&stLcd_Meter_HisData,time);
 	
 	rt_graphix_ops(lcddev)->fill_fb(WHITE,10,310,40,200);
 	
@@ -1394,29 +1422,42 @@ static void LCD_DisPlayScreen002(void)
 	rt_graphix_ops(lcddev)->set_font24(10,120,(void*)"上1月平总电量:        KWH",BLUE,WHITE);
 	rt_graphix_ops(lcddev)->set_font24(10,150,(void*)"上1月谷总电量:        KWH",BLUE,WHITE);
 	
-	if(System_Time_STR.Month == 0x01)
-	{
-//		rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerJ,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerF,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerP,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerG,8,3),BLUE,WHITE);
-	}
-	else
-	{
-//		rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-2].ulPowerJ,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-2].ulPowerF,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-2].ulPowerP,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-2].ulPowerG,8,3),BLUE,WHITE);
-	}
+
+	rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerJ,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerF,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerP,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerG,8,3),BLUE,WHITE);
 }
 static void LCD_DisPlayScreen003(void)
 {
-	rt_uint8_t i,month;
+//	rt_uint8_t i,month;
+	
+	rt_uint32_t time;
+	
+	time = 0x20;
+	if(System_Time_STR.Month == 0x01)
+	{
+		time = (rt_uint32_t)((((time<<8)&0xff00)| (System_Time_STR.Year-1))&0xffff);
+		time = (rt_uint32_t)((((time<<8)&0xffff00)| 0x11)&0xffffff);
+	}
+	else if(System_Time_STR.Month == 0x02)
+	{
+		time = (rt_uint32_t)((((time<<8)&0xff00)| (System_Time_STR.Year-1))&0xffff);
+		time = (rt_uint32_t)((((time<<8)&0xffff00)| 0x12)&0xffffff);
+	}
+	else
+	{
+		time = (rt_uint32_t)((((time<<8)&0xff00)| System_Time_STR.Year)&0xffff);
+		time = (rt_uint32_t)((((time<<8)&0xffff00)| (System_Time_STR.Month-1))&0xffffff);
+	}
+	time = (rt_uint32_t)((((time<<8)&0xffffff00)| System_Time_STR.Day)&0xffffffff);
 	
 	s_ucLCD_ScrNum = SCR_003;
 	s_ucLCD__PasPageNum = SCR_003;
 	
-	BCD_toInt(&month,&System_Time_STR.Month,1);
+//	BCD_toInt(&month,&System_Time_STR.Month,1);
+	
+	GetStorageData(Cmd_MeterPowerRd,&stLcd_Meter_HisData,time);
 	
 	rt_graphix_ops(lcddev)->fill_fb(WHITE,10,310,40,200);
 	
@@ -1425,27 +1466,10 @@ static void LCD_DisPlayScreen003(void)
 	rt_graphix_ops(lcddev)->set_font24(10,120,(void*)"上2月平总电量:        KWH",BLUE,WHITE);
 	rt_graphix_ops(lcddev)->set_font24(10,150,(void*)"上2月谷总电量:        KWH",BLUE,WHITE);
 	
-//	if(System_Time_STR.Month == 0x01)
-//	{
-//		rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[10].ulPowerJ,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[10].ulPowerF,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[10].ulPowerP,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[10].ulPowerG,8,3),BLUE,WHITE);
-//	}
-//	else if(System_Time_STR.Month == 0x02)
-//	{
-//		rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerJ,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerF,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerP,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[11].ulPowerG,8,3),BLUE,WHITE);
-//	}
-//	else
-//	{
-//		rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-3].ulPowerJ,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-3].ulPowerF,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-3].ulPowerP,8,3),BLUE,WHITE);
-//		rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_HisData.ulMeter_Month[month-3].ulPowerG,8,3),BLUE,WHITE);
-//	}
+	rt_graphix_ops(lcddev)->set_font24(180,60,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerJ,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,90,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerF,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,120,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerP,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(180,150,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_HisData.ulMeter_Month.ulPowerG,8,3),BLUE,WHITE);
 }
 static void LCD_DisPlayScreen004(void)
 {
@@ -1456,17 +1480,17 @@ static void LCD_DisPlayScreen004(void)
 	
 	rt_graphix_ops(lcddev)->fill_fb(WHITE,10,310,40,200);
 	
-	cmMeter_get_data(EMMETER_ANALOG,&stMeter_Analog.ulVol);//获取电表计量数据
+	cmMeter_get_data(EMMETER_ANALOG,&stLcd_Meter_Analog.ulVol);//获取电表计量数据
 	
 	rt_graphix_ops(lcddev)->set_font24(10,60,(void*)"总电量  :          KWH",BLUE,WHITE);
 	rt_graphix_ops(lcddev)->set_font24(10,90,(void*)"交流电压:          V",BLUE,WHITE);
 	rt_graphix_ops(lcddev)->set_font24(10,120,(void*)"交流电流:          A",BLUE,WHITE);
 	rt_graphix_ops(lcddev)->set_font24(10,150,(void*)"功率因数:",BLUE,WHITE);
 	
-	rt_graphix_ops(lcddev)->set_font24(120,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulMeterTotal,8,3),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulVol*10,6,2),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulCur,6,2),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulPwrFactor,5,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,60,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulMeterTotal,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,90,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulVol*10,6,2),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,120,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulCur,6,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,150,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulPwrFactor,5,3),BLUE,WHITE);
 	
 }
 
@@ -1516,12 +1540,12 @@ static void LCD_UpdateScreen003(void)
 	
 static void LCD_UpdateScreen004(void)
 {
-	cmMeter_get_data(EMMETER_ANALOG,&stMeter_Analog.ulVol);//获取电表计量数据
+	cmMeter_get_data(EMMETER_ANALOG,&stLcd_Meter_Analog.ulVol);//获取电表计量数据
 	
-	rt_graphix_ops(lcddev)->set_font24(120,60,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulMeterTotal,8,3),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,90,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulVol*10,6,2),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,120,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulCur,6,2),BLUE,WHITE);
-	rt_graphix_ops(lcddev)->set_font24(120,150,(void*)LCD_Ltoa(s_cStrBuf,stMeter_Analog.ulPwrFactor,5,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,60,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulMeterTotal,8,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,90,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulVol*10,6,2),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,120,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulCur,6,3),BLUE,WHITE);
+	rt_graphix_ops(lcddev)->set_font24(120,150,(void*)LCD_Ltoa(s_cStrBuf,stLcd_Meter_Analog.ulPwrFactor,5,3),BLUE,WHITE);
 }
 	
 static void LCD_UpdateTime(void)

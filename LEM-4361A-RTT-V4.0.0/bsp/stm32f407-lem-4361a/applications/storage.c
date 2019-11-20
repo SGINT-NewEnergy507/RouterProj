@@ -31,7 +31,7 @@ static rt_uint32_t pow_df(rt_uint8_t m,rt_uint8_t n);
 static struct rt_thread storage;
 static rt_uint8_t storage_stack[THREAD_STORAGE_STACK_SIZE];//线程堆栈
 static rt_mutex_t storage_ReWr_mutex = RT_NULL;
-#define MAX_DIR_NUM    14
+#define MAX_DIR_NUM    16
 
 #define MAX_MALLOC_NUM    1024
 
@@ -46,6 +46,8 @@ const char* _dir_name[MAX_DIR_NUM]={
 	"/Strategy/PlanOffer",
 	"/Strategy/PlanFail",
 	"/Strategy/OnlineState",
+	"/Strategy/ChgExecute",
+	"/Strategy/ChgRequest",
 	"/Meter",
 	"/HistoryRecord",
 	"/ChargeRecord",
@@ -109,18 +111,51 @@ static void storage_thread_entry(void *parameter)
 	char i,para[9];
 	char array[9];
 	
+	rt_uint8_t test;
 	
-	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo)) < 0)//读取文件错误 设置为默认值
+	test = 0;
+	
+	
+	if(GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo)) < 0)//读取文件错误 设置为默认值
 	{
-		RouterIfo.Addr[0] = 0x0C;
-		for(i = 0; i < RouterIfo.Addr[0];i++)
+		RouterInfo.AssetNum[0] = 0x16;
+		for(i = 0; i < (RouterInfo.AssetNum[0]-1);i++)
 		{
-			RouterIfo.Addr[i+1] = 0x30;
+			RouterInfo.AssetNum[i+1] = 0x30;
 		}
-		RouterIfo.Addr[RouterIfo.Addr[0]+1] = 0x31;
+		RouterInfo.AssetNum[RouterInfo.AssetNum[0]] = 0x31;
+		
+		RouterInfo.Addr[0] = 0x0C;
+		for(i = 0; i < (RouterInfo.Addr[0]-1);i++)
+		{
+			RouterInfo.Addr[i+1] = 0x30;
+		}
+		RouterInfo.Addr[RouterInfo.Addr[0]] = 0x31;
 		
 		rt_kprintf("[Storage]:Read meter number err!\r\n");
 	}
+	if(test)
+	{
+		memset(RouterInfo.AssetNum,0,sizeof(RouterInfo.AssetNum));
+		RouterInfo.AssetNum[0] = 0x0C;
+		for(i = 0; i < (RouterInfo.AssetNum[0]-1);i++)
+		{
+			RouterInfo.AssetNum[i+1] = 0x30;
+		}
+//		RouterIfo.AssetNum[RouterIfo.AssetNum[0]-1] = 0x31;
+		RouterInfo.AssetNum[RouterInfo.AssetNum[0]] = 0x31;
+		
+		RouterInfo.Addr[0] = 0x0C;
+		for(i = 0; i < (RouterInfo.Addr[0]-1);i++)
+		{
+			RouterInfo.Addr[i+1] = 0x30;
+		}
+		RouterInfo.Addr[RouterInfo.Addr[0]] = 0x31;
+	}
+	
+	
+	
+	
 //	unlink((const char*)ROUTER_PARA_PATH_FILE); //删除oldest_file 必须完整路径
 //	memset(array,0x00,sizeof(array));
 //	memset(para,0x00,sizeof(para));
@@ -1012,7 +1047,7 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		strcat((char*)Para_Buff,(const char*)"cAssetNum=");
-		for(int i=0;i<(sizeof(RouterIfo.AssetNum)-1);i++)//资产编号 22位
+		for(int i=0;i<(sizeof(RouterInfo.AssetNum)-1);i++)//资产编号 22位
 		{
 			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i));// 表号
 			strcat((char*)Para_Buff,(const char*)buffer);
@@ -1020,9 +1055,9 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		strcat((char*)Para_Buff,(const char*)"\n");	
 
 		strcat((char*)Para_Buff,(const char*)"cAddr=");
-		for(int i=0;i<(sizeof(RouterIfo.Addr)-1);i++)//通讯地址12位
+		for(int i=0;i<(sizeof(RouterInfo.Addr)-1);i++)//通讯地址12位
 		{
-			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i+sizeof(RouterIfo.AssetNum)));// 表号
+			sprintf((char*)buffer,"%02X",*((char*)Storage_Para+i+sizeof(RouterInfo.AssetNum)));// 表号
 			strcat((char*)Para_Buff,(const char*)buffer);
 		}
 		strcat((char*)Para_Buff,(const char*)"\n");			
@@ -1112,10 +1147,10 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		{
 			if(strcmp((const char*)fpname,(const char*)"cAssetNum")==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterIfo.AssetNum),sizeof(RouterIfo.AssetNum)-1);//返回当前文件读指针
-				for(int i=0;i<sizeof(RouterIfo.AssetNum);i++)
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterInfo.AssetNum),sizeof(RouterInfo.AssetNum)-1);//返回当前文件读指针
+				for(int i=0;i<sizeof(RouterInfo.AssetNum);i++)
 				{
-					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterIfo.AssetNum+i));// 表号
+					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterInfo.AssetNum+i));// 表号
 				}
 				rt_kprintf("\n");
 			}			
@@ -1136,10 +1171,10 @@ static int Router_Para_Storage(const char *file,void *Storage_Para,rt_uint32_t d
 		{
 			if(strcmp((const char*)fpname,(const char*)"cAddr")==0)
 			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterIfo.Addr),(sizeof(RouterIfo.Addr)-1));//返回当前文件读指针
-				for(int i=0;i<sizeof(RouterIfo.Addr);i++)
+				fpoint = get_pvalue(fpoint,(rt_uint32_t*)(&RouterInfo.Addr),(sizeof(RouterInfo.Addr)-1));//返回当前文件读指针
+				for(int i=0;i<sizeof(RouterInfo.Addr);i++)
 				{
-					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterIfo.Addr));// 表号
+					rt_kprintf((char*)buffer,"0x%02X",*((char*)RouterInfo.Addr));// 表号
 				}
 				rt_kprintf("\n");
 			}			
@@ -6668,16 +6703,16 @@ void WrAssetNum(int argc, char**argv)//WrAssetNum 191000000035 zichan 1910000000
 		rt_kprintf("buf[%u]=%02X\n",i,buf[i]);
 	}
 	
-	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo))<0)
+	if(GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo))<0)
 	{
-		memset(&RouterIfo,0,sizeof(RouterIfo));
+		memset(&RouterInfo,0,sizeof(RouterInfo));
 	}
 	
-	strcpy(RouterIfo.AssetNum,buf);
+	strcpy(RouterInfo.AssetNum,buf);
 	
 	
 	
-	SetStorageData(Cmd_MeterNumWr,&RouterIfo,sizeof(RouterIfo));
+	SetStorageData(Cmd_MeterNumWr,&RouterInfo,sizeof(RouterInfo));
 	rt_kprintf("WrAssetNum success\n");
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);
@@ -6698,10 +6733,10 @@ void RdAssetNum(int argc, char**argv)
 	rt_uint32_t level = rt_hw_interrupt_disable();
 	rt_size_t len = 13;
 //	char *buf = (char*)rt_malloc(len);
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));	
+	GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo));	
 	for(int i = 0;i < len;i++)
 	{
-		rt_kprintf("asserr[%u]=%02X\n",i,RouterIfo.AssetNum[i]);
+		rt_kprintf("asserr[%u]=%02X\n",i,RouterInfo.AssetNum[i]);
 	}
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);
@@ -6733,14 +6768,14 @@ void WrAddr(int argc, char**argv)//WrAddr 191000000035 zichan 191000000035
 		rt_kprintf("buf[%u]=%02X\n",i,buf[i]);
 	}
 	
-	if(GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo))<0)
+	if(GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo))<0)
 	{
-		memset(&RouterIfo,0,sizeof(RouterIfo));
+		memset(&RouterInfo,0,sizeof(RouterInfo));
 	}
 	
-	strcpy(RouterIfo.Addr,buf);
+	strcpy(RouterInfo.Addr,buf);
 	
-	SetStorageData(Cmd_MeterNumWr,&RouterIfo,sizeof(RouterIfo));
+	SetStorageData(Cmd_MeterNumWr,&RouterInfo,sizeof(RouterInfo));
 	rt_kprintf("WrAddr success\n");
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);
@@ -6761,10 +6796,10 @@ void RdAddr(int argc, char**argv)
 	rt_uint32_t level = rt_hw_interrupt_disable();
 	rt_size_t len = 13;
 //	char *buf = (char*)rt_malloc(len);
-	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));	
-	for(int i = 0;i < sizeof(RouterIfo.Addr);i++)
+	GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo));	
+	for(int i = 0;i < sizeof(RouterInfo.Addr);i++)
 	{
-		rt_kprintf("asserr[%u]=%02X\n",i,RouterIfo.Addr[i]);
+		rt_kprintf("asserr[%u]=%02X\n",i,RouterInfo.Addr[i]);
 	}
 //	rt_free(buf);
 	rt_hw_interrupt_enable(level);

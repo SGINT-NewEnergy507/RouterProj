@@ -26,6 +26,8 @@ struct rt_spi_device* spi_esam;
 ScmEsam_Comm stEsam_Comm;
 //SCMEsam_Info stEsam_Info;
 
+static rt_mutex_t Esam_mutex = RT_NULL;//wyg  191025  printf 锁
+
 rt_uint8_t ESAM_Check(rt_uint8_t *pData, rt_uint16_t Len);
 //rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,rt_uint8_t* send_buf,rt_uint16_t send_len,rt_uint8_t* recv_buf,rt_uint16_t recv_len);
 
@@ -64,6 +66,13 @@ static void esam_thread_entry(void *parameter)
 		cfg.mode = RT_SPI_MODE_3 | RT_SPI_MSB;
 		
 		rt_spi_configure(spi_esam, &cfg);
+	}
+	
+	Esam_mutex = rt_mutex_create("Esam_mutex", RT_IPC_FLAG_FIFO);
+	
+	if(Esam_mutex == RT_NULL)
+	{
+		rt_kprintf("[Esam]: Esam_mutex create success!\n");
 	}
 	
 	rt_thread_mdelay(1000);	
@@ -385,7 +394,15 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 	
 	l_stEsam_Comm->DataRx_len = 0;
 	
+	if(Esam_mutex == RT_NULL)
+	{
+		rt_kprintf("[Esam]: Esam_mutex RT_NULL error!!!!!!\n");
+		return RT_ERROR;
+	}
+	
 	rt_enter_critical();
+	rt_mutex_take(Esam_mutex, RT_WAITING_FOREVER);
+	
 	ret = rt_spi_take_bus(device);
 	if(ret == RT_EOK)
 	{
@@ -435,6 +452,7 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 						rt_thread_delay(10);
 						rt_spi_release_bus(device);
 						rt_exit_critical();
+						rt_mutex_release(Esam_mutex);
 						
 						l_stEsam_Comm->DataRx_len = lenth+4;
 									
@@ -446,7 +464,7 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 //						rt_kprintf("  \n");
 						
 						my_printf((char*)l_stEsam_Comm->Rx_data,l_stEsam_Comm->DataRx_len,MY_HEX,1,"[Esam]:RX:");
-						
+
 						return RT_EOK;
 					}
 					else//校验错误  再次读取
@@ -480,7 +498,8 @@ rt_err_t ESAM_Send_and_Recv(struct rt_spi_device *device,ScmEsam_Comm* l_stEsam_
 		}
 		rt_spi_release_bus(device);				
 	}
-	rt_exit_critical();	
+	rt_exit_critical();
+	rt_mutex_release(Esam_mutex);	
 	l_stEsam_Comm->DataRx_len = 0;
 	
 	return RT_ERROR;

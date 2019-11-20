@@ -13,9 +13,11 @@ const char ProgramVersion[8] = {"V1.0.06"}; // 版本号 //故意给数组预留一个空位存
 CCMRAM char Printf_Buffer[1024];
 CCMRAM char Sprintf_Buffer[1024];
 //rt_mq_t storage_mq;
-ROUTER_IFO_UNIT RouterIfo;
-PILE_IFO_UNIT PileIfo;
+ROUTER_INFO_UNIT RouterInfo;
+PILE_INFO_UNIT PileInfo;
 ROUTER_FAULT Fault;
+
+ROUTER_WORK_STATE Router_WorkState;
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 unsigned char DEBUG_MSH = 1;
@@ -442,6 +444,7 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 	rt_uint32_t i;	
 	
 	sprintf((char*)Printf_Buffer,"");
+	sprintf((char*)Sprintf_Buffer,"");
 	switch(type)
 	{
 		case MY_HEX:

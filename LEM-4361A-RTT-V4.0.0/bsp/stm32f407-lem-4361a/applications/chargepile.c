@@ -117,6 +117,8 @@ u8 CAN1_Send_Msg(struct rt_can_msg CanSendMsg,u8 len);
 
 #define ResetFrame                 0x78
 #define ResetFrameAck              0x79
+
+#define PILE_Board_FAULT					0x00000004
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 /****************宏定义**********************************/
@@ -610,8 +612,8 @@ static void chargepile_thread_entry(void *parameter)
 	strYC.ChargVc = 2200;		    //充电电压  1位小数
 	STR_ChargePile_A.ChgState = state_WaitVertionCheck;
 	STR_ChargPilePara.ChgPileState = PILE_FAU;
-	Fault.Bit.CanCom_Fau = TRUE;	// 充电桩通信故障 （10）
-	STR_ChargPilePara.ChgPileFault = PILE_NOFAULT;
+//	Router_Fault.Bit.CanCom_Fau = 0;	// 充电桩通信故障 （10）
+	STR_ChargPilePara.ChgPileFault.Total_Fau = 0;
 	StrStateSystem.LdSwitch = 0x01;	// 负荷控制开关
 	rt_thread_mdelay(100);
 	while (1)
@@ -636,7 +638,7 @@ static void chargepile_thread_entry(void *parameter)
 			case state_Standby://初始化完成->待机
 
 				STR_ChargPilePara.ChgPileState = PILE_STANDBY;
-				Fault.Bit.CanCom_Fau = FALSE;	// 充电桩通信故障 （10）
+				Router_WorkState.Router_Fault.Bit.CanCom_Fau = FALSE;	// 充电桩通信故障 （10）
 //				if(rt_event_recv(&ChargePileEvent, ChargeStartOK_EVENT | ChargeStopOK_EVENT,RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR,500, &ch) == RT_EOK)
 //				{
 //					rt_kprintf("chargepile:接收到ChargePileEvent 0x%02X\n", ch);	
@@ -1363,11 +1365,11 @@ void Inform_Communicate_Can(uint8_t SendCmd,uint8_t Resend)
 			TxBuf.data[1] =  StrStateSystem.SendCount&0xFF;    // 心跳报文发送计数
 			if((STR_ChargePile_A.TotalFau&PILE_Board_FAULT) == PILE_Board_FAULT) // 通信超时
 			{
-                TxBuf.data[2] = 0x01; // 通讯超时
+          TxBuf.data[2] = 0x01; // 通讯超时
 			}
 			else
 			{											  
-                TxBuf.data[2] = 0x00; // 通讯成功
+          TxBuf.data[2] = 0x00; // 通讯成功
 			}			
 			
 			TxBuf.data[3] = 0x02;// 1:充电服务状态 停用  2：可用
