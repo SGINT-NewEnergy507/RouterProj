@@ -53,7 +53,7 @@ const char* _698_event_char[]={//698 事件名称   打印日志用
 
 	"Charge_Request_Report",					//充电申请事件上送
 	"Charge_Request_Report_Ack",				//充电申请事件上送应答
-	"Charge_Request_Report_APP",				//充电申请事件告知APP
+//	"Charge_Request_Report_APP",				//充电申请事件告知APP
 //	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
 	
 	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
@@ -69,7 +69,9 @@ const char* _698_event_char[]={//698 事件名称   打印日志用
 	"Charge_Record",							//上送充电订单
 	"Charge_RecordAck",						//上送充电订单事件确认
 	"Device_Fault",                      	//上送路由器异常状态
+	"Device_FaultAck",                      	//上送路由器异常状态
 	"Pile_Fault",                 			//上送充电桩异常状态
+	"Pile_FaultAck",                 			//上送充电桩异常状态
 	"Charge_Plan_Issue_Get_Ack",
 	
 	"Read_Router_State",                    	//路由器执行状态查询
@@ -77,7 +79,6 @@ const char* _698_event_char[]={//698 事件名称   打印日志用
 	
 	"STAOnlineState",						//STA监测自身及路由器在线状态↓
 	"STAOnlineStateAck",					//STA监测自身及路由器在线状态确认↑
-	"STAOnlineStateAPP",					//在线状态通知APP
 };//业务传输流程命令号
 
 char* AT_CmdDef[]={
@@ -3881,7 +3882,7 @@ rt_uint8_t BLE_event_get(void)//获取到 策略传递过来的事件 做响应处理
 		
 		break;
 		
-		case Cmd_ChgRequestReportAPP:
+		case Cmd_ChgRequestReport:
 			BLE_698_Charge_Apply_Event_Response(&_698_ble_frame,&stBLE_Comm);
 		break;
 		
@@ -4001,9 +4002,9 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 		result=0;
 		break;
 		
-		case Cmd_ChgRequestReportAPP:
+		case Cmd_ChgRequestReport:
 			stBLE_Charge_Apply_Event = *((CHARGE_APPLY_EVENT*)STR_SetPara);
-			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReportAPP);
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReport);
 			result=0;
 		break;
 		

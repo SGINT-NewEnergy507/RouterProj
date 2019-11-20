@@ -79,7 +79,7 @@ const char* _hplc_event_char[]={//698 事件名称   打印日志用
 
 	"Charge_Request_Report",					//充电申请事件上送
 	"Charge_Request_Report_Ack",				//充电申请事件上送应答
-	"Charge_Request_Report_APP",				//充电申请事件告知APP
+//	"Charge_Request_Report_APP",				//充电申请事件告知APP
 //	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
 	
 	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
@@ -95,7 +95,9 @@ const char* _hplc_event_char[]={//698 事件名称   打印日志用
 	"Charge_Record",							//上送充电订单
 	"Charge_RecordAck",						//上送充电订单事件确认
 	"Device_Fault",                      	//上送路由器异常状态
+	"Device_FaultAck",                      	//上送路由器异常状态
 	"Pile_Fault",                 			//上送充电桩异常状态
+	"Pile_FaultAck",                 			//上送充电桩异常状态
 	"Charge_Plan_Issue_Get_Ack",
 	
 	"Read_Router_State",                    	//路由器执行状态查询
@@ -103,7 +105,6 @@ const char* _hplc_event_char[]={//698 事件名称   打印日志用
 	
 	"STAOnlineState",						//STA监测自身及路由器在线状态↓
 	"STAOnlineStateAck",					//STA监测自身及路由器在线状态确认↑
-	"STAOnlineStateAPP",					//在线状态通知APP
 };//业务传输流程命令号
 
 
@@ -1163,11 +1164,11 @@ static void HPLC_Data_RecProcess(void)
 //				SetStorageData(Cmd_OnlineStateWr,&OnlineState_Event,sizeof(ONLINE_STATE));//再存一次
 //			}
 					
-			res = BLE_CtrlUnit_RecResp(Cmd_STAOnlineStateAPP,&OnlineState_Event,0);//传送至蓝牙
-			if(res == SUCCESSFUL)
-				rt_kprintf("[strategy]:  (%s) OnlineState_Event Apply to BLE, Successful!\n",__func__);				
-			else
-				rt_kprintf("[strategy]:  (%s) 回复BLE 表计在线状态事件，失败！\n",__func__);		
+//			res = BLE_CtrlUnit_RecResp(Cmd_STAOnlineStateAPP,&OnlineState_Event,0);//传送至蓝牙
+//			if(res == SUCCESSFUL)
+//				rt_kprintf("[strategy]:  (%s) OnlineState_Event Apply to BLE, Successful!\n",__func__);				
+//			else
+//				rt_kprintf("[strategy]:  (%s) 回复BLE 表计在线状态事件，失败！\n",__func__);		
 			break;
 		}			
 		default:
@@ -1191,7 +1192,7 @@ static void BLE_Data_RecProcess(void)
 	EventCmd = Strategy_get_BLE_event();
 	cmd = get_event_cmd(EventCmd);
 	
-	if(cmd > Cmd_STAOnlineStateAPP)
+	if(cmd > Cmd_STAOnlineStateAck)
 		return;
 
 	switch(cmd)
@@ -1211,7 +1212,7 @@ static void BLE_Data_RecProcess(void)
 				if(res > 0)
 				{					
 					res = CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//通知控制器
-					res = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAPP,&Chg_Apply_Event,0);//同时将事件回传APP
+					res = BLE_CtrlUnit_RecResp(Cmd_ChgRequestReport,&Chg_Apply_Event,0);//同时将事件回传APP
 					
 					CtrlCharge_Event.Ctrl_Chg_Info.Bit.Charge_Apply_Event = RT_TRUE;
 				}

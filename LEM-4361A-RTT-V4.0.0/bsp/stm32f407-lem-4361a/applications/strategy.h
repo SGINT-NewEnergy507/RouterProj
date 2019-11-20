@@ -301,7 +301,18 @@ typedef struct
 }CHG_ORDER_EVENT;/*充电订单事件记录单元*/
 
 
-
+typedef struct
+{
+	unsigned long OrderNum;				//	事件记录序号 
+	STR_SYSTEM_TIME StartTimestamp;		//  事件发生时间  
+	STR_SYSTEM_TIME FinishTimestamp;	//  事件结束时间  
+	unsigned char OccurSource;			//	事件发生源    NULL     
+	unsigned char ChannelState;			//  事件上报状态 = 通道上报状态
+	
+	ROUTER_FAULT Router_Fault;//路由器故障状态
+	CHARGE_PILE_FAULT Pile_Fault;//充电桩故障状态
+	
+}ROUTER_FAULT_EVENT;/*充电订单事件记录单元*/
 
 #endif
 

@@ -298,8 +298,7 @@ typedef enum {
 
 	Cmd_ChgRequestReport,					//充电申请事件上送
 	Cmd_ChgRequestReportAck,				//充电申请事件上送应答
-	Cmd_ChgRequestReportAPP,				//充电申请事件告知APP
-	
+
 	Cmd_ChgPlanExeState,                    //充电计划执行状态事件上报
 	Cmd_ChgPlanExeStateAck,                 //充电计划执行状态事件上报应答
 //	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
@@ -314,7 +313,9 @@ typedef enum {
 	Cmd_ChgRecord,							//上送充电订单事件
 	Cmd_ChgRecordAck,						//上送充电订单事件确认
 	Cmd_DeviceFault,                      	//上送路由器异常状态
+	Cmd_DeviceFaultAck,                      	//上送路由器异常状态应答
 	Cmd_PileFault,                 			//上送充电桩异常状态
+	Cmd_PileFaultAck,                 			//上送充电桩异常状态应答
 	Cmd_ChgPlanIssueGetAck,
 	
 	Cmd_RouterExeState,                    	//路由器执行状态查询↓
@@ -322,7 +323,6 @@ typedef enum {
 	
 	Cmd_STAOnlineState,						//STA监测自身及路由器在线状态↓
 	Cmd_STAOnlineStateAck,					//STA监测自身及路由器在线状态确认↑
-	Cmd_STAOnlineStateAPP,					//在线状态通知APP
 }COMM_CMD_C;//业务传输流程命令号
 #define COMM_CMD_C rt_uint32_t
 
