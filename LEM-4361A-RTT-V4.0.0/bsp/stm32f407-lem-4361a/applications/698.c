@@ -6654,9 +6654,9 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 	temp_char=Data_bit_string;//故障状态 bit-string （15位，两个字节）
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	len=temp_char=2;
+	temp_char=15;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-
+	len=2;
 //	temp_array=priv_EVENT-;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 	
@@ -6664,9 +6664,9 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 	temp_char=Data_bit_string;// 故障变位状态 bit-string （15位，两个字节）
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	len=temp_char=2;
+	temp_char=15;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-
+	len=2;
 //	temp_array=priv_EVENT-;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
@@ -6802,9 +6802,9 @@ int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_
 	temp_char=Data_bit_string;//故障状态 bit-string （27位，四个字节）
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	len=temp_char=4;
+	temp_char=27;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-
+	len=4;
 //	temp_array=priv_EVENT-;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 	
@@ -6812,9 +6812,9 @@ int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_
 	temp_char=Data_bit_string;// 故障变位状态 bit-string （27位，四个字节）
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
-	len=temp_char=4;
+	temp_char=27;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-
+	len=4;
 //	temp_array=priv_EVENT-;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
 
