@@ -6566,7 +6566,7 @@ int report_PLAN_FAIL_EVENT_package_router(ROUTER_FAULT_EVENT *priv_EVENT,struct 
 
 	_698_oad_omd(0x3406,0x0200,hplc_data);	// 上报能源路由器异常事件
 
-	temp_char=0x08;//oad个数
+	temp_char=0x07;//oad个数
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 //	
 //	//保存列属性0ad
@@ -6720,7 +6720,7 @@ int report_PLAN_FAIL_EVENT_package_pile(ROUTER_FAULT_EVENT *priv_EVENT,struct _6
 
 	_698_oad_omd(0x3407,0x0200,hplc_data);	// 上报充电桩异常事件
 
-	temp_char=0x08;//oad个数
+	temp_char=0x07;//oad个数
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 //	
 //	//保存列属性0ad
