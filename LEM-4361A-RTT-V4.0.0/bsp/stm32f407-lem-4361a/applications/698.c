@@ -6371,7 +6371,7 @@ int Report_Cmd_PileFault(struct CharPointDataManage *hplc_data,struct _698_STATE
 	temp_char=0x01;//数据 [1] Data
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	//	//	
-	plan_fail_event_package(_698_pile_fail_event.plan_fail_event,hplc_data);
+//	plan_fail_event_package(_698_pile_fail_event.plan_fail_event,hplc_data);
 	
 
 	temp_char=0x00;// 没有时间标签
@@ -6484,7 +6484,7 @@ int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STA
 	temp_char=0x01;//数据 [1] Data
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	//	//	
-	plan_fail_event_package(_698_router_fail_event.plan_fail_event,hplc_data);
+//	plan_fail_event_package(_698_router_fail_event.plan_fail_event,hplc_data);
 	
 
 	temp_char=0x00;// 没有时间标签
