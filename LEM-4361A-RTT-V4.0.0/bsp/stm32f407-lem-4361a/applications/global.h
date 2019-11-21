@@ -28,6 +28,8 @@
 #define MY_HEX	1
 #define MY_CHAR 2
 
+#define MY_DEFINE(R)	#R
+
 extern unsigned char DEBUG_MSH;
 
 typedef struct{
@@ -361,7 +363,7 @@ extern unsigned int CRC_16(unsigned char *ptr, unsigned int nComDataBufSize);
 extern unsigned char CRC7(unsigned char *ptr,unsigned int count);
 extern unsigned char XOR_Check(unsigned char *pData, unsigned int Len);
 extern char *itoa(int num,char *str,int radix);
-
+extern char* comm_cmdtype_to_string(COMM_CMD_C cmd);
 extern void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* function);
 ////////////////////////////////////////////////////////////////////////////////// 
 

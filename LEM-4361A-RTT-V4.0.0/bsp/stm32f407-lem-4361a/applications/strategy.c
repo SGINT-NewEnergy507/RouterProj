@@ -63,56 +63,56 @@ static char *err_strfault[] =
 		   "RTC通信故障！       ",             	 /* ERR             14 */
 };
 
-const char* _hplc_event_char[]={//698 事件名称   打印日志用
-	"null",
-	"Charge_Request",							//蓝牙充电申请
-	"Charge_Request_Ack",						//蓝牙充电申请应答
-	
-	"Charge_PlanIssue", 					//充电计划下发
-	"Charge_PlanIssue_Ack",                 	//充电计划下发应答
-	"Charge_Plan_Offer", 						//充电计划事件上报
-	"Charge_Plan_Offer_Ack",                 	//充电计划上报事件应答
-	
-	"Charge_Plan_Adjust",                 		//充电计划调整
-	"Charge_Plan_Adjust_Ack",                 	//充电计划调整应答
+//const char* _hplc_event_char[]={//698 事件名称   打印日志用
+//	"null",
+//	"Charge_Request",							//蓝牙充电申请
+//	"Charge_Request_Ack",						//蓝牙充电申请应答
+//	
+//	"Charge_PlanIssue", 					//充电计划下发
+//	"Charge_PlanIssue_Ack",                 	//充电计划下发应答
+//	"Charge_Plan_Offer", 						//充电计划事件上报
+//	"Charge_Plan_Offer_Ack",                 	//充电计划上报事件应答
+//	
+//	"Charge_Plan_Adjust",                 		//充电计划调整
+//	"Charge_Plan_Adjust_Ack",                 	//充电计划调整应答
 
 
-	"Charge_Request_Report",					//充电申请事件上送
-	"Charge_Request_Report_Ack",				//充电申请事件上送应答
-//	"Charge_Request_Report_APP",				//充电申请事件告知APP
-//	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
-	
-	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
-	"Charge_Plan_Exe_State_Ack",                 //充电计划执行状态事件上报应答
-	
-	"Start_Charge",							//启动充电参数下发
-	"Start_Charge_Ack",						//启动充电应答
-	"Stop_Charge",							//停止充电参数下发
-	"Stop_Charge_Ack",							//停止充电应答
-	"Power_Adj",							//功率调节参数下发
-	"Power_Adj_Ack",						//功率调节应答
+//	"Charge_Request_Report",					//充电申请事件上送
+//	"Charge_Request_Report_Ack",				//充电申请事件上送应答
+////	"Charge_Request_Report_APP",				//充电申请事件告知APP
+////	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
+//	
+//	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
+//	"Charge_Plan_Exe_State_Ack",                 //充电计划执行状态事件上报应答
+//	
+//	"Start_Charge",							//启动充电参数下发
+//	"Start_Charge_Ack",						//启动充电应答
+//	"Stop_Charge",							//停止充电参数下发
+//	"Stop_Charge_Ack",							//停止充电应答
+//	"Power_Adj",							//功率调节参数下发
+//	"Power_Adj_Ack",						//功率调节应答
 
-	"Charge_Record",							//上送充电订单
-	"Charge_RecordAck",						//上送充电订单事件确认
-	"Device_Fault",                      	//上送路由器异常状态
-	"Device_FaultAck",                      	//上送路由器异常状态
-	"Pile_Fault",                 			//上送充电桩异常状态
-	"Pile_FaultAck",                 			//上送充电桩异常状态
-	"Charge_Plan_Issue_Get_Ack",
-	
-	"Read_Router_State",                    	//路由器执行状态查询
-	"Read_Router_State_Ack",                 	//路由器执行状态应答
-	
-	"STAOnlineState",						//STA监测自身及路由器在线状态↓
-	"STAOnlineStateAck",					//STA监测自身及路由器在线状态确认↑
-};//业务传输流程命令号
+//	"Charge_Record",							//上送充电订单
+//	"Charge_RecordAck",						//上送充电订单事件确认
+//	"Device_Fault",                      	//上送路由器异常状态
+//	"Device_FaultAck",                      	//上送路由器异常状态
+//	"Pile_Fault",                 			//上送充电桩异常状态
+//	"Pile_FaultAck",                 			//上送充电桩异常状态
+//	"Charge_Plan_Issue_Get_Ack",
+//	
+//	"Read_Router_State",                    	//路由器执行状态查询
+//	"Read_Router_State_Ack",                 	//路由器执行状态应答
+//	
+//	"STAOnlineState",						//STA监测自身及路由器在线状态↓
+//	"STAOnlineStateAck",					//STA监测自身及路由器在线状态确认↑
+//};//业务传输流程命令号
 
 
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Set;
 CCMRAM ChargPilePara_TypeDef ChargePilePara_Get;
 
 CCMRAM static CHARGE_EXE_STATE_ASK ExeState_CtrlAsk;//控制器
-CCMRAM static CHARGE_EXE_STATE_ASK ExeState_BleAsk;//蓝牙
+//CCMRAM static CHARGE_EXE_STATE_ASK ExeState_BleAsk;//蓝牙
 
 CCMRAM static CHARGE_STRATEGY Chg_Strategy;
 CCMRAM static CHARGE_STRATEGY_RSP Chg_StrategyRsp;
@@ -128,6 +128,8 @@ CCMRAM static CHARGE_APPLY_EVENT Chg_Apply_Event;
 //CCMRAM static CHARGE_EXE_EVENT BLE_ChgExe_Event;
 //表计在线状态变化事件
 CCMRAM static ONLINE_STATE OnlineState_Event;	
+
+CCMRAM static ROUTER_FAULT_EVENT Router_Pile_Fault_Event;
 
 //超时处理
 CCMRAM static rt_timer_t StartChgResp_Timer;
@@ -881,6 +883,49 @@ static void Charge_Event_Data_Clear(void)
 	memset(&CtrlCharge_Event,0,sizeof(CtrlCharge_Event));
 }
 
+
+/********************************************************************  
+*	函 数 名: Charge_Plan_Event_Create()
+*	功能说明: 控制命令接收处理函数
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+
+static rt_int8_t Router_Pile_Event_Create(ROUTER_FAULT_EVENT* RouterFault,ROUTER_WORK_STATE* Router_state)
+{
+	rt_int8_t res;
+	static rt_uint32_t OrderNum = 0;
+	
+	memset(RouterFault,0,sizeof(ROUTER_FAULT_EVENT));
+	
+	rt_kprintf("[strategy]:  (%s) Create Router Fault event record...!\n",__func__);
+
+	OrderNum++;
+	RouterFault->OrderNum = OrderNum;
+	RouterFault->OccurSource = 0;
+	RouterFault->ChannelState = 0;
+
+	memcpy(&RouterFault->StartTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));//记录上报时间
+	memcpy(&RouterFault->FinishTimestamp,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+	
+	RouterFault->Router_Fault.Total_Fau = Router_state->Router_Fault.Total_Fau;
+	RouterFault->Pile_Fault.Total_Fau = Router_state->Pile_Fault.Total_Fau;
+					
+//	res = SetStorageData(Cmd_ChgExecuteWr,charge_plan_exe_event,sizeof(CHARGE_EXE_EVENT));
+
+//	if(res == SUCCESSFUL)
+//	{
+//		rt_kprintf("[strategy]:  (%s) Storage Plan_exe_Event, Successful!\n",__func__);
+//		return 1;
+//	}
+//	else
+//	{
+//		rt_kprintf("[strategy]:  (%s) Storage Plan_exe_Event, fail!\n",__func__);
+//	}
+//	return -1;
+	return 1;
+}
+
 /********************************************************************  
 *	函 数 名: get_event_cmd()
 *	功能说明: 查询当前指令
@@ -897,7 +942,7 @@ static rt_uint8_t get_event_cmd(rt_uint32_t event)
 		{
 			if(i != 0)
 			{
-				rt_kprintf("[strategy]:  (%s)  recv event is [%s]  \n",__func__,_hplc_event_char[i]);
+				rt_kprintf("[strategy]: (%s) get cmd: %s\n",__func__,comm_cmdtype_to_string(i));
 				return i;
 			}
 		}
@@ -1575,15 +1620,9 @@ static void ChgOrder_Apply(void)
 ********************************************************************/ 
 static void RtState_Judge(void)
 {
-//	if(PileIfo.WorkState != ChgSt_Finished)
-//	{
-//		if(ChargePilePara_Get.ChgPileState == PILE_STANDBY)
-//			PileIfo.WorkState = ChgSt_Standby;
-//		else if(ChargePilePara_Get.ChgPileState == PILE_WORKING)
-//			PileIfo.WorkState = ChgSt_InCharging;
-//		else if(ChargePilePara_Get.ChgPileState == PILE_FAU)
-//			PileIfo.WorkState = ChgSt_Fault;
-//	}
+	static rt_uint32_t l_RouterAlm,l_PileAlm;
+	
+	ExeState_Update();//路由器状态更新
 	
 	if((Router_WorkState.Router_Fault.Total_Fau != RT_FALSE)||(Router_WorkState.Pile_State == PILE_FAU))
 		Router_WorkState.Router_State = ChgState_Fault;
@@ -1592,51 +1631,38 @@ static void RtState_Judge(void)
 	{
 		case ChgState_Standby:
 			break;
+		
 		case ChgState_InCharging:           //充电中
 			Charge_Record_Update(&ChgOrder_Event);//更新充电记录
 			break;
+		
 		case ChgState_DisCharging:          //放电中
 			break;
+		
 		case ChgState_Finished:				//充放电完成（3秒回待机）
 			ChgOrder_Apply();
 			break;
+		
 		case ChgState_Fault:            	//故障
-
+			if(l_RouterAlm ^ Router_WorkState.Router_Fault.Total_Fau)
+			{
+				l_RouterAlm = Router_WorkState.Router_Fault.Total_Fau; 
+				Router_Pile_Event_Create(&Router_Pile_Fault_Event,&Router_WorkState);
+				CtrlUnit_RecResp(Cmd_DeviceFault,&Router_Pile_Fault_Event,0);//上报路由器故障信息	
+			}
+			
+			if(l_PileAlm ^ Router_WorkState.Pile_Fault.Total_Fau)
+			{
+				l_PileAlm = Router_WorkState.Pile_Fault.Total_Fau;
+			}
 			break;
+			
 		case ChgState_Update:
 			break;
+		
 		default:
 			break;
 	}
-			
-		
-//		case ChgSt_Fault:
-//		{
-//			Router_Fault.Bit.ChgPile_Fau = TRUE;
-//			break;
-//		}
-//		case ChgSt_InCharging:
-//		{
-//			Charge_Record_Update(&ChgOrder_Event);//更新充电记录
-//			break;
-//		}
-//		case ChgSt_DisCharging:
-//		{
-//			RouterIfo.WorkState = RtSt_CtrlPower;
-//			break;
-//		}
-//		case ChgSt_Finished:
-//		{
-//			RouterIfo.WorkState = RtSt_StandbyOK;//充电结束回待机
-//			break;
-//		}
-//		default:
-//			break;
-//	}
-
-//	
-//	if(Router_Fault.Total_Fau != 0)
-//		RouterInfo.WorkState = RtSt_Fault;	
 }
 
 static void strategy_thread_entry(void *parameter)
@@ -1654,26 +1680,21 @@ static void strategy_thread_entry(void *parameter)
 
 	Router_WorkState.Router_State = ChgState_Standby;
 	Router_WorkState.Router_Fault.Total_Fau = RT_FALSE;
-
+	
+	Router_WorkState.Pile_State = PILE_STANDBY;
+	Router_WorkState.Pile_Fault.Total_Fau = RT_FALSE;
+	
 	Chg_ExeState.exeState = EXE_NULL;
 	Charge_Event_Data_Clear();
-	CtrlCharge_Event.CtrlType = CTRL_NULL;
 
 	rt_thread_mdelay(3000);
-	
-	SetStorageData(Cmd_ChgRequestWr,&Chg_Apply_Event,sizeof(CHARGE_APPLY_EVENT));
-	
-//	GetStorageData(Cmd_MeterNumRd,&RouterIfo,sizeof(RouterIfo));
-//	rt_thread_mdelay(100);
 	
 	rt_pin_mode(RELAYA_PIN, PIN_MODE_OUTPUT);
 	rt_pin_mode(RELAYB_PIN, PIN_MODE_OUTPUT);
 	RELAY_ON();//上电吸合继电器
 	while (1)
 	{
-		ExeState_Update();//路由器状态更新
 		RtState_Judge();
-//		ChgOrder_Apply();
 		CtrlData_RecProcess();
 		PileData_RecProcess();
 			

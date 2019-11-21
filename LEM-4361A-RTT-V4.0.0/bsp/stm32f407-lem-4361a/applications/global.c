@@ -2,6 +2,9 @@
 #include <global.h>
 #include <stdio.h>
 
+
+
+#define ENUM_CHIP_TYPE_CASE(x)   case x: return(#x);
 //////////////////////////////////////////////////////////////////////////////////	 
 //********************************************************************************
 //修改说明
@@ -443,8 +446,8 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 {
 	rt_uint32_t i;	
 	
-	sprintf((char*)Printf_Buffer,"");
-	sprintf((char*)Sprintf_Buffer,"");
+	strcpy((char*)Printf_Buffer,"");
+	strcpy((char*)Sprintf_Buffer,"");
 	switch(type)
 	{
 		case MY_HEX:
@@ -472,6 +475,56 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 			break;
 	}
 }
+
+char* comm_cmdtype_to_string(COMM_CMD_C cmd)
+{
+	switch(cmd)
+	{
+		ENUM_CHIP_TYPE_CASE(Cmd_Null);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRequest);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRequestAck);
+		
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanIssue);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanIssueAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanOffer);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanOfferAck);
+		
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanAdjust);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanAdjustAck);
+
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRequestReport);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRequestReportAck);
+
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanExeState);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanExeStateAck);
+	//	Cmd_ChgRequestConfirm,					//充电申请确认（通知蓝牙）
+		
+		ENUM_CHIP_TYPE_CASE(Cmd_StartChg);
+		ENUM_CHIP_TYPE_CASE(Cmd_StartChgAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_StopChg);
+		ENUM_CHIP_TYPE_CASE(Cmd_StopChgAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_PowerAdj);
+		ENUM_CHIP_TYPE_CASE(Cmd_PowerAdjAck);
+
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRecord);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgRecordAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_DeviceFault);
+		ENUM_CHIP_TYPE_CASE(Cmd_DeviceFaultAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_PileFault);
+		ENUM_CHIP_TYPE_CASE(Cmd_PileFaultAck);
+		ENUM_CHIP_TYPE_CASE(Cmd_ChgPlanIssueGetAck);
+		
+		ENUM_CHIP_TYPE_CASE(Cmd_RouterExeState);
+		ENUM_CHIP_TYPE_CASE(Cmd_RouterExeStateAck);
+		
+		ENUM_CHIP_TYPE_CASE(Cmd_STAOnlineState);
+		ENUM_CHIP_TYPE_CASE(Cmd_STAOnlineStateAck);
+	}
+	return "no cmd";
+}
+
+
+
 
 /**************************************************************
  * 函数名称:  

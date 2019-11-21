@@ -27,8 +27,8 @@ typedef struct
 {
 	ScmMeter_Analog PileMeter;
 	uint32_t PWM_Duty;        			// 占空比 1位小数	
-	PILEPARA_WORKSTATE ChgPileState;	// 充电桩状态（1：待机 2：工作  3：故障）
-	uint32_t ChgPileFault;				// 充电桩故障类型
+	PILE_WORKSTATE ChgPileState;	// 充电桩状态（1：待机 2：工作  3：故障）
+	CHARGE_PILE_FAULT ChgPileFault;				// 充电桩故障类型
 	uint32_t StartReson;
 	uint32_t StopReson;
 	uint32_t AdjPowerReson;

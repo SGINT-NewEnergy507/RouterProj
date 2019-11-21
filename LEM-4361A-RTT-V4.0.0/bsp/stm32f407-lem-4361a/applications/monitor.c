@@ -36,12 +36,12 @@ static void monitor_thread_entry(void *parameter)
 		
 		if (rt_device_open(pcf8563, 0) == RT_EOK)
 		{
-			rt_lprintf("[Monitor]:Open pcf8563 device sucess!\r\n");
+			rt_lprintf("[monitor]:Open pcf8563 device sucess!\r\n");
 		}
 	}
 	else
 	{
-		rt_lprintf("[Monitor]:Not find device pcf8563!\r\n");
+		rt_lprintf("[monitor]:Not find device pcf8563!\r\n");
 		return;
 	}
 	
@@ -54,7 +54,7 @@ static void monitor_thread_entry(void *parameter)
 	
 		rt_device_control(pcf8563,RT_DEVICE_CTRL_RTC_GET_TIME,&System_Time_STR);
 		
-		rt_lprintf("[Monitor]:Systerm time is %02X-%02X-%02X-%02X-%02X-%02X!\r\n",System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
+		rt_lprintf("[monitor]: Systerm time is %02X-%02X-%02X-%02X-%02X-%02X!\r\n",System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
 								,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 		
 		rt_thread_mdelay(1000);

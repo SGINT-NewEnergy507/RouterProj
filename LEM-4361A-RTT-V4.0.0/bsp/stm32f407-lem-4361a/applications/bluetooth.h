@@ -24,50 +24,6 @@
 #define APDU_MAX_LENTH				512
 #define APDU_USER_MAX_LENTH		512
 
-const char* _698_event_char[]={//698 事件名称   打印日志用
-	"null",
-	"Charge_Request",							//蓝牙充电申请
-	"Charge_Request_Ack",						//蓝牙充电申请应答
-	
-	"Charge_PlanIssue", 					//充电计划下发
-	"Charge_PlanIssue_Ack",                 	//充电计划下发应答
-	"Charge_Plan_Offer", 						//充电计划事件上报
-	"Charge_Plan_Offer_Ack",                 	//充电计划上报事件应答
-	
-	"Charge_Plan_Adjust",                 		//充电计划调整
-	"Charge_Plan_Adjust_Ack",                 	//充电计划调整应答
-
-
-	"Charge_Request_Report",					//充电申请事件上送
-	"Charge_Request_Report_Ack",				//充电申请事件上送应答
-	"Charge_Request_Report_APP",				//充电申请事件告知APP
-//	"Charge_Request_Confirm",					//充电申请确认（通知蓝牙）
-	
-	"Charge_Plan_Exe_State",                    //充电计划执行状态事件上报
-	"Charge_Plan_Exe_State_Ack",                 //充电计划执行状态事件上报应答
-	
-	"Start_Charge",							//启动充电参数下发
-	"Start_Charge_Ack",						//启动充电应答
-	"Stop_Charge",							//停止充电参数下发
-	"Stop_Charge_Ack",							//停止充电应答
-	"Power_Adj",							//功率调节参数下发
-	"Power_Adj_Ack",						//功率调节应答
-
-	"Charge_Record",							//上送充电订单
-	"ChgRecordAck",						//上送充电订单事件确认
-	"Device_Fault",                      	//上送路由器异常状态
-	"Pile_Fault",                 			//上送充电桩异常状态
-	"Charge_Plan_Issue_Get_Ack",
-	
-	"Read_Router_State",                    	//路由器执行状态查询
-	"Read_Router_State_Ack",                 	//路由器执行状态应答
-	
-	"STAOnlineState",						//STA监测自身及路由器在线状态↓
-	"STAOnlineStateAck",					//STA监测自身及路由器在线状态确认↑
-	"STAOnlineStateAPP",					//在线状态通知APP
-};//业务传输流程命令号
-
-
 
 struct _698_DATE_S
 {
