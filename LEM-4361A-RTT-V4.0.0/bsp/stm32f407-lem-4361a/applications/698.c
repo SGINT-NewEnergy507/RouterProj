@@ -47,9 +47,13 @@ CCMRAM unsigned char _698_ChgPlanIssueGet_data[100];
 
 CCMRAM _698_CHARGE_STRATEGY _698_charge_strategy;
 
-CCMRAM _698_PLAN_FAIL_EVENT _698_router_fail_event;
 
-CCMRAM _698_PLAN_FAIL_EVENT _698_pile_fail_event;
+
+CCMRAM ROUTER_FAULT_EVENT _698_router_fail_event;
+
+CCMRAM ROUTER_FAULT_EVENT _698_pile_fail_event;
+
+
 
 CCMRAM _698_CHARGE_EXE_STATE _698_charge_exe_state;
 
@@ -5587,18 +5591,18 @@ rt_uint8_t CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count){
 	
 		case(Cmd_DeviceFault)://上送路由器异常状态 
 			rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);
-//			hplc_698_state.current_report=Cmd_DeviceFaultAck;//少个应答
-			_698_router_fail_event.plan_fail_event=(PLAN_FAIL_EVENT *)STR_SetPara;//不一定成功	
-			_698_router_fail_event.array_size=count;
+			hplc_698_state.current_report=Cmd_DeviceFaultAck;//少个应答
+			_698_router_fail_event=*((ROUTER_FAULT_EVENT *)STR_SetPara);//不一定成功	
+//			_698_router_fail_event.array_size=count;
 			hplc_event=hplc_event|event;
 			break;	
 
 		
 		case(Cmd_PileFault)://上送充电桩异常状态 
 			rt_kprintf("[hplc]  (%s)   Cmd_PileFault  \n",__func__);
-//			hplc_698_state.current_report=Cmd_PileFaultAck;//少个应答		
-			_698_pile_fail_event.plan_fail_event=(PLAN_FAIL_EVENT *)STR_SetPara;//不一定成功	
-			_698_pile_fail_event.array_size=count;
+			hplc_698_state.current_report=Cmd_PileFaultAck;//少个应答		
+			_698_pile_fail_event=*((ROUTER_FAULT_EVENT *)STR_SetPara);//不一定成功	
+//			_698_pile_fail_event.array_size=count;
 			hplc_event=hplc_event|event;
 			break;	
 	
@@ -5872,7 +5876,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	if(hplc_event&(0x1<<Cmd_DeviceFault)){	//上送路由器异常状态
 		hplc_event&=(~(0x1<<Cmd_DeviceFault));
 		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);	
-		result=report_notification_package(Cmd_DeviceFault,&_698_router_fail_event.plan_fail_event,data_tx,priv_698_state);		
+		result=report_notification_package(Cmd_DeviceFault,&_698_router_fail_event,data_tx,priv_698_state);		
 		
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
@@ -5887,7 +5891,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	if(hplc_event&(0x1<<Cmd_PileFault)){	//上送充电桩异常状态
 		hplc_event&=(~(0x1<<Cmd_PileFault));		
 		rt_kprintf("[hplc]  (%s)   Cmd_DeviceFault  \n",__func__);
-		report_notification_package(Cmd_PileFault,&_698_pile_fail_event.plan_fail_event,data_tx,priv_698_state);		
+		report_notification_package(Cmd_PileFault,&_698_pile_fail_event,data_tx,priv_698_state);		
 		if( result!=0){
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
@@ -6532,7 +6536,7 @@ int Report_Cmd_DeviceFault(struct CharPointDataManage *hplc_data,struct _698_STA
 /*
 		上送路由器异常状态
 */
-int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+int report_PLAN_FAIL_EVENT_package_router(ROUTER_FAULT_EVENT *priv_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
 	int result=0,len=0,i=0,j=0;
 	struct _698_date_time_s priv_date_time_s;
 	unsigned char temp_char,*temp_array;
@@ -6656,9 +6660,12 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 
 	temp_char=15;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-	len=2;
-//	temp_array=priv_EVENT-;
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+	
+	temp_char=(priv_EVENT->Router_Fault.Total_Fau&(0xff));
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Router_Fault.Total_Fau&(0xff00)>>8);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 
 	temp_char=Data_bit_string;// 故障变位状态 bit-string （15位，两个字节）
@@ -6666,9 +6673,12 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 
 	temp_char=15;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-	len=2;
-//	temp_array=priv_EVENT-;
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+	
+	temp_char=(priv_EVENT->Router_Fault.Total_Fau&(0xff));
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Router_Fault.Total_Fau&(0xff00)>>8);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 	return result;//不发送
 
@@ -6680,7 +6690,7 @@ int report_PLAN_FAIL_EVENT_package_router(PLAN_FAIL_EVENT *priv_EVENT,struct _69
 /*
 		充电桩异常事件
 */
-int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+int report_PLAN_FAIL_EVENT_package_pile(ROUTER_FAULT_EVENT *priv_EVENT,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
 	int result=0,len=0,i=0,j=0;
 	struct _698_date_time_s priv_date_time_s;
 	unsigned char temp_char,*temp_array;
@@ -6804,9 +6814,18 @@ int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_
 
 	temp_char=27;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-	len=4;
-//	temp_array=priv_EVENT-;
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff));
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff00)>>8);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+		temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff0000)>>16);
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff000000)>>24);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 
 	temp_char=Data_bit_string;// 故障变位状态 bit-string （27位，四个字节）
@@ -6814,9 +6833,18 @@ int report_PLAN_FAIL_EVENT_package_pile(PLAN_FAIL_EVENT *priv_EVENT,struct _698_
 
 	temp_char=27;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
-	len=4;
-//	temp_array=priv_EVENT-;
-	result=save_char_point_data(hplc_data,hplc_data->dataSize,temp_array,len);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff));
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff00)>>8);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+		temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff0000)>>16);
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff000000)>>24);;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 	return result;//不发送
 
@@ -8104,14 +8132,14 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 		}	
 	}else if(report_type==Cmd_DeviceFault){ //上送路由器异常状态
 		rt_kprintf("[hplc]  (%s)  Cmd_DeviceFault   \n",__func__);
-		result=report_PLAN_FAIL_EVENT_package_router((PLAN_FAIL_EVENT *)report_struct,priv_698_state,hplc_data);	
+		result=report_PLAN_FAIL_EVENT_package_router((ROUTER_FAULT_EVENT *)report_struct,priv_698_state,hplc_data);	
 		if(result!=0){
 			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
 			return -1;
 		}	
 	}else if(report_type==Cmd_PileFault){ //上送充电桩异常状态
 		rt_kprintf("[hplc]  (%s)  Cmd_DeviceFault   \n",__func__);
-		result=report_PLAN_FAIL_EVENT_package_pile((PLAN_FAIL_EVENT *)report_struct,priv_698_state,hplc_data);	
+		result=report_PLAN_FAIL_EVENT_package_pile((ROUTER_FAULT_EVENT *)report_struct,priv_698_state,hplc_data);	
 		if(result!=0){
 			rt_kprintf("[hplc]  (%s)  erro and out    \n",__func__);
 			return -1;
