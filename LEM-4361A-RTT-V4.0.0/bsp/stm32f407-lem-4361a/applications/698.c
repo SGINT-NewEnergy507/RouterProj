@@ -4561,7 +4561,15 @@ int connect_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STA
 	
 	hplc_data->_698_frame.FCS0=hplc_data->priveData[FCS_position];
 	hplc_data->_698_frame.FCS1=hplc_data->priveData[FCS_position+1];
-	
+
+	if(_698_frame_rev->addr.ca!=0){
+		priv_698_state->addr.ca=_698_frame_rev->addr.ca;
+
+	}
+
+
+
+
 	return result;
 	
 }	
@@ -6818,13 +6826,13 @@ int report_PLAN_FAIL_EVENT_package_pile(ROUTER_FAULT_EVENT *priv_EVENT,struct _6
 	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff));
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
-	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff00)>>8);;
+	temp_char=((priv_EVENT->Pile_Fault.Total_Fau&(0xff00))>>8);;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
-		temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff0000)>>16);
+		temp_char=((priv_EVENT->Pile_Fault.Total_Fau&(0xff0000))>>16);
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
-	temp_char=(priv_EVENT->Pile_Fault.Total_Fau&(0xff000000)>>24);;
+	temp_char=((priv_EVENT->Pile_Fault.Total_Fau&(0xff000000))>>24);
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 
@@ -8081,7 +8089,7 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 	hplc_data->_698_frame.addr=priv_698_state->addr;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,hplc_data->_698_frame.addr.s_addr,hplc_data->_698_frame.addr.s_addr_len);
 
-	temp_char=hplc_data->_698_frame.addr.ca=0x00;//默认是上报给后台
+	temp_char=hplc_data->_698_frame.addr.ca=priv_698_state->addr.ca;//控制器地址
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 	int HCS_position=hplc_data->dataSize;
