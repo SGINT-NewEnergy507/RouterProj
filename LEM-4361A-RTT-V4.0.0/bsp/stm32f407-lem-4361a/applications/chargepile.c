@@ -685,7 +685,6 @@ static void chargepile_thread_entry(void *parameter)
 				StrStateFrame.YcSendDataFrameReSendFlag = TRUE; 
 				StrStateFrame.YxBackupSendDataFrameReSendFlag = TRUE; 
 				STR_ChargePile_A.ChgState = state_Standby;
-				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
 				rt_lprintf("[chargepile]: State_ChargEnd->State_Standby\n");
 			
 				break;
@@ -2109,6 +2108,7 @@ void CAN_V110_RecProtocal(void)
 			{
 				Inform_Communicate_Can(ChargeStartStateFrameAck,FALSE); // Æô¶¯×´Ì¬Ó¦´ð
 				STR_ChargePile_A.ChgState = state_Charging;
+				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
 				rt_event_send(&ChargePileEvent, ChargeStartOK_EVENT);
 				rt_lprintf("[chargepile]: monitor_task:state_Charging&ChargeStartOK_EVENT\n");
 			}
