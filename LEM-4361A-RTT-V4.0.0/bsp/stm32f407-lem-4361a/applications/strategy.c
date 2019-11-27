@@ -2010,9 +2010,6 @@ static void RtState_Judge(void)
 {
 	
 	ExeState_Update();//路由器状态更新
-	
-//	if(CtrlCharge_Event.Router_Module_Info.Bit.BLE_CONNECT == RT_TRUE)//蓝牙已连接
-		Router_WorkState.Router_Fault.Bit.Memory_Fau =1;
 //	
 	if((Router_WorkState.Router_Fault.Total_Fau != RT_FALSE)||(Router_WorkState.Pile_State == PILE_FAU))
 		Router_WorkState.Router_State = ChgState_Fault;
@@ -2149,8 +2146,20 @@ MSH_CMD_EXPORT(REALY_OFF, AC out  CMD);
 
 void alarm(int argc, char**argv)
 {
-	Router_WorkState.Router_Fault.Bit.Memory_Fau =1;
-	Router_WorkState.Router_Fault.Bit.ESAM_Fau = 1;
+	rt_uint8_t tmp;
+	
+	tmp = strtol(argv[1],NULL,10);
+	
+	if(tmp == 1)
+	{
+		Router_WorkState.Router_Fault.Bit.Memory_Fau =1;
+		Router_WorkState.Router_Fault.Bit.ESAM_Fau = 1;
+	}
+	else
+	{
+		Router_WorkState.Router_Fault.Bit.Memory_Fau =0;
+		Router_WorkState.Router_Fault.Bit.ESAM_Fau = 0;
+	}
 }
 MSH_CMD_EXPORT(alarm, AC out  CMD);
 
