@@ -4204,7 +4204,7 @@ int action_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STAT
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,hplc_data->_698_frame.addr.s_addr,hplc_data->_698_frame.addr.s_addr_len);//
 
 
-	temp_char=hplc_data->_698_frame.addr.ca=priv_698_state->addr.ca;
+	temp_char=hplc_data->_698_frame.addr.ca=_698_frame_rev->addr.ca;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 	priv_698_state->HCS_position=hplc_data->dataSize;
@@ -4303,7 +4303,7 @@ int get_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,hplc_data->_698_frame.addr.s_addr,hplc_data->_698_frame.addr.s_addr_len);//
 
 
-	temp_char=hplc_data->_698_frame.addr.ca=priv_698_state->addr.ca;
+	temp_char=hplc_data->_698_frame.addr.ca=_698_frame_rev->addr.ca;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 	
 	priv_698_state->HCS_position=hplc_data->dataSize;
