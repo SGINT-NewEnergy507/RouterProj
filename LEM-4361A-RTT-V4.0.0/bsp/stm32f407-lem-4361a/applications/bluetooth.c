@@ -11,8 +11,10 @@
 #include "chargepile.h"
 
 
-#define FUNC_PRINT_RX	"[bluetooth]:RX:"
-#define FUNC_PRINT_TX	"[bluetooth]:TX:"
+//#define FUNC_PRINT_RX	"[bluetooth]:RX:"
+//#define FUNC_PRINT_TX	"[bluetooth]:TX:"
+
+#define TASK_NAME	"[bluetooth]:"
 
 #define KPRINTF_ENABLE 1
 #define KPRINTF_DISABLE 0
@@ -95,7 +97,7 @@ char* AT_CmdDef[]={
 	"AT+BLEGATTSSRVSTART\r\n",	//¿ªÆôGATTS ·þÎñ
 	
 	"AT+BLEADVPARAM=32,64,0,1,7\r\n",							//ÅäÖÃ¹ã²¥²ÎÊý
-	"AT+BLEADVDATA=\"0201060F094C4E",//ÅäÖÃÉ¨ÃèÏìÓ¦Êý¾Ý
+	"AT+BLEADVDATA=\"0201060D09",//ÅäÖÃÉ¨ÃèÏìÓ¦Êý¾Ý
 //	"AT+BLEADVDATA=\"0201060F094C4E3030303030303030303030310303E0FF\"\r\n",//ÅäÖÃÉ¨ÃèÏìÓ¦Êý¾Ý
 //	"AT+BLEADVDATA=\"02010611095B4E523030303030303030303030315D0303E0FF\"\r\n",//ÅäÖÃÉ¨ÃèÏìÓ¦Êý¾Ý		
 	"AT+BLEADVSTART\r\n",		//¿ªÊ¼¹ã²¥
@@ -159,6 +161,9 @@ CCMRAM CHARGE_APPLY_RSP			stBLE_Charge_Apply_RSP;//³äµçÉêÇëÏìÓ¦
 CCMRAM CHARGE_APPLY_EVENT 	stBLE_Charge_Apply_Event;//³äµçÉêÇëÊÂ¼þµ¥ÉÏ±¨
 CCMRAM PLAN_OFFER_EVENT			stBLE_Charge_Plan_Event;//³äµç¼Æ»®ÉÏ±¨ÊÂ¼þ
 CCMRAM CHARGE_EXE_EVENT 		stBLE_Charge_Exe_Event;//³äµçÖ´ÐÐÊÂ¼þÉÏ±¨
+CCMRAM ROUTER_FAULT_EVENT		stBLE_Router_Fault_Event;//Â·ÓÉÆ÷¹ÊÕÏÊÂ¼þ¼ÇÂ¼
+
+
 CCMRAM CHARGE_EXE_STATE			stBLE_Charge_State;//³äµç×´Ì¬ÉÏËÍ
 CCMRAM CHARGE_STRATEGY			stBLE_Charge_Plan;//³äµç¼Æ»®µ¥
 CCMRAM CHARGE_STRATEGY_RSP	stBLE_Charge_Plan_RSP;//³äµç¼Æ»®µ¥ÏìÓ¦
@@ -171,7 +176,7 @@ CCMRAM CHARGE_STRATEGY stBLE_Charge_Plan_Adj;
 CCMRAM CHARGE_STRATEGY_RSP stBLE_Charge_Plan_Adj_Rsp;
 
 
-CCMRAM static char printfbuf[100];
+//CCMRAM static char printfbuf[100];
 
 //CCMRAM ROUTER_IFO_UNIT stBLE_Router_Info;
 
@@ -223,10 +228,11 @@ rt_err_t BLE_698_Data_UnPackage(struct _698_BLE_FRAME *dev_recv,rt_uint8_t* buf)
 
 rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData);
 
-rt_uint8_t 	BLE_event_get(void);//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
-rt_uint8_t 	BLE_strategy_event_send(COMM_CMD_C cmd);//·¢ËÍÊÂ¼þµ½²ßÂÔ
+rt_uint8_t BLE_Get_Strategy_Event(void);//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
+rt_uint8_t BLE_Send_Event_To_Strategy(COMM_CMD_C cmd);//·¢ËÍÊÂ¼þµ½²ßÂÔ
 rt_uint32_t Strategy_get_BLE_event(void);
-rt_uint8_t 	BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
+rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
+rt_uint8_t BLE_Send_To_Strategy_Event_Ack(void);
 
 /********************************************************************  
 *	º¯ Êý Ãû: BLE_Commit_TimeOut
@@ -291,7 +297,7 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 					if(timeout>5)
 					{
 						stBLE_Comm.DataRx_len = ptr;
-						my_printf((char*)stBLE_Comm.Rx_data,stBLE_Comm.DataRx_len,MY_CHAR,1,FUNC_PRINT_RX);
+						my_printf((char*)stBLE_Comm.Rx_data,stBLE_Comm.DataRx_len,MY_CHAR,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RX:");
 						g_ulBLE_Rx_Beg = 1;
 						g_ulBLE_Rx_Ptr = 0;
 						timeout = 0;
@@ -354,7 +360,7 @@ static rt_err_t BLE_Uart_Data_Recv_and_Process(rt_device_t dev,ScmUart_Comm* stD
 							if(_698_FCS(stData->Rx_data,1,lenth,0) == 0)
 							{
 								stBLE_Comm.DataRx_len = ptr;
-								my_printf((char*)stBLE_Comm.Rx_data,stBLE_Comm.DataRx_len,MY_HEX,1,FUNC_PRINT_RX);
+								my_printf((char*)stBLE_Comm.Rx_data,stBLE_Comm.DataRx_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RX:");
 								g_ulBLE_Rx_Beg = 1;
 								g_ulBLE_Rx_Pre = 0;
 								timeout = 0;
@@ -450,7 +456,7 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 	
 	if(at_cmd == BLE_NAME)
 	{
-		strcat(at_buf,"\"LN");
+		strcat(at_buf,"\"");
 		strcat((char*)RouterInfo.Addr,"\0");
 		strcat(at_buf,(char*)(&RouterInfo.Addr[1]));
 		strcat(at_buf,"\"\r\n");
@@ -459,12 +465,13 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 	{
 		for(i = 0; i < 6;i++)
 		{
-			strncpy(buf,"f",1);
-			strcat(at_buf,buf);
-			if(i <2)
-				strncpy(buf,(char*)(&RouterInfo.Addr[3+i]),1);
+			if(i<3)
+				strncpy(buf,"f",1);
 			else
-				strncpy(buf,(char*)(&RouterInfo.Addr[7+i]),1);
+				strncpy(buf,"a",1);
+			
+			strcat(at_buf,buf);
+			strncpy(buf,(char*)(&RouterInfo.Addr[i+7]),1);
 			strcat(at_buf,buf);
 			if(i != 5)
 				strcat(at_buf,":");
@@ -489,7 +496,7 @@ void BLE_ATCmd_Send(rt_device_t dev,BLE_AT_CMD at_cmd)
 	
 	if(size == strlen(at_buf))
 	{
-		rt_kprintf("[bluetooth]: (%s) ble_send: at_cmd is %s\n",__func__,at_buf);
+		rt_kprintf("[bluetooth]: (%s) %s\n",__func__,at_buf);
 	}
 	
 	BLE_ATCmd_TimeOut(at_cmd);//ATÖ¸Áî·¢ËÍ³¬Ê±´¦Àí
@@ -530,6 +537,7 @@ void BLE_ATCmd_Recv(rt_device_t dev,BLE_AT_CMD at_cmd,ScmUart_Comm* stData)//ATÖ
 				if(BLE_SPP_CFG == BLE_ATCmd)   //ÉèÖÃcfg³É¹¦ ½øÈëµÈ´ý
 				{
 					BLE_ATCmd =BLE_NULL;
+					CtrlCharge_Event.Router_Module_Info.Bit.BLE_CONNECT = RT_FALSE;
 				}
 				else if(BLE_ATCmd == BLE_SPP)//´ò¿ªÍ¸´« ³É¹¦  ½øÈëÍ¸´«Ä£Ê½
 				{
@@ -569,9 +577,9 @@ void BLE_Trans_Send(rt_device_t dev,rt_uint32_t cmd,rt_uint8_t reason,ScmUart_Co
 
 	if(stData->DataTx_len)
 	{
-		strcpy(printfbuf,"");
-		sprintf(printfbuf,"[bluetooth]: (%s) TX:",__func__);
-		my_printf((char*)stData->Tx_data,stData->DataTx_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//		strcpy(printfbuf,"");
+//		sprintf(printfbuf,"[bluetooth]: (%s) TX:",__func__);
+		my_printf((char*)stData->Tx_data,stData->DataTx_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"TX:");
 		
 		size = rt_device_write(dev, 0, stData->Tx_data, stData->DataTx_len);
 		
@@ -774,7 +782,7 @@ rt_err_t BLE_698_Data_UnPackage(struct _698_BLE_FRAME *dev_recv,rt_uint8_t* buf)
 {
 	rt_uint32_t i,addr_lenth,apdu_lenth,total_lenth;
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: (%s) \n",__func__);
 	
 	if(buf[0] != 0x68)//Êý¾ÝÍ·²»ÕýÈ·  ·µ»Ø½âÎöÊ§°Ü
 		return RT_ERROR;
@@ -842,6 +850,7 @@ rt_err_t BLE_698_Get_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,Scm
 			break;
 		}
 		case 0x60120300:
+			BLE_Send_To_Strategy_Event_Ack();
 			break;
 		case 0x90030200:   //90030200 µ¥Ç¹   90030201 Ç¹1×´Ì¬  90030202 Ç¹2×´Ì¬
 		case 0x90030201:
@@ -850,7 +859,7 @@ rt_err_t BLE_698_Get_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,Scm
 			if(Esam_KEY_Sess_State == 2)
 			{
 				stBLE_Charge_State_Ask.GunNum = dev_recv->apdu.apdu_data[5];
-				BLE_strategy_event_send(Cmd_RouterExeState);
+				BLE_Send_Event_To_Strategy(Cmd_RouterExeState);
 			}
 			break;
 		}
@@ -903,7 +912,7 @@ rt_err_t BLE_698_Security_Request_CipherText_Analysis(struct _698_BLE_FRAME *dev
 	rt_uint8_t i,ptr;
 //	rt_uint32_t apdu_oad;
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: (%s) \n",__func__);
 	
 	ptr = 0;
 //	cipherdata_lenth = dev_recv->apdu.apdu_data[1];
@@ -1006,7 +1015,7 @@ rt_err_t BLE_698_ESAM_SESS_INTI_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: (%s) \n",__func__);
 	
 	
 	stBLE_Esam_Comm.DataTx_len = 0;
@@ -1109,7 +1118,7 @@ rt_err_t BLE_698_ESAM_SESS_KEY_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_uint8_t Version[2];
 	rt_err_t result;
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
+	rt_kprintf("[bluetooth]: (%s) \n",__func__);
 	
 	Esam_Keydata_len = dev_recv->apdu.apdu_data[7]-2;
 	
@@ -1140,6 +1149,7 @@ rt_err_t BLE_698_ESAM_SESS_KEY_Package(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 		if(memcmp(Esam_KEY_R3,Esam_KEY_R1,16) == 0)
 		{
 			Esam_KEY_Sess_State = 2;
+			CtrlCharge_Event.Router_Module_Info.Bit.BLE_CONNECT = RT_TRUE;//À¶ÑÀÒÑÁ¬½Ó
 			
 			Version[0] = dev_recv->apdu.apdu_data[8];
 			Version[1] = dev_recv->apdu.apdu_data[9];
@@ -1201,9 +1211,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	}
 	memcpy(&stBLE_Charge_Apply.cRequestNO[1],&dev_recv->apdu.apdu_data[10],data_len);//³äµçÉêÇëµ¥ºÅ
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) RequestNO:",__func__);
-	my_printf((char*)&stBLE_Charge_Apply.cRequestNO[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//	rt_sprintf(printfbuf,"");
+//	rt_sprintf(printfbuf,"[bluetooth]: (%s) RequestNO:",__func__);
+	my_printf((char*)&stBLE_Charge_Apply.cRequestNO[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
 	
 	
 	
@@ -1218,11 +1228,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	}
 	
 	memcpy(&stBLE_Charge_Apply.cUserID[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//ÓÃ»§ID
-	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) UserID:",__func__);
-	my_printf((char*)&stBLE_Charge_Apply.cUserID[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
-	
+	my_printf((char*)&stBLE_Charge_Apply.cUserID[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"UserID:");
 	
 	
 	ptr += data_len+2;
@@ -1236,10 +1242,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	}
 	
 	memcpy(&stBLE_Charge_Apply.cAssetNO[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//Â·ÓÉÆ÷×Ê²ú±àºÅ
-	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
-	my_printf((char*)&stBLE_Charge_Apply.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+	my_printf((char*)&stBLE_Charge_Apply.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
 
 	ptr += data_len+1;
@@ -1303,11 +1306,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Appply(struct _698_BLE_FRAME *dev_
 	}
 	memcpy(&stBLE_Charge_Apply.Token[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//µÇÂ½ÁîÅÆ
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) Token:",__func__);
-	my_printf((char*)&stBLE_Charge_Apply.Token[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+	my_printf((char*)&stBLE_Charge_Apply.Token[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"Token:");
 	
-	BLE_strategy_event_send(Cmd_ChgRequest);
+	BLE_Send_Event_To_Strategy(Cmd_ChgRequest);
 
 	return RT_EOK;
 }
@@ -1326,8 +1327,6 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	
 	struct _698_DATE_S _698_date_s;
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-
 	ptr = 0;
 	data_len = dev_recv->apdu.apdu_data[9];//³äµçÉêÇëµ¥ºÅ
 	stBLE_Charge_Plan.cRequestNO[0] = data_len;
@@ -1340,9 +1339,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	
 	memcpy(&stBLE_Charge_Plan.cRequestNO[1],&dev_recv->apdu.apdu_data[10],data_len);//³äµçÉêÇëµ¥ºÅ
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) RequestNO:",__func__);
-	my_printf((char*)&stBLE_Charge_Plan.cRequestNO[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//	rt_sprintf(printfbuf,"");
+//	rt_sprintf(printfbuf,"[bluetooth]: (%s) RequestNO:",__func__);
+	my_printf((char*)&stBLE_Charge_Plan.cRequestNO[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
 	
 	ptr += data_len+2;
 	data_len = dev_recv->apdu.apdu_data[9+ptr];
@@ -1355,9 +1354,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 
 	memcpy(&stBLE_Charge_Plan.cUserID[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//ÓÃ»§ID
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) UserID:",__func__);
-	my_printf((char*)&stBLE_Charge_Plan.cUserID[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//	rt_sprintf(printfbuf,"");
+//	rt_sprintf(printfbuf,"[bluetooth]: (%s) UserID:",__func__);
+	my_printf((char*)&stBLE_Charge_Plan.cUserID[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"UserID:");
 	
 	
 	ptr += data_len+1;
@@ -1388,9 +1387,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 	
 	memcpy(&stBLE_Charge_Plan.cAssetNO[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//Â·ÓÉÆ÷×Ê²ú±àºÅ
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
-	my_printf((char*)&stBLE_Charge_Plan.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//	rt_sprintf(printfbuf,"");
+//	rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
+	my_printf((char*)&stBLE_Charge_Plan.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
 	ptr += data_len+1;
 	data_len = 1;
@@ -1435,9 +1434,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 		memcpy(&_698_date_s,&dev_recv->apdu.apdu_data[10+ptr],data_len);
 		date_time_s_to_sys_time(&_698_date_s,&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStartTime);
 		
-		rt_sprintf(printfbuf,"");
-		rt_sprintf(printfbuf,"[bluetooth]: (%s) DecStartTime:",__func__);
-		my_printf((char*)&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStartTime,data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//		rt_sprintf(printfbuf,"");
+//		rt_sprintf(printfbuf,"[bluetooth]: (%s) DecStartTime:",__func__);
+		my_printf((char*)&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStartTime,data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"DecStartTime:");
 		
 		ptr += data_len+1;
 		data_len = 7;
@@ -1445,9 +1444,9 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 		memcpy(&_698_date_s,&dev_recv->apdu.apdu_data[10+ptr],data_len);
 		date_time_s_to_sys_time(&_698_date_s,&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStopTime);
 
-		rt_sprintf(printfbuf,"");
-		rt_sprintf(printfbuf,"[bluetooth]: (%s) DecStopTime:",__func__);
-		my_printf((char*)&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStopTime,data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//		rt_sprintf(printfbuf,"");
+//		rt_sprintf(printfbuf,"[bluetooth]: (%s) DecStopTime:",__func__);
+		my_printf((char*)&stBLE_Charge_Plan.strChargeTimeSolts[i].strDecStopTime,data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"DecStopTime:");
 		
 		ptr += data_len+1;
 		data_len = 4;
@@ -1461,7 +1460,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Plan(struct _698_BLE_FRAME *dev_re
 		
 	}
 
-	BLE_strategy_event_send(Cmd_ChgPlanIssue);
+	BLE_Send_Event_To_Strategy(Cmd_ChgPlanIssue);
 	
 	return RT_EOK;
 }
@@ -1489,16 +1488,16 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Start(struct _698_BLE_FRAME *dev_r
 	
 	memcpy(&stBLE_Charge_Stop.cAssetNO[1],&dev_recv->apdu.apdu_data[10+ptr],data_len);//Â·ÓÉÆ÷×Ê²ú±àºÅ
 	
-	rt_sprintf(printfbuf,"");
-	rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
-	my_printf((char*)&stBLE_Charge_Stop.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,printfbuf);
+//	rt_sprintf(printfbuf,"");
+//	rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
+	my_printf((char*)&stBLE_Charge_Stop.cAssetNO[1],data_len,MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 
 	ptr += data_len+1;
 	data_len = 1;
 	stBLE_Charge_Stop.GunNum = dev_recv->apdu.apdu_data[10+ptr];
 	rt_kprintf("[bluetooth]: (%s) GunNum: %d\n",__func__,stBLE_Charge_Stop.GunNum);
 	
-	BLE_strategy_event_send(Cmd_StartChg);
+	BLE_Send_Event_To_Strategy(Cmd_StartChg);
 	
 	return RT_EOK;
 }
@@ -1517,7 +1516,7 @@ rt_err_t BLE_698_Action_Request_Normal_Charge_Stop(struct _698_BLE_FRAME *dev_re
 	
 	rt_kprintf("[bluetooth]: (%s) GunNum: %d\n",stBLE_Charge_Stop.GunNum);
 	
-	BLE_strategy_event_send(Cmd_StopChg);
+	BLE_Send_Event_To_Strategy(Cmd_StopChg);
 	
 	
 	return RT_EOK;
@@ -1653,123 +1652,50 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	rt_err_t res;
 	struct _698_DATE_S date_time_s;
 	
-/*	
-	stBLE_Charge_Apply_Event.actSOC = 0x1122;
-	stBLE_Charge_Apply_Event.aimSOC = 0x1122;
-	stBLE_Charge_Apply_Event.AssetNO[0] = 6;
-	stBLE_Charge_Apply_Event.AssetNO[1] = 0x00;
-	stBLE_Charge_Apply_Event.AssetNO[2] = 0x00;
-	stBLE_Charge_Apply_Event.AssetNO[3] = 0x00;
-	stBLE_Charge_Apply_Event.AssetNO[4] = 0x00;
-	stBLE_Charge_Apply_Event.AssetNO[5] = 0x00;
-	stBLE_Charge_Apply_Event.AssetNO[6] = 0x01;
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",__func__,stBLE_Charge_Apply_Event.OrderNum);
 	
-	stBLE_Charge_Apply_Event.CellCapacity = 0x1122;
-	stBLE_Charge_Apply_Event.ChannelState = 0x00;
-	stBLE_Charge_Apply_Event.ChargeMode = 0x00;
-	
-	stBLE_Charge_Apply_Event.ChargeReqEle = 0x1122;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Year = 0x19;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Month = 0x10;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Day = 0x16;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Hour = 0x18;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Minute = 0x18;
-	stBLE_Charge_Apply_Event.FinishTimestamp.Second = 0x18;
-	
-	
-	stBLE_Charge_Apply_Event.GunNum = 0x01;
-	stBLE_Charge_Apply_Event.OccurSource = 0x00;
-	stBLE_Charge_Apply_Event.OrderNum = 0x00000004;
-	
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Year = 0x19;
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Month = 0x10;
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Day = 0x16;
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Hour = 0x18;
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Minute = 0x18;
-	stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Second = 0x18;
-	
-
-	stBLE_Charge_Apply_Event.RequestNO[0] = 8;
-	stBLE_Charge_Apply_Event.RequestNO[1] = 0x00;
-	stBLE_Charge_Apply_Event.RequestNO[2] = 0x11;
-	stBLE_Charge_Apply_Event.RequestNO[3] = 0x91;
-	stBLE_Charge_Apply_Event.RequestNO[4] = 0x01;
-	stBLE_Charge_Apply_Event.RequestNO[5] = 0x61;
-	stBLE_Charge_Apply_Event.RequestNO[6] = 0x65;
-	stBLE_Charge_Apply_Event.RequestNO[7] = 0x34;
-	stBLE_Charge_Apply_Event.RequestNO[8] = 0x20;
-	
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Year = 0x19;
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Month = 0x10;
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Day = 0x16;
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Hour = 0x18;
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Minute = 0x18;
-	stBLE_Charge_Apply_Event.RequestTimeStamp.Second = 0x18;
-	
-	stBLE_Charge_Apply_Event.StartTimestamp.Year = 0x19;
-	stBLE_Charge_Apply_Event.StartTimestamp.Month = 0x10;
-	stBLE_Charge_Apply_Event.StartTimestamp.Day = 0x16;
-	stBLE_Charge_Apply_Event.StartTimestamp.Hour = 0x18;
-	stBLE_Charge_Apply_Event.StartTimestamp.Minute = 0x18;
-	stBLE_Charge_Apply_Event.StartTimestamp.Second = 0x18;
-	
-	
-	stBLE_Charge_Apply_Event.Token[0] = 32;     //34 39 36 42 39 45 38 41 46 43 45 37 34 41 38 42 39 35 30 43 32 46 41 45 39 32 39 31 38 38 38 30
-	memcpy(&stBLE_Charge_Apply_Event.Token[1],&stBLE_Charge_Apply.Token[1],0x20);
-		
-	stBLE_Charge_Apply_Event.UserAccount[0] = 0x03;
-	stBLE_Charge_Apply_Event.UserAccount[1] = 0x31;
-	stBLE_Charge_Apply_Event.UserAccount[2] = 0x32;
-	stBLE_Charge_Apply_Event.UserAccount[3] = 0x33;*/
-	
-	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	
-	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Apply_Event.OrderNum);
-	
-	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Apply_Event.StartTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Apply_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Apply_Event.StartTimestamp.Month,\
 																																									stBLE_Charge_Apply_Event.StartTimestamp.Day,\
 																																									stBLE_Charge_Apply_Event.StartTimestamp.Hour,\
 																																									stBLE_Charge_Apply_Event.StartTimestamp.Minute,\
 																																									stBLE_Charge_Apply_Event.StartTimestamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Apply_Event.FinishTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Apply_Event.FinishTimestamp.Year,
 																																								stBLE_Charge_Apply_Event.FinishTimestamp.Month,\
 																																									stBLE_Charge_Apply_Event.FinishTimestamp.Day,\
 																																									stBLE_Charge_Apply_Event.FinishTimestamp.Hour,\
 																																									stBLE_Charge_Apply_Event.FinishTimestamp.Minute,\
 																																									stBLE_Charge_Apply_Event.FinishTimestamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: RequestTimeStamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Apply_Event.RequestTimeStamp.Year,
+	rt_kprintf("[bluetooth]: (%s) RequestTimeStamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Apply_Event.RequestTimeStamp.Year,
 																																								stBLE_Charge_Apply_Event.RequestTimeStamp.Month,\
 																																									stBLE_Charge_Apply_Event.RequestTimeStamp.Day,\
 																																									stBLE_Charge_Apply_Event.RequestTimeStamp.Hour,\
 																																									stBLE_Charge_Apply_Event.RequestTimeStamp.Minute,\
 																																									stBLE_Charge_Apply_Event.RequestTimeStamp.Second);\
 
-	rt_kprintf("[bluetooth]: PlanUnChg_TimeStamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Year,
+	rt_kprintf("[bluetooth]: (%s) PlanUnChg_TimeStamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Year,
 																																								stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Month,\
 																																									stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Day,\
 																																									stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Hour,\
 																																									stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Minute,\
 																																									stBLE_Charge_Apply_Event.PlanUnChg_TimeStamp.Second);\
 	
-	rt_kprintf("[bluetooth]: OccurSource: %d \n",stBLE_Charge_Apply_Event.OccurSource);
-	rt_kprintf("[bluetooth]: ChannelState: %d \n",stBLE_Charge_Apply_Event.ChannelState);
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Charge_Apply_Event.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Charge_Apply_Event.ChannelState);
 	
-	rt_kprintf("[bluetooth]: ChargeMode: %d \n",stBLE_Charge_Apply_Event.ChargeMode);
-	rt_kprintf("[bluetooth]: CellCapacity: %d \n",stBLE_Charge_Apply_Event.CellCapacity);
-	rt_kprintf("[bluetooth]: ChargeReqEle: %d \n",stBLE_Charge_Apply_Event.ChargeReqEle);
+	rt_kprintf("[bluetooth]: (%s) ChargeMode: %d \n",__func__,stBLE_Charge_Apply_Event.ChargeMode);
+	rt_kprintf("[bluetooth]: (%s) CellCapacity: %d \n",__func__,stBLE_Charge_Apply_Event.CellCapacity);
+	rt_kprintf("[bluetooth]: (%s) ChargeReqEle: %d \n",__func__,stBLE_Charge_Apply_Event.ChargeReqEle);
 	
-	rt_kprintf("[bluetooth]: actSOC: %d \n",stBLE_Charge_Apply_Event.actSOC);
-	rt_kprintf("[bluetooth]: aimSOC: %d \n",stBLE_Charge_Apply_Event.aimSOC);
+	rt_kprintf("[bluetooth]: (%s) actSOC: %d \n",__func__,stBLE_Charge_Apply_Event.actSOC);
+	rt_kprintf("[bluetooth]: (%s) aimSOC: %d \n",__func__,stBLE_Charge_Apply_Event.aimSOC);
 	
-	rt_kprintf("[bluetooth]: Token:");
-	my_printf((char*)&stBLE_Charge_Apply_Event.Token[1],stBLE_Charge_Apply_Event.Token[0],MY_HEX,1," ");
-	
-	rt_kprintf("[bluetooth]: UserAccount:");
-	my_printf((char*)&stBLE_Charge_Apply_Event.UserAccount[1],stBLE_Charge_Apply_Event.UserAccount[0],MY_HEX,1," ");
+
+	my_printf((char*)&stBLE_Charge_Apply_Event.Token[1],stBLE_Charge_Apply_Event.Token[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"Token:");
+
+	my_printf((char*)&stBLE_Charge_Apply_Event.UserAccount[1],stBLE_Charge_Apply_Event.UserAccount[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"UserID:");
 	
 	
 	
@@ -1908,8 +1834,6 @@ rt_err_t BLE_698_Charge_Apply_Event_Response(struct _698_BLE_FRAME *dev_recv,Scm
 	for(i = 0; i < stBLE_Charge_Apply_Event.AssetNO[0];i++)
 	{
 		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(stBLE_Charge_Apply_Event.AssetNO[1+i]);
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_Apply_Event.AssetNO[1+i]>>4)&0x0f)+0x30);//
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_Apply_Event.AssetNO[1+i]&0x0f)+0x30);//
 	}
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//Ç¹ºÅ
@@ -2003,34 +1927,31 @@ rt_err_t BLE_698_Charge_Plan_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 	rt_err_t res;
 	struct _698_DATE_S date_time_s;
 	
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",stBLE_Charge_Plan_Event.OrderNum);
 	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	
-	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Plan_Event.OrderNum);
-	
-	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Plan_Event.StartTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Plan_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Plan_Event.StartTimestamp.Month,\
 																																									stBLE_Charge_Plan_Event.StartTimestamp.Day,\
 																																									stBLE_Charge_Plan_Event.StartTimestamp.Hour,\
 																																									stBLE_Charge_Plan_Event.StartTimestamp.Minute,\
 																																									stBLE_Charge_Plan_Event.StartTimestamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Plan_Event.FinishTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Plan_Event.FinishTimestamp.Year,
 																																								stBLE_Charge_Plan_Event.FinishTimestamp.Month,\
 																																									stBLE_Charge_Plan_Event.FinishTimestamp.Day,\
 																																									stBLE_Charge_Plan_Event.FinishTimestamp.Hour,\
 																																									stBLE_Charge_Plan_Event.FinishTimestamp.Minute,\
 																																									stBLE_Charge_Plan_Event.FinishTimestamp.Second);\
 	
-	rt_kprintf("[bluetooth]: OccurSource: %d \n",stBLE_Charge_Plan_Event.OccurSource);
-	rt_kprintf("[bluetooth]: ChannelState: %d \n",stBLE_Charge_Plan_Event.ChannelState);
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Charge_Plan_Event.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Charge_Plan_Event.ChannelState);
 	
-	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cRequestNO[1],stBLE_Charge_Plan_Event.Chg_Strategy.cRequestNO[0],MY_HEX,1,"[bluetooth]: RequestNO: ");
-	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cUserID[1],stBLE_Charge_Plan_Event.Chg_Strategy.cUserID[0],MY_HEX,1,"[bluetooth]: cUserID: ");
+	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cRequestNO[1],stBLE_Charge_Plan_Event.Chg_Strategy.cRequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
+	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cUserID[1],stBLE_Charge_Plan_Event.Chg_Strategy.cUserID[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"UserID:");
 	
-	rt_kprintf("[bluetooth]: DMU: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.ucDecMaker);
-	rt_kprintf("[bluetooth]: Decision Style: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.ucDecType);
-	rt_kprintf("[bluetooth]: Decision Time: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Year,
+	rt_kprintf("[bluetooth]: (%s) DMU: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.ucDecMaker);
+	rt_kprintf("[bluetooth]: (%s) Decision Style: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.ucDecType);
+	rt_kprintf("[bluetooth]: (%s) Decision Time: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Year,
 																																								stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Month,\
 																																									stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Day,\
 																																									stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Hour,\
@@ -2038,26 +1959,26 @@ rt_err_t BLE_698_Charge_Plan_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 																																									stBLE_Charge_Plan_Event.Chg_Strategy.strDecTime.Second);\
 	
 	
-	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cAssetNO[1],stBLE_Charge_Plan_Event.Chg_Strategy.cAssetNO[0],MY_HEX,1,"[bluetooth]: AssetNO: ");
+	my_printf((char*)&stBLE_Charge_Plan_Event.Chg_Strategy.cAssetNO[1],stBLE_Charge_Plan_Event.Chg_Strategy.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
-	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.GunNum);
-	rt_kprintf("[bluetooth]: ChargeReqEle: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.ulChargeReqEle);
+	rt_kprintf("[bluetooth]: (%s) GunNum: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.GunNum);
+	rt_kprintf("[bluetooth]: (%s) ChargeReqEle: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.ulChargeReqEle);
 	
-	rt_kprintf("[bluetooth]: ChargeRatePow: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.ulChargeRatePow);
-	rt_kprintf("[bluetooth]: ChargeMode: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.ucChargeMode);
+	rt_kprintf("[bluetooth]: (%s) ChargeRatePow: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.ulChargeRatePow);
+	rt_kprintf("[bluetooth]: (%s) ChargeMode: %d \n",__func__,stBLE_Charge_Plan_Event.Chg_Strategy.ucChargeMode);
 	
 	
 	
 	for(i = 0; i < stBLE_Charge_Plan_Event.Chg_Strategy.ucTimeSlotNum; i++)
 	{
-			rt_kprintf("[bluetooth]: DecStartTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",
+			rt_kprintf("[bluetooth]: (%s) DecStartTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Year,
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Month,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Day,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Hour,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Minute,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStartTime.Second);\
-		rt_kprintf("[bluetooth]: Decision Time: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",
+		rt_kprintf("[bluetooth]: (%s) Decision Time: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStopTime.Year,
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStopTime.Month,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStopTime.Day,\
@@ -2065,7 +1986,7 @@ rt_err_t BLE_698_Charge_Plan_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStopTime.Minute,\
 								stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].strDecStopTime.Second);\
 		
-		rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].ulChargePow);	
+		rt_kprintf("[bluetooth]: (%s) ActualPower: %d \n",stBLE_Charge_Plan_Event.Chg_Strategy.strChargeTimeSolts[i].ulChargePow);	
 	}
 
 
@@ -2317,134 +2238,61 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	rt_err_t res;
 	struct _698_DATE_S date_time_s;
 	
-/*	
-	stBLE_Charge_Exe_Event.OrderNum = 0x00000004;
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",__func__,stBLE_Charge_Exe_Event.OrderNum);
 	
-	stBLE_Charge_Exe_Event.StartTimestamp.Year = 0x19;
-	stBLE_Charge_Exe_Event.StartTimestamp.Month = 0x10;
-	stBLE_Charge_Exe_Event.StartTimestamp.Day = 0x16;
-	stBLE_Charge_Exe_Event.StartTimestamp.Hour = 0x18;
-	stBLE_Charge_Exe_Event.StartTimestamp.Minute = 0x18;
-	stBLE_Charge_Exe_Event.StartTimestamp.Second = 0x18;
-	
-	stBLE_Charge_Exe_Event.FinishTimestamp.Year = 0x19;
-	stBLE_Charge_Exe_Event.FinishTimestamp.Month = 0x10;
-	stBLE_Charge_Exe_Event.FinishTimestamp.Day = 0x16;
-	stBLE_Charge_Exe_Event.FinishTimestamp.Hour = 0x18;
-	stBLE_Charge_Exe_Event.FinishTimestamp.Minute = 0x18;
-	stBLE_Charge_Exe_Event.FinishTimestamp.Second = 0x18;
-	
-	stBLE_Charge_Exe_Event.OccurSource = 0x00;
-	stBLE_Charge_Exe_Event.ChannelState = 0x00;
-	
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0] = 8;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[1] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[2] = 0x11;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[3] = 0x91;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[4] = 0x01;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[5] = 0x61;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[6] = 0x65;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[7] = 0x34;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[8] = 0x20;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0] = 6;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[2] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[3] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[4] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[5] = 0x00;
-	stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[6] = 0x01;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.GunNum = 0x01;
-	stBLE_Charge_Exe_Event.Chg_ExeState.exeState = 0x01;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4] = 0;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4] = 0;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3] = 0;
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[4] = 0;
-	
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime = 0;		//ÒÑ³äÊ±¼ä£¨µ¥Î»£ºs£©
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower  = 0x1000;		//¼Æ»®³äµç¹¦ÂÊ£¨µ¥Î»£ºW£¬»»Ëã£º-1£©
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower = 0x1000;	//µ±Ç°³äµç¹¦ÂÊ£¨µ¥Î»£ºW£¬»»Ëã£º-1£©
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage.A = 0x0891;		//µ±Ç°³äµçµçÑ¹£¨µ¥Î»£ºV£¬»»Ëã£º-1£©
-	stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent.A = 0x0111;			//µ±Ç°³äµçµçÁ÷£¨µ¥Î»£ºA£¬»»Ëã£º-3£©
-	stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState = 0x02;		//³äµç×®×´Ì¬£¨1£º´ý»ú 2£º¹¤×÷ 3£º¹ÊÕÏ£©*/
-	
-	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	
-	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Exe_Event.OrderNum);
-	
-	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Exe_Event.StartTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Exe_Event.StartTimestamp.Year,
 																																								stBLE_Charge_Exe_Event.StartTimestamp.Month,\
 																																									stBLE_Charge_Exe_Event.StartTimestamp.Day,\
 																																									stBLE_Charge_Exe_Event.StartTimestamp.Hour,\
 																																									stBLE_Charge_Exe_Event.StartTimestamp.Minute,\
 																																									stBLE_Charge_Exe_Event.StartTimestamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Exe_Event.FinishTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Exe_Event.FinishTimestamp.Year,
 																																								stBLE_Charge_Exe_Event.FinishTimestamp.Month,\
 																																									stBLE_Charge_Exe_Event.FinishTimestamp.Day,\
 																																									stBLE_Charge_Exe_Event.FinishTimestamp.Hour,\
 																																									stBLE_Charge_Exe_Event.FinishTimestamp.Minute,\
 																																									stBLE_Charge_Exe_Event.FinishTimestamp.Second);\
 	
-	rt_kprintf("[bluetooth]: OccurSource: %d \n",stBLE_Charge_Exe_Event.OccurSource);
-	rt_kprintf("[bluetooth]: ChannelState: %d \n",stBLE_Charge_Exe_Event.ChannelState);
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Charge_Exe_Event.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Charge_Exe_Event.ChannelState);
 	
-	
-	rt_kprintf("[bluetooth]: RequestNO:");
+	my_printf((char*)&stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[1],stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
 
-	my_printf((char*)&stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[1],stBLE_Charge_Exe_Event.Chg_ExeState.cRequestNO[0],MY_HEX,1," ");
-	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1],stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0],MY_HEX,1," ");
+	my_printf((char*)&stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1],stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
-	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.GunNum);
-	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
+	rt_kprintf("[bluetooth]: (%s) GunNum: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.GunNum);
+	rt_kprintf("[bluetooth]: (%s) exeState: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.exeState);
 	
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[0]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[1]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[2]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[3]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[4]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleBottomValue[4]);
 	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[0]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[1]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[2]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[3]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[4]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: ChargeEle[0]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]);
-	rt_kprintf("[bluetooth]: ChargeEle[1]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]);
-	rt_kprintf("[bluetooth]: ChargeEle[2]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]);
-	rt_kprintf("[bluetooth]: ChargeEle[3]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]);
-	rt_kprintf("[bluetooth]: ChargeEle[4]: 0x%08X kwh \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[4]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[0]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[0]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[1]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[1]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[2]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[2]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[3]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[3]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[4]: 0x%08X kwh \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeEle[4]);
 	
-	rt_kprintf("[bluetooth]: ChargeTime: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime);
+	rt_kprintf("[bluetooth]: (%s) ChargeTime: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucChargeTime);
 	
-	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower);
-	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower);
+	rt_kprintf("[bluetooth]: (%s) PlanPower: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucPlanPower);
+	rt_kprintf("[bluetooth]: (%s) ActualPower: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucActualPower);
 	
-	rt_kprintf("[bluetooth]: Voltage: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage);
-	rt_kprintf("[bluetooth]: Current: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent);
+	rt_kprintf("[bluetooth]: (%s) Voltage: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucVoltage);
+	rt_kprintf("[bluetooth]: (%s) Current: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucCurrent);
 
-	rt_kprintf("[bluetooth]: ChgPileState: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState);
+	rt_kprintf("[bluetooth]: (%s) ChgPileState: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ChgPileState);
 
-	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
+	rt_kprintf("[bluetooth]: (%s) TimeSlotNum: %d \n",__func__,stBLE_Charge_Exe_Event.Chg_ExeState.ucTimeSlotNum);
 
 
 
@@ -2583,8 +2431,6 @@ rt_err_t BLE_698_Charge_Exe_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 	for(i = 0; i < stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[0];i++)
 	{
 		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1+i]);//
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1+i]>>4)&0x0f)+0x30);//
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_Exe_Event.Chg_ExeState.cAssetNO[1+i]&0x0f)+0x30);//
 	}
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//Ç¹ºÅ
@@ -2753,40 +2599,12 @@ rt_err_t BLE_698_Action_Request_Charge_Apply_Response(struct _698_BLE_FRAME *dev
 {
 	rt_uint8_t i,ptr,lenth,apdu[100];
 	rt_err_t res;
-	
-/*	stBLE_Charge_Apply_RSP.cSucIdle = 0;
-	stBLE_Charge_Apply_RSP.cRequestNO[0] = 8;
-	stBLE_Charge_Apply_RSP.cRequestNO[1] = 0x00;
-	stBLE_Charge_Apply_RSP.cRequestNO[2] = 0x11;
-	stBLE_Charge_Apply_RSP.cRequestNO[3] = 0x91;
-	stBLE_Charge_Apply_RSP.cRequestNO[4] = 0x01;
-	stBLE_Charge_Apply_RSP.cRequestNO[5] = 0x61;
-	stBLE_Charge_Apply_RSP.cRequestNO[6] = 0x65;
-	stBLE_Charge_Apply_RSP.cRequestNO[7] = 0x34;
-	stBLE_Charge_Apply_RSP.cRequestNO[8] = 0x20;
-	
-	stBLE_Charge_Apply_RSP.cAssetNO[0] = 0x0c;
-	stBLE_Charge_Apply_RSP.cAssetNO[1] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[2] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[3] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[4] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[5] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[6] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[7] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[8] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[9] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[10] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[11] = 0x30;
-	stBLE_Charge_Apply_RSP.cAssetNO[12] = 0x30;*/
-	
-	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-//	rt_kprintf("[bluetooth]: RequestNO:");
-	my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1,"[bluetooth]: RequestNO: ");
-//	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,1,"[bluetooth]: AssetNO: ");
-	rt_kprintf("[bluetooth]: GunNum: %d\n",stBLE_Charge_Apply_RSP.GunNum);
-	rt_kprintf("[bluetooth]: SucIdle: %d\n",stBLE_Charge_Apply_RSP.cSucIdle);
+
+	my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
+
+	my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
+	rt_kprintf("[bluetooth]: (%s) GunNum: %d\n",__func__,stBLE_Charge_Apply_RSP.GunNum);
+	rt_kprintf("[bluetooth]: (%s) SucIdle: %d\n",__func__,stBLE_Charge_Apply_RSP.cSucIdle);
 	
 
 	ptr = 0;
@@ -2889,93 +2707,40 @@ rt_err_t BLE_698_Charge_State_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_C
 	rt_err_t res;
 	
 	
-/*	stBLE_Charge_State.cAssetNO[0] = 6;
-	stBLE_Charge_State.cAssetNO[1] = 0x00;
-	stBLE_Charge_State.cAssetNO[2] = 0x00;
-	stBLE_Charge_State.cAssetNO[3] = 0x00;
-	stBLE_Charge_State.cAssetNO[4] = 0x00;
-	stBLE_Charge_State.cAssetNO[5] = 0x00;
-	stBLE_Charge_State.cAssetNO[6] = 0x01;
+	my_printf((char*)&stBLE_Charge_State.cRequestNO[1],stBLE_Charge_State.cRequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
+	my_printf((char*)&stBLE_Charge_State.cAssetNO[1],stBLE_Charge_State.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
-	stBLE_Charge_State.cRequestNO[0] = 8;
-	stBLE_Charge_State.cRequestNO[1] = 0x00;
-	stBLE_Charge_State.cRequestNO[2] = 0x00;
-	stBLE_Charge_State.cRequestNO[3] = 0x00;
-	stBLE_Charge_State.cRequestNO[4] = 0x00;
-	stBLE_Charge_State.cRequestNO[5] = 0x00;
-	stBLE_Charge_State.cRequestNO[6] = 0x00;
-	stBLE_Charge_State.cRequestNO[7] = 0x00;
-	stBLE_Charge_State.cRequestNO[8] = 0x00;
-	
-	stBLE_Charge_State.GunNum = 0x01;			//Ç¹ÐòºÅ	{AÇ¹£¨1£©¡¢BÇ¹£¨2£©}
-	stBLE_Charge_State.exeState = 0x01;			//Ö´ÐÐ×´Ì¬ {1£ºÕý³£Ö´ÐÐ 2£ºÖ´ÐÐ½áÊø 3£ºÖ´ÐÐÊ§°Ü}
-	stBLE_Charge_State.ucTimeSlotNum = 0x01;	//Ê±¼ä¶ÎÊýÁ¿
-	stBLE_Charge_State.ulEleBottomValue[0]=0x100; 	//µçÄÜÊ¾Öµµ×Öµ£¨³äµçÊ×´ÎÖ´ÐÐÊ±Ê¾Öµ£©£¨µ¥Î»£ºkWh£¬»»Ëã£º-2£©
-	stBLE_Charge_State.ulEleBottomValue[1]=0x100;
-	stBLE_Charge_State.ulEleBottomValue[2]=0x100;
-	stBLE_Charge_State.ulEleBottomValue[3]=0x100;
-	stBLE_Charge_State.ulEleBottomValue[4]=0x100;
-	
-	stBLE_Charge_State.ulEleActualValue[0]= 0x110; 	//µ±Ç°µçÄÜÊ¾Öµ£¨µ¥Î»£ºkWh£¬»»Ëã£º-2£©
-	stBLE_Charge_State.ulEleActualValue[1]= 0x110;
-	stBLE_Charge_State.ulEleActualValue[2]= 0x110;
-	stBLE_Charge_State.ulEleActualValue[3]= 0x110;
-	stBLE_Charge_State.ulEleActualValue[4]= 0x110;
-	
-	stBLE_Charge_State.ucChargeEle[0] = 0x01;		//ÒÑ³äµçÁ¿£¨µ¥Î»£ºkWh£¬»»Ëã£º-2£©
-	stBLE_Charge_State.ucChargeEle[1] = 0x01;
-	stBLE_Charge_State.ucChargeEle[2] = 0x01;
-	stBLE_Charge_State.ucChargeEle[3] = 0x01;
-	stBLE_Charge_State.ucChargeEle[4] = 0x01;
-	
+	rt_kprintf("[bluetooth]: (%s) GunNum: %d \n",__func__,stBLE_Charge_State.GunNum);
+	rt_kprintf("[bluetooth]: (%s) exeState: %d \n",__func__,stBLE_Charge_State.exeState);
 
-	stBLE_Charge_State.ucChargeTime = 0x100;		//ÒÑ³äÊ±¼ä£¨µ¥Î»£ºs£©
-	stBLE_Charge_State.ucPlanPower =0x1234;		//¼Æ»®³äµç¹¦ÂÊ£¨µ¥Î»£ºW£¬»»Ëã£º-1£©
-	stBLE_Charge_State.ucActualPower = 0x1234;	//µ±Ç°³äµç¹¦ÂÊ£¨µ¥Î»£ºW£¬»»Ëã£º-1£©
-	stBLE_Charge_State.ucVoltage.A=0x891;		//µ±Ç°³äµçµçÑ¹£¨µ¥Î»£ºV£¬»»Ëã£º-1£©
-	stBLE_Charge_State.ucCurrent.A = 0x33;			//µ±Ç°³äµçµçÁ÷£¨µ¥Î»£ºA£¬»»Ëã£º-3£©
-//	stBLE_Charge_State.ChgPileState = 0x01;		//³äµç×®×´Ì¬£¨1£º´ý»ú 2£º¹¤×÷ 3£º¹ÊÕÏ£©*/
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[0]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleBottomValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[1]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleBottomValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[2]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleBottomValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[3]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleBottomValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[4]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleBottomValue[4]);
 	
-
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-//	rt_kprintf("[bluetooth]: RequestNO:");
-	my_printf((char*)&stBLE_Charge_State.cRequestNO[1],stBLE_Charge_State.cRequestNO[0],MY_HEX,1,"[bluetooth]: RequestNO: ");
-//	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_State.cAssetNO[1],stBLE_Charge_State.cAssetNO[0],MY_HEX,1,"[bluetooth]: AssetNO: ");
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[0]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleActualValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[1]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleActualValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[2]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleActualValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[3]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleActualValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[4]: %08X kwh \n",__func__,stBLE_Charge_State.ulEleActualValue[4]);
 	
-	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_State.GunNum);
-	rt_kprintf("[bluetooth]: exeState: %d \n",stBLE_Charge_State.exeState);
-//	rt_kprintf("[bluetooth]: TimeSlotNum: %d \n",stBLE_Charge_State.ucTimeSlotNum);
-
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_State.ulEleBottomValue[4]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[0]: %08X kwh \n",__func__,stBLE_Charge_State.ucChargeEle[0]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[1]: %08X kwh \n",__func__,stBLE_Charge_State.ucChargeEle[1]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[2]: %08X kwh \n",__func__,stBLE_Charge_State.ucChargeEle[2]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[3]: %08X kwh \n",__func__,stBLE_Charge_State.ucChargeEle[3]);
+	rt_kprintf("[bluetooth]: (%s) ChargeEle[4]: %08X kwh \n",__func__,stBLE_Charge_State.ucChargeEle[4]);
 	
-	rt_kprintf("[bluetooth]: ulEleActualValue[0]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[0]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[1]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[1]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[2]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[2]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[3]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[3]);
-	rt_kprintf("[bluetooth]: ulEleActualValue[4]: %08X kwh \n",stBLE_Charge_State.ulEleActualValue[4]);
+	rt_kprintf("[bluetooth]: (%s) ChargeTime: %d \n",__func__,stBLE_Charge_State.ucChargeTime);
 	
-	rt_kprintf("[bluetooth]: ucChargeEle[0]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[0]);
-	rt_kprintf("[bluetooth]: ucChargeEle[1]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[1]);
-	rt_kprintf("[bluetooth]: ucChargeEle[2]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[2]);
-	rt_kprintf("[bluetooth]: ucChargeEle[3]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[3]);
-	rt_kprintf("[bluetooth]: ucChargeEle[4]: %08X kwh \n",stBLE_Charge_State.ucChargeEle[4]);
+	rt_kprintf("[bluetooth]: (%s) PlanPower: %d \n",__func__,stBLE_Charge_State.ucPlanPower);
+	rt_kprintf("[bluetooth]: (%s) ActualPower: %d \n",__func__,stBLE_Charge_State.ucActualPower);
 	
-	rt_kprintf("[bluetooth]: ChargeTime: %d \n",stBLE_Charge_State.ucChargeTime);
+	rt_kprintf("[bluetooth]: (%s) Voltage: %d \n",__func__,stBLE_Charge_State.ucVoltage);
+	rt_kprintf("[bluetooth]: (%s) Current: %d \n",__func__,stBLE_Charge_State.ucCurrent);
+	rt_kprintf("[bluetooth]: (%s) ChgPileState: %d \n",__func__,stBLE_Charge_State.ChgPileState);
 	
-	rt_kprintf("[bluetooth]: PlanPower: %d \n",stBLE_Charge_State.ucPlanPower);
-	rt_kprintf("[bluetooth]: ActualPower: %d \n",stBLE_Charge_State.ucActualPower);
-	
-	rt_kprintf("[bluetooth]: Voltage: %d \n",stBLE_Charge_State.ucVoltage);
-	rt_kprintf("[bluetooth]: Current: %d \n",stBLE_Charge_State.ucCurrent);
-	rt_kprintf("[bluetooth]: ChgPileState: %d \n",stBLE_Charge_State.ChgPileState);
-	
-//	rt_kprintf("[bluetooth]: UserID:");
-	my_printf((char*)&stBLE_Charge_State.cUserID[1],stBLE_Charge_State.cUserID[0],MY_HEX,1,"[bluetooth]: UserID: ");
+	my_printf((char*)&stBLE_Charge_State.cUserID[1],stBLE_Charge_State.cUserID[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"UserID:");
 	
 
 	ptr = 0;
@@ -3329,170 +3094,69 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	struct _698_DATE_S date_time_s;
 	
 	
-/*	stBLE_Charge_Record.OrderNum = 0x00000004;
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",__func__,stBLE_Charge_Record.OrderNum);
 	
-	stBLE_Charge_Record.StartTimestamp.Year = 0x19;
-	stBLE_Charge_Record.StartTimestamp.Month = 0x10;
-	stBLE_Charge_Record.StartTimestamp.Day = 0x16;
-	stBLE_Charge_Record.StartTimestamp.Hour = 0x18;
-	stBLE_Charge_Record.StartTimestamp.Minute = 0x18;
-	stBLE_Charge_Record.StartTimestamp.Second = 0x18;
-	
-	stBLE_Charge_Record.FinishTimestamp.Year = 0x19;
-	stBLE_Charge_Record.FinishTimestamp.Month = 0x10;
-	stBLE_Charge_Record.FinishTimestamp.Day = 0x16;
-	stBLE_Charge_Record.FinishTimestamp.Hour = 0x18;
-	stBLE_Charge_Record.FinishTimestamp.Minute = 0x18;
-	stBLE_Charge_Record.FinishTimestamp.Second = 0x18;
-	
-	stBLE_Charge_Record.OccurSource = 0x00;
-	stBLE_Charge_Record.ChannelState = 0x00;
-	
-	
-	stBLE_Charge_Record.RequestNO[0] = 8;
-	stBLE_Charge_Record.RequestNO[1] = 0x00;
-	stBLE_Charge_Record.RequestNO[2] = 0x11;
-	stBLE_Charge_Record.RequestNO[3] = 0x91;
-	stBLE_Charge_Record.RequestNO[4] = 0x01;
-	stBLE_Charge_Record.RequestNO[5] = 0x61;
-	stBLE_Charge_Record.RequestNO[6] = 0x65;
-	stBLE_Charge_Record.RequestNO[7] = 0x34;
-	stBLE_Charge_Record.RequestNO[8] = 0x20;
-	
-	stBLE_Charge_Record.AssetNO[0] = 6;
-	stBLE_Charge_Record.AssetNO[1] = 0x00;
-	stBLE_Charge_Record.AssetNO[2] = 0x00;
-	stBLE_Charge_Record.AssetNO[3] = 0x00;
-	stBLE_Charge_Record.AssetNO[4] = 0x00;
-	stBLE_Charge_Record.AssetNO[5] = 0x00;
-	stBLE_Charge_Record.AssetNO[6] = 0x01;
-	
-	stBLE_Charge_Record.GunNum = 0x01;
-	
-	stBLE_Charge_Record.ChargeReqEle = 0;
-	
-	stBLE_Charge_Record.RequestTimeStamp.Year = 0x19;
-	stBLE_Charge_Record.RequestTimeStamp.Month = 0x10;
-	stBLE_Charge_Record.RequestTimeStamp.Day = 0x16;
-	stBLE_Charge_Record.RequestTimeStamp.Hour = 0x18;
-	stBLE_Charge_Record.RequestTimeStamp.Minute = 0x18;
-	stBLE_Charge_Record.RequestTimeStamp.Second = 0x18;
-	
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Year = 0x19;
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Month = 0x10;
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Day = 0x16;
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Hour = 0x18;
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Minute = 0x18;
-	stBLE_Charge_Record.PlanUnChg_TimeStamp.Second = 0x18;
-	
-	
-	stBLE_Charge_Record.ChargeMode = 0;
-	
-	stBLE_Charge_Record.StartMeterValue[0] = 0;
-	stBLE_Charge_Record.StartMeterValue[1] = 0;
-	stBLE_Charge_Record.StartMeterValue[2] = 0;
-	stBLE_Charge_Record.StartMeterValue[3] = 0;
-	stBLE_Charge_Record.StartMeterValue[4] = 0;
-	
-	stBLE_Charge_Record.StopMeterValue[0] = 0;
-	stBLE_Charge_Record.StopMeterValue[1] = 0;
-	stBLE_Charge_Record.StopMeterValue[2] = 0;
-	stBLE_Charge_Record.StopMeterValue[3] = 0;
-	stBLE_Charge_Record.StopMeterValue[4] = 0;
-	
-	
-	stBLE_Charge_Record.ChgStartTime.Year = 0x19;
-	stBLE_Charge_Record.ChgStartTime.Month = 0x10;
-	stBLE_Charge_Record.ChgStartTime.Day = 0x16;
-	stBLE_Charge_Record.ChgStartTime.Hour = 0x18;
-	stBLE_Charge_Record.ChgStartTime.Minute = 0x18;
-	stBLE_Charge_Record.ChgStartTime.Second = 0x18;
-	
-	stBLE_Charge_Record.ChgStopTime.Year = 0x19;
-	stBLE_Charge_Record.ChgStopTime.Month = 0x10;
-	stBLE_Charge_Record.ChgStopTime.Day = 0x16;
-	stBLE_Charge_Record.ChgStopTime.Hour = 0x18;
-	stBLE_Charge_Record.ChgStopTime.Minute = 0x18;
-	stBLE_Charge_Record.ChgStopTime.Second = 0x18;
-	
-	
-	stBLE_Charge_Record.ucChargeEle[0] = 0;
-	stBLE_Charge_Record.ucChargeEle[1] = 0;
-	stBLE_Charge_Record.ucChargeEle[2] = 0;
-	stBLE_Charge_Record.ucChargeEle[3] = 0;
-	stBLE_Charge_Record.ucChargeEle[4] = 0;
-	
-	stBLE_Charge_Record.ucChargeTime = 0;*/
-	
-	
-	rt_kprintf("[bluetooth]: ----\033[31m%s\033[0m---- \n",__func__);
-	
-	rt_kprintf("[bluetooth]: OrderNum: %08X \n",stBLE_Charge_Record.OrderNum);
-	
-	rt_kprintf("[bluetooth]: StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.StartTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.StartTimestamp.Year,
 																																								stBLE_Charge_Record.StartTimestamp.Month,\
 																																									stBLE_Charge_Record.StartTimestamp.Day,\
 																																									stBLE_Charge_Record.StartTimestamp.Hour,\
 																																									stBLE_Charge_Record.StartTimestamp.Minute,\
 																																									stBLE_Charge_Record.StartTimestamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.FinishTimestamp.Year,
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.FinishTimestamp.Year,
 																																								stBLE_Charge_Record.FinishTimestamp.Month,\
 																																									stBLE_Charge_Record.FinishTimestamp.Day,\
 																																									stBLE_Charge_Record.FinishTimestamp.Hour,\
 																																									stBLE_Charge_Record.FinishTimestamp.Minute,\
 																																									stBLE_Charge_Record.FinishTimestamp.Second);\
 	
-	rt_kprintf("[bluetooth]: OccurSource: %d \n",stBLE_Charge_Record.OccurSource);
-	rt_kprintf("[bluetooth]: ChannelState: %d \n",stBLE_Charge_Record.ChannelState);
-	
-	
-	rt_kprintf("[bluetooth]: RequestNO:");
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Charge_Record.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Charge_Record.ChannelState);
 
-	my_printf((char*)&stBLE_Charge_Record.RequestNO[1],stBLE_Charge_Record.RequestNO[0],MY_HEX,1," ");
-	rt_kprintf("[bluetooth]: AssetNO:");
-	my_printf((char*)&stBLE_Charge_Record.AssetNO[1],stBLE_Charge_Record.AssetNO[0],MY_HEX,1," ");
+	my_printf((char*)&stBLE_Charge_Record.RequestNO[1],stBLE_Charge_Record.RequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO:");
+
+	my_printf((char*)&stBLE_Charge_Record.AssetNO[1],stBLE_Charge_Record.AssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO:");
 	
 	
-	rt_kprintf("[bluetooth]: GunNum: %d \n",stBLE_Charge_Record.GunNum);
-	rt_kprintf("[bluetooth]: ChargeReqEle: %d \n",stBLE_Charge_Record.ChargeReqEle);
+	rt_kprintf("[bluetooth]: (%s) GunNum: %d \n",__func__,stBLE_Charge_Record.GunNum);
+	rt_kprintf("[bluetooth]: (%s) ChargeReqEle: %d \n",__func__,stBLE_Charge_Record.ChargeReqEle);
 	
-	rt_kprintf("[bluetooth]: RequestTimeStamp: %02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.RequestTimeStamp.Year,
+	rt_kprintf("[bluetooth]: (%s) RequestTimeStamp: %02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.RequestTimeStamp.Year,
 																																								stBLE_Charge_Record.RequestTimeStamp.Month,\
 																																									stBLE_Charge_Record.RequestTimeStamp.Day,\
 																																									stBLE_Charge_Record.RequestTimeStamp.Hour,\
 																																									stBLE_Charge_Record.RequestTimeStamp.Minute,\
 																																									stBLE_Charge_Record.RequestTimeStamp.Second);\
 																																									
-	rt_kprintf("[bluetooth]: PlanUnChg_TimeStamp: %02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.PlanUnChg_TimeStamp.Year,
+	rt_kprintf("[bluetooth]: (%s) PlanUnChg_TimeStamp: %02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.PlanUnChg_TimeStamp.Year,
 																																								stBLE_Charge_Record.PlanUnChg_TimeStamp.Month,\
 																																									stBLE_Charge_Record.PlanUnChg_TimeStamp.Day,\
 																																									stBLE_Charge_Record.PlanUnChg_TimeStamp.Hour,\
 																																									stBLE_Charge_Record.PlanUnChg_TimeStamp.Minute,\
 																																									stBLE_Charge_Record.PlanUnChg_TimeStamp.Second);\
-	rt_kprintf("[bluetooth]: ChargeMode: %d \n",stBLE_Charge_Record.ChargeMode);
+	rt_kprintf("[bluetooth]: (%s) ChargeMode: %d \n",__func__,stBLE_Charge_Record.ChargeMode);
 	
 	
-	rt_kprintf("[bluetooth]: EleBottomValue[0]: %08X kwh \n",stBLE_Charge_Record.StartMeterValue[0]);
-	rt_kprintf("[bluetooth]: EleBottomValue[1]: %08X kwh \n",stBLE_Charge_Record.StartMeterValue[1]);
-	rt_kprintf("[bluetooth]: EleBottomValue[2]: %08X kwh \n",stBLE_Charge_Record.StartMeterValue[2]);
-	rt_kprintf("[bluetooth]: EleBottomValue[3]: %08X kwh \n",stBLE_Charge_Record.StartMeterValue[3]);
-	rt_kprintf("[bluetooth]: EleBottomValue[4]: %08X kwh \n",stBLE_Charge_Record.StartMeterValue[4]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[0]: %08X kwh \n",__func__,stBLE_Charge_Record.StartMeterValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[1]: %08X kwh \n",__func__,stBLE_Charge_Record.StartMeterValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[2]: %08X kwh \n",__func__,stBLE_Charge_Record.StartMeterValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[3]: %08X kwh \n",__func__,stBLE_Charge_Record.StartMeterValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleBottomValue[4]: %08X kwh \n",__func__,stBLE_Charge_Record.StartMeterValue[4]);
 	
-	rt_kprintf("[bluetooth]: EleActualValue[0]: %08X kwh \n",stBLE_Charge_Record.StopMeterValue[0]);
-	rt_kprintf("[bluetooth]: EleActualValue[1]: %08X kwh \n",stBLE_Charge_Record.StopMeterValue[1]);
-	rt_kprintf("[bluetooth]: EleActualValue[2]: %08X kwh \n",stBLE_Charge_Record.StopMeterValue[2]);
-	rt_kprintf("[bluetooth]: EleActualValue[3]: %08X kwh \n",stBLE_Charge_Record.StopMeterValue[3]);
-	rt_kprintf("[bluetooth]: EleActualValue[4]: %08X kwh \n",stBLE_Charge_Record.StopMeterValue[4]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[0]: %08X kwh \n",__func__,stBLE_Charge_Record.StopMeterValue[0]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[1]: %08X kwh \n",__func__,stBLE_Charge_Record.StopMeterValue[1]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[2]: %08X kwh \n",__func__,stBLE_Charge_Record.StopMeterValue[2]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[3]: %08X kwh \n",__func__,stBLE_Charge_Record.StopMeterValue[3]);
+	rt_kprintf("[bluetooth]: (%s) EleActualValue[4]: %08X kwh \n",__func__,stBLE_Charge_Record.StopMeterValue[4]);
 	
-	rt_kprintf("[bluetooth]: ChgStartTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.ChgStartTime.Year,
+	rt_kprintf("[bluetooth]: (%s) ChgStartTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.ChgStartTime.Year,
 																																								stBLE_Charge_Record.ChgStartTime.Month,\
 																																									stBLE_Charge_Record.ChgStartTime.Day,\
 																																									stBLE_Charge_Record.ChgStartTime.Hour,\
 																																									stBLE_Charge_Record.ChgStartTime.Minute,\
 																																									stBLE_Charge_Record.ChgStartTime.Second);\
 																																									
-	rt_kprintf("[bluetooth]: ChgStopTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",stBLE_Charge_Record.ChgStopTime.Year,
+	rt_kprintf("[bluetooth]: (%s) ChgStopTime: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Charge_Record.ChgStopTime.Year,
 																																								stBLE_Charge_Record.ChgStopTime.Month,\
 																																									stBLE_Charge_Record.ChgStopTime.Day,\
 																																									stBLE_Charge_Record.ChgStopTime.Hour,\
@@ -3500,13 +3164,13 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 																																									stBLE_Charge_Record.ChgStopTime.Second);\
 	
 
-	rt_kprintf("[bluetooth]: ucChargeEle[0]: %08X kwh \n",stBLE_Charge_Record.ucChargeEle[0]);
-	rt_kprintf("[bluetooth]: ucChargeEle[1]: %08X kwh \n",stBLE_Charge_Record.ucChargeEle[1]);
-	rt_kprintf("[bluetooth]: ucChargeEle[2]: %08X kwh \n",stBLE_Charge_Record.ucChargeEle[2]);
-	rt_kprintf("[bluetooth]: ucChargeEle[3]: %08X kwh \n",stBLE_Charge_Record.ucChargeEle[3]);
-	rt_kprintf("[bluetooth]: ucChargeEle[4]: %08X kwh \n",stBLE_Charge_Record.ucChargeEle[4]);
+	rt_kprintf("[bluetooth]: (%s) ucChargeEle[0]: %08X kwh \n",__func__,stBLE_Charge_Record.ucChargeEle[0]);
+	rt_kprintf("[bluetooth]: (%s) ucChargeEle[1]: %08X kwh \n",__func__,stBLE_Charge_Record.ucChargeEle[1]);
+	rt_kprintf("[bluetooth]: (%s) ucChargeEle[2]: %08X kwh \n",__func__,stBLE_Charge_Record.ucChargeEle[2]);
+	rt_kprintf("[bluetooth]: (%s) ucChargeEle[3]: %08X kwh \n",__func__,stBLE_Charge_Record.ucChargeEle[3]);
+	rt_kprintf("[bluetooth]: (%s) ucChargeEle[4]: %08X kwh \n",__func__,stBLE_Charge_Record.ucChargeEle[4]);
 	
-	rt_kprintf("[bluetooth]: ucChargeTime: %d \n",stBLE_Charge_Record.ucChargeTime);
+	rt_kprintf("[bluetooth]: (%s) ucChargeTime: %d \n",__func__,stBLE_Charge_Record.ucChargeTime);
 	
 
 	_698_ble_control = 0x83;//Ö÷¶¯ÉÏ±¨
@@ -3656,8 +3320,6 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	for(i = 0; i < stBLE_Charge_Record.AssetNO[0];i++)
 	{
 		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(stBLE_Charge_Record.AssetNO[1+i]);//
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)(((stBLE_Charge_Record.AssetNO[1+i]>>4)&0x0f)+0x30);//
-//		dev_recv->apdu.apdu_data[ptr++]    = (rt_uint8_t)((stBLE_Charge_Record.AssetNO[1+i]&0x0f)+0x30);//
 	}
 	
 	dev_recv->apdu.apdu_data[ptr++]    = Data_enum;//Ç¹ºÅ
@@ -3835,12 +3497,441 @@ rt_err_t BLE_698_Charge_Record_Event_Response(struct _698_BLE_FRAME *dev_recv,Sc
 	return res;
 }
 
+/********************************************************************  
+*	º¯ Êý Ãû: BLE_698_Router_Fault_Event_Response
+*	¹¦ÄÜËµÃ÷: Â·ÓÉÆ÷Òì³£ÊÂ¼þ ½âÎö
+*	ÐÎ    ²Î: ÎÞ
+*	·µ »Ø Öµ: ÎÞ
+********************************************************************/
+rt_err_t BLE_698_Router_Fault_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint16_t i,ptr,lenth,str_data_len;
+	rt_err_t res;
+	rt_uint32_t temp;
+	struct _698_DATE_S date_time_s;
+	
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",stBLE_Charge_Plan_Event.OrderNum);
+	
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Router_Fault_Event.StartTimestamp.Year,
+																																								stBLE_Router_Fault_Event.StartTimestamp.Month,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Day,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Hour,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Minute,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Second);\
+																																									
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Router_Fault_Event.FinishTimestamp.Year,
+																																								stBLE_Router_Fault_Event.FinishTimestamp.Month,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Day,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Hour,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Minute,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Second);\
+	
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Router_Fault_Event.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Router_Fault_Event.ChannelState);
+	
+	rt_kprintf("[bluetooth]: (%s) Router_Fault: %04X \n",__func__,stBLE_Router_Fault_Event.Router_Fault.Total_Fau);
+	
+
+	_698_ble_control = 0x83;//Ö÷¶¯ÉÏ±¨
+	
+	str_data_len = 0x07;//³äµç¼Æ»®ÉÏ±¨ÊÂ¼þ½á¹¹Ìå²ÎÊý³¤¶È
+	
+	ptr = 0;
+	dev_recv->apdu.apdu_cmd    = REPORT_RESPONSE |0x80;//³äµçÖ´ÐÐ×´Ì¬·µ»Ø
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//Èô¸É¸ö¼ÇÂ¼ÐÔ¶ÔÏó
+	dev_recv->apdu.apdu_data[ptr++]    = 0x10;  //piid-acd
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;		//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x60;//OAD 60120300
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //len ³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;  //csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;		//OAD 202A0200
+	dev_recv->apdu.apdu_data[ptr++]    = 0x2A;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x34;//OAD 34020200³äµç¼Æ»®¼ÇÂ¼µ¥Ôª
+	dev_recv->apdu.apdu_data[ptr++]    = 0x06;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = str_data_len;// len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ¼ÇÂ¼ÐòºÅ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x22;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x1E;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ½áÊøÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÔ´ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x24;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x33;//OI Í¨µÀÉÏ±¨×´Ì¬ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	for(i = 0; i< (str_data_len-5); i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = 0x35;//OI 3505³äµçÒì³£ÊÂ¼þ ÊôÐÔ2 ÐòºÅ6~7
+		dev_recv->apdu.apdu_data[ptr++]    = 0x07;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x06+i;//
+	}
+
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//½á¹ûÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_TSA;// 0x85 tsaÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x07;//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x05;//
+	for(i = 0; i < 6; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_meter_addr.addr[i];//µç±íµØÖ·
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = str_data_len;//³¤¶È16
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//ÀàÐÍ 06//ÊÂ¼þ¼ÇÂ¼ÐòºÅ
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>24)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>16)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>8)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum)&0xff;
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Router_Fault_Event.StartTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Router_Fault_Event.FinishTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Router_Fault_Event.OccurSource;//ÊÂ¼þÔ´
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//ÉÏ±¨×´Ì¬
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;// ÏàÊý
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_OAD;//OAD 81
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0xF2;//OI F209 ÔØ²¨ÎÞÏß½Ó¿Ú
+	dev_recv->apdu.apdu_data[ptr++]    = 0x09;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_unsigned;//ÀàÐÍ 08 Öµ 00
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_bit_string;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 15;//³¤¶È
+	
+	
+	temp = stBLE_Router_Fault_Event.Router_Fault.Total_Fau;
+	dev_recv->apdu.apdu_data[ptr++]    = ((temp>>8)&0xff);//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = (temp&0xff);//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_bit_string;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 15;//³¤¶È
+	
+	
+	temp = stBLE_Router_Fault_Event.Router_Fault.Total_Fau;
+	dev_recv->apdu.apdu_data[ptr++]    = ((temp>>8)&0xff);//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = (temp&0xff);//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	ptr++; //apdu cmd
+
+	res = BLE_698_Data_Package(dev_recv,ptr,stData);
+
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+	return res;
+}
+
+/********************************************************************  
+*	º¯ Êý Ãû: BLE_698_Pile_Fault_Event_Response
+*	¹¦ÄÜËµÃ÷: ³äµç×®Òì³£ÊÂ¼þ ½âÎö
+*	ÐÎ    ²Î: ÎÞ
+*	·µ »Ø Öµ: ÎÞ
+********************************************************************/
+rt_err_t BLE_698_Pile_Fault_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint16_t i,ptr,lenth,str_data_len;
+	rt_err_t res;
+	rt_uint32_t temp;
+	struct _698_DATE_S date_time_s;
+	
+	rt_kprintf("[bluetooth]: (%s) OrderNum: %08X \n",stBLE_Charge_Plan_Event.OrderNum);
+	
+	rt_kprintf("[bluetooth]: (%s) StartTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Router_Fault_Event.StartTimestamp.Year,
+																																								stBLE_Router_Fault_Event.StartTimestamp.Month,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Day,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Hour,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Minute,\
+																																									stBLE_Router_Fault_Event.StartTimestamp.Second);\
+																																									
+	rt_kprintf("[bluetooth]: (%s) FinishTimestamp: 20%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,stBLE_Router_Fault_Event.FinishTimestamp.Year,
+																																								stBLE_Router_Fault_Event.FinishTimestamp.Month,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Day,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Hour,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Minute,\
+																																									stBLE_Router_Fault_Event.FinishTimestamp.Second);\
+	
+	rt_kprintf("[bluetooth]: (%s) OccurSource: %d \n",__func__,stBLE_Router_Fault_Event.OccurSource);
+	rt_kprintf("[bluetooth]: (%s) ChannelState: %d \n",__func__,stBLE_Router_Fault_Event.ChannelState);
+	
+	rt_kprintf("[bluetooth]: (%s) Router_Fault: %04X \n",__func__,stBLE_Router_Fault_Event.Router_Fault.Total_Fau);
+	
+
+	_698_ble_control = 0x83;//Ö÷¶¯ÉÏ±¨
+	
+	str_data_len = 0x07;//³äµç¼Æ»®ÉÏ±¨ÊÂ¼þ½á¹¹Ìå²ÎÊý³¤¶È
+	
+	ptr = 0;
+	dev_recv->apdu.apdu_cmd    = REPORT_RESPONSE |0x80;//³äµçÖ´ÐÐ×´Ì¬·µ»Ø
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//Èô¸É¸ö¼ÇÂ¼ÐÔ¶ÔÏó
+	dev_recv->apdu.apdu_data[ptr++]    = 0x10;  //piid-acd
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;		//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x60;//OAD 60120300
+	dev_recv->apdu.apdu_data[ptr++]    = 0x12;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x03;
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;  //len ³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;  //csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;		//OAD 202A0200
+	dev_recv->apdu.apdu_data[ptr++]    = 0x2A;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;   //
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//csd type
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x34;//OAD 34020200³äµç¼Æ»®¼ÇÂ¼µ¥Ôª
+	dev_recv->apdu.apdu_data[ptr++]    = 0x07;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = str_data_len;// len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ¼ÇÂ¼ÐòºÅ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x22;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x1E;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ½áÊøÊ±¼ä ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x20;//OI ÊÂ¼þ·¢ÉúÔ´ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x24;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x33;//OI Í¨µÀÉÏ±¨×´Ì¬ ÊôÐÔ2
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	for(i = 0; i< (str_data_len-5); i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = 0x35;//OI 3505³äµçÒì³£ÊÂ¼þ ÊôÐÔ2 ÐòºÅ6~7
+		dev_recv->apdu.apdu_data[ptr++]    = 0x07;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+		dev_recv->apdu.apdu_data[ptr++]    = 0x06+i;//
+	}
+
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//½á¹ûÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//len
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_TSA;// 0x85 tsaÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 0x07;//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = 0x05;//
+	for(i = 0; i < 6; i++)
+	{
+		dev_recv->apdu.apdu_data[ptr++]    = stBLE_meter_addr.addr[i];//µç±íµØÖ·
+	}
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	dev_recv->apdu.apdu_data[ptr++]    = str_data_len;//³¤¶È16
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_double_long_unsigned;//ÀàÐÍ 06//ÊÂ¼þ¼ÇÂ¼ÐòºÅ
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>24)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>16)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum>>8)&0xff;
+	dev_recv->apdu.apdu_data[ptr++]    = (stBLE_Router_Fault_Event.OrderNum)&0xff;
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Router_Fault_Event.StartTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	Sys_time_to_date_time_s((STR_SYSTEM_TIME*)&stBLE_Router_Fault_Event.FinishTimestamp,(struct _698_DATE_S*)&date_time_s);	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_date_time_s;////ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[0];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.year[1];//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.month;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.day;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.hour;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.minute;//
+	dev_recv->apdu.apdu_data[ptr++]    = date_time_s.second;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = stBLE_Router_Fault_Event.OccurSource;//ÊÂ¼þÔ´
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//ÉÏ±¨×´Ì¬
+	dev_recv->apdu.apdu_data[ptr++]    = 0x01;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;// ÏàÊý
+	dev_recv->apdu.apdu_data[ptr++]    = 0x02;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_OAD;//OAD 81
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0xF2;//OI F209 ÔØ²¨ÎÞÏß½Ó¿Ú
+	dev_recv->apdu.apdu_data[ptr++]    = 0x09;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_unsigned;//ÀàÐÍ 08 Öµ 00
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_bit_string;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 27;//³¤¶È
+	
+	
+	temp = stBLE_Router_Fault_Event.Pile_Fault.Total_Fau;
+	dev_recv->apdu.apdu_data[ptr++]    = ((temp>>8)&0xff);//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = (temp&0xff);//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = Data_bit_string;//ÀàÐÍ
+	dev_recv->apdu.apdu_data[ptr++]    = 27;//³¤¶È
+	
+	
+	temp = stBLE_Router_Fault_Event.Pile_Fault.Total_Fau;
+	dev_recv->apdu.apdu_data[ptr++]    = ((temp>>8)&0xff);//³¤¶È
+	dev_recv->apdu.apdu_data[ptr++]    = (temp&0xff);//³¤¶È
+	
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	dev_recv->apdu.apdu_data[ptr++]    = 0x00;//
+	
+	ptr++; //apdu cmd
+
+	res = BLE_698_Data_Package(dev_recv,ptr,stData);
+
+	if(stData->DataTx_len)
+	{
+		BLE_Trans_Send(bluetooth_serial,0,0,stData);
+		memset(stData->Tx_data,0,stData->DataTx_len);
+		memset(dev_recv,0,sizeof(struct _698_BLE_FRAME));
+		stData->DataTx_len = 0;
+	}
+	return res;
+}
+
 
 
 /******************************************Óë²ßÂÔÊý¾Ý´«µÝ½Ó¿Ú******************************************/
 
+rt_uint8_t BLE_Send_To_Strategy_Event_Ack(void)
+{
+	rt_uint32_t i,cmd;
+	
+	if(g_BLE_Send_to_Strategy_event == 0)//ÎÞÊÂ¼þ·¢Éú
+		return 0;
+	
+	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
+	{
+		if(g_BLE_Send_to_Strategy_event&(0x00000001<<i))
+		{
+			cmd = i;
+			break;
+		}
+	}
+	switch(cmd)
+	{
+		case Cmd_ChgRequestReport:
+			BLE_Send_Event_To_Strategy(Cmd_ChgRequestReportAck);
+		break;
+		
+		case Cmd_ChgPlanOffer:
+			BLE_Send_Event_To_Strategy(Cmd_ChgPlanOfferAck);
+		break;
+		
+		case Cmd_ChgPlanExeState:
+			BLE_Send_Event_To_Strategy(Cmd_ChgPlanExeStateAck);
+		break;
+			
+		case Cmd_ChgRecord:
+			BLE_Send_Event_To_Strategy(Cmd_ChgRecordAck);
+		break;
+		
+		case Cmd_DeviceFault:
+			BLE_Send_Event_To_Strategy(Cmd_DeviceFaultAck);
+		break;
+		
+		case Cmd_PileFault:
+			BLE_Send_Event_To_Strategy(Cmd_PileFaultAck);
+		break;
 
-rt_uint8_t BLE_strategy_event_send(COMM_CMD_C cmd)//·¢ËÍÊÂ¼þµ½²ßÂÔ
+		default:
+			break;
+	}
+	
+}
+
+
+rt_uint8_t BLE_Send_Event_To_Strategy(COMM_CMD_C cmd)//·¢ËÍÊÂ¼þµ½²ßÂÔ
 {
 	g_BLE_Send_to_Strategy_event |= (0x00000001<<cmd);
 	
@@ -3854,12 +3945,10 @@ rt_uint32_t Strategy_get_BLE_event(void)
 	if(g_BLE_Send_to_Strategy_event == 0)//ÎÞÊÂ¼þ·¢Éú
 	return 0;
 		
-//	rt_kprintf("[bluetooth]: Strategy get event = 0x%08X\n",g_BLE_Send_to_Strategy_event);
-	
 	return g_BLE_Send_to_Strategy_event;
 }
 	
-rt_uint8_t BLE_event_get(void)//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
+rt_uint8_t BLE_Get_Strategy_Event(void)//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
 {
 	rt_uint32_t i,cmd;
 	
@@ -3880,7 +3969,6 @@ rt_uint8_t BLE_event_get(void)//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
 	{
 		case Cmd_ChgRequestAck:
 			BLE_698_Action_Request_Charge_Apply_Response(&_698_ble_frame,&stBLE_Comm);
-		
 		break;
 		
 		case Cmd_ChgRequestReport:
@@ -3905,6 +3993,16 @@ rt_uint8_t BLE_event_get(void)//»ñÈ¡µ½ ²ßÂÔ´«µÝ¹ýÀ´µÄÊÂ¼þ ×öÏìÓ¦´¦Àí
 		
 		case Cmd_ChgRecord:
 			BLE_698_Charge_Record_Event_Response(&_698_ble_frame,&stBLE_Comm);
+		break;
+		
+		case Cmd_DeviceFault:
+			BLE_698_Router_Fault_Event_Response(&_698_ble_frame,&stBLE_Comm);
+		break;
+		
+		case Cmd_PileFault:
+			BLE_698_Pile_Fault_Event_Response(&_698_ble_frame,&stBLE_Comm);
+		break;
+
 		default:
 			break;
 	}
@@ -3950,7 +4048,6 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			if(count >= 0)
 			{
 				*((CHARGE_STRATEGY*)STR_SetPara) = stBLE_Charge_Plan;
-				g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgPlanIssue);
 			}
 			result=0;		
 		break;
@@ -3960,7 +4057,6 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			{
 				*((CTL_CHARGE*)STR_SetPara) = stBLE_Charge_Stop;
 			}
-//			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgPlanIssue);
 			result=0;	
 		break;
 		
@@ -3970,14 +4066,10 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 		case Cmd_ChgRequestAck:
 		{
 			stBLE_Charge_Apply_RSP = *((CHARGE_APPLY_RSP*)STR_SetPara);
-			
-			rt_sprintf(printfbuf,"");
-			rt_sprintf(printfbuf,"[bluetooth]: (%s) RequestNO:",__func__);
-			my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,1,printfbuf);
 
-			rt_sprintf(printfbuf,"");
-			rt_sprintf(printfbuf,"[bluetooth]: (%s) AssetNO:",__func__);
-			my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,1,printfbuf);
+			my_printf((char*)&stBLE_Charge_Apply_RSP.cRequestNO[1],stBLE_Charge_Apply_RSP.cRequestNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"RequestNO");
+
+			my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO");
 			rt_kprintf("[bluetooth]: (%s) GunNum: %d\n",__func__,stBLE_Charge_Apply_RSP.GunNum);
 			rt_kprintf("[bluetooth]: (%s) SucIdle: %d",__func__,stBLE_Charge_Apply_RSP.cSucIdle);
 		
@@ -4021,6 +4113,19 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRecord);
 			result=0;
 		break;
+		
+		case Cmd_DeviceFault:
+			stBLE_Router_Fault_Event = *((ROUTER_FAULT_EVENT*)STR_SetPara);
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_DeviceFault);
+			result=0;
+		break;
+		
+		case Cmd_PileFault:
+			stBLE_Router_Fault_Event = *((ROUTER_FAULT_EVENT*)STR_SetPara);
+			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_PileFault);
+			result=0;
+		break;
+		
 ///////////////////////////////////////////////////////////////////////////////////////////////////			
 		
 		default:
@@ -4065,13 +4170,13 @@ static void bluetooth_thread_entry(void *parabluetooth)
 	{
 		if (rt_device_open(bluetooth_serial, RT_DEVICE_FLAG_DMA_RX) == RT_EOK)
 		{
-			rt_kprintf("[bluetooth]:Open serial uart3 sucess!\r\n");
+			rt_kprintf("[bluetooth]: (%s) Open serial uart3 sucess!\r\n",__func__);
 		}
 	}
 	else
 	{
 		res = RT_ERROR;
-		rt_kprintf("[bluetooth]:Open serial uart3 err!\r\n");
+		rt_kprintf("[bluetooth]: (%s) Open serial uart3 err!\r\n",__func__);
 		return;
 	}
 	//³õÊ¼»¯ÊÂ¼þ¶ÔÏó
@@ -4116,7 +4221,7 @@ static void bluetooth_thread_entry(void *parabluetooth)
 			BLE_RecvData_Process(bluetooth_serial,g_ucProtocol,BLE_ATCmd,&stBLE_Comm);
 		}
 			
-		BLE_event_get();
+		BLE_Get_Strategy_Event();
 
 		if(g_ucProtocol == AT_MODE)
 		{

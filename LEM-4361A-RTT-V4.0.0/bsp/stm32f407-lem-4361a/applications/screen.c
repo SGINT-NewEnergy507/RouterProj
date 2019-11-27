@@ -1551,44 +1551,47 @@ static void LCD_UpdateScreen004(void)
 static void LCD_UpdateTime(void)
 {
 	rt_uint8_t i,year,month,day,hour,minute,second;
+	STR_SYSTEM_TIME time;
+	
+	memcpy(&time,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 	
 	memset(s_cStrBuf,0,20);
 	
-	if(stSystem_PasTime.Year != System_Time_STR.Year)
+	if(stSystem_PasTime.Year != time.Year)
 	{
-		stSystem_PasTime.Year = System_Time_STR.Year;
-		BCD_toInt(&year,&System_Time_STR.Year,1);
+		stSystem_PasTime.Year = time.Year;
+		BCD_toInt(&year,&time.Year,1);
 		rt_graphix_ops(lcddev)->set_font24(85,215,(void*)"20  -  -     :  :  ",BLUE,WHITE);
 		rt_graphix_ops(lcddev)->set_font24(109,215,(void*)LCD_Ltoa(s_cStrBuf,year,2,0),BLUE,WHITE);
 	}
-	if(stSystem_PasTime.Month != System_Time_STR.Month)
+	if(stSystem_PasTime.Month != time.Month)
 	{
-		stSystem_PasTime.Month = System_Time_STR.Month;
-		BCD_toInt(&month,&System_Time_STR.Month,1);
+		stSystem_PasTime.Month = time.Month;
+		BCD_toInt(&month,&time.Month,1);
 		rt_graphix_ops(lcddev)->set_font24(145,215,(void*)LCD_Ltoa(s_cStrBuf,month,2,0),BLUE,WHITE);
 	}
-	if(stSystem_PasTime.Day != System_Time_STR.Day)
+	if(stSystem_PasTime.Day != time.Day)
 	{
-		stSystem_PasTime.Day = System_Time_STR.Day;
-		BCD_toInt(&day,&System_Time_STR.Day,1);
+		stSystem_PasTime.Day = time.Day;
+		BCD_toInt(&day,&time.Day,1);
 		rt_graphix_ops(lcddev)->set_font24(181,215,(void*)LCD_Ltoa(s_cStrBuf,day,2,0),BLUE,WHITE);
 	}
-	if(stSystem_PasTime.Hour != System_Time_STR.Hour)
+	if(stSystem_PasTime.Hour != time.Hour)
 	{
-		stSystem_PasTime.Hour = System_Time_STR.Hour;
-		BCD_toInt(&hour,&System_Time_STR.Hour,1);
+		stSystem_PasTime.Hour = time.Hour;
+		BCD_toInt(&hour,&time.Hour,1);
 		rt_graphix_ops(lcddev)->set_font24(217,215,(void*)LCD_Ltoa(s_cStrBuf,hour,2,0),BLUE,WHITE);
 	}
-	if(stSystem_PasTime.Minute != System_Time_STR.Minute)
+	if(stSystem_PasTime.Minute != time.Minute)
 	{
-		stSystem_PasTime.Minute = System_Time_STR.Minute;
-		BCD_toInt(&minute,&System_Time_STR.Minute,1);
+		stSystem_PasTime.Minute = time.Minute;
+		BCD_toInt(&minute,&time.Minute,1);
 		rt_graphix_ops(lcddev)->set_font24(253,215,(void*)LCD_Ltoa(s_cStrBuf,minute,2,0),BLUE,WHITE);
 	}
-	if(stSystem_PasTime.Second != System_Time_STR.Second)
+	if(stSystem_PasTime.Second != time.Second)
 	{
-		stSystem_PasTime.Second = System_Time_STR.Second;
-		BCD_toInt(&second,&System_Time_STR.Second,1);
+		stSystem_PasTime.Second = time.Second;
+		BCD_toInt(&second,&time.Second,1);
 		rt_graphix_ops(lcddev)->set_font24(289,215,(void*)LCD_Ltoa(s_cStrBuf,second,2,0),BLUE,WHITE);
 	}
 }

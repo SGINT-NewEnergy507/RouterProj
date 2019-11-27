@@ -21,7 +21,7 @@ static rt_device_t pcf8563;
 ///* ∂®“Â” œ‰øÿ÷∆øÈ */
 //extern rt_mailbox_t m_save_mail;
 
-STR_SYSTEM_TIME System_Time_STR;
+//STR_SYSTEM_TIME System_Time_STR;
 
 static void monitor_thread_entry(void *parameter)
 {
@@ -36,12 +36,12 @@ static void monitor_thread_entry(void *parameter)
 		
 		if (rt_device_open(pcf8563, 0) == RT_EOK)
 		{
-			rt_lprintf("[monitor]:Open pcf8563 device sucess!\r\n");
+			rt_lprintf("[Monitor]:(%s) Open pcf8563 device sucess!\n",__func__);
 		}
 	}
 	else
 	{
-		rt_lprintf("[monitor]:Not find device pcf8563!\r\n");
+		rt_lprintf("[Monitor]: (%s) Not find device pcf8563!\n",__func__);
 		return;
 	}
 	
@@ -51,10 +51,9 @@ static void monitor_thread_entry(void *parameter)
 	
 	while (1)
 	{
-	
 		rt_device_control(pcf8563,RT_DEVICE_CTRL_RTC_GET_TIME,&System_Time_STR);
 		
-		rt_lprintf("[monitor]: Systerm time is %02X-%02X-%02X-%02X-%02X-%02X!\r\n",System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
+		rt_lprintf("[Monitor]: (%s) Sys time: %02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
 								,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 		
 		rt_thread_mdelay(1000);

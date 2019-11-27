@@ -1503,15 +1503,17 @@ int get_data_class(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 */
 int get_date_time_s(struct _698_date_time_s *date_time_s){
 	
-
+		STR_SYSTEM_TIME time;
+	
+		memcpy(&time,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
 //STR_SYSTEM_TIME_to_date_time_s(&priv_struct->StartTimestamp,&date_time_s);
 		date_time_s->data[0]=20;//20年
-		date_time_s->data[1]=(System_Time_STR.Year>>4)*10+System_Time_STR.Year&0x0f;//年	
-		date_time_s->data[2]=(System_Time_STR.Month>>4)*10+System_Time_STR.Year&0x0f;//月
-		date_time_s->data[3]=(System_Time_STR.Day>>4)*10+System_Time_STR.Day&0x0f;//日	
-		date_time_s->hour=date_time_s->data[4]=(System_Time_STR.Hour>>4)*10+System_Time_STR.Hour&0x0f;//时
-		date_time_s->minute=date_time_s->data[5]=(System_Time_STR.Minute>>4)*10+System_Time_STR.Minute&0x0f;//分	
-		date_time_s->second=date_time_s->data[6]=(System_Time_STR.Second>>4)*10+System_Time_STR.Second&0x0f;//秒	
+		date_time_s->data[1]=(time.Year>>4)*10+time.Year&0x0f;//年	
+		date_time_s->data[2]=(time.Month>>4)*10+time.Year&0x0f;//月
+		date_time_s->data[3]=(time.Day>>4)*10+time.Day&0x0f;//日	
+		date_time_s->hour=date_time_s->data[4]=(time.Hour>>4)*10+time.Hour&0x0f;//时
+		date_time_s->minute=date_time_s->data[5]=(time.Minute>>4)*10+time.Minute&0x0f;//分	
+		date_time_s->second=date_time_s->data[6]=(time.Second>>4)*10+time.Second&0x0f;//秒	
 
 		return 0;
 }
@@ -6610,7 +6612,7 @@ int report_PLAN_FAIL_EVENT_package_router(ROUTER_FAULT_EVENT *priv_EVENT,struct 
 	temp_char=Data_array;//所有的oad看做是array
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=0x08;//长度
+	temp_char=0x07;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 
@@ -6764,7 +6766,7 @@ int report_PLAN_FAIL_EVENT_package_pile(ROUTER_FAULT_EVENT *priv_EVENT,struct _6
 	temp_char=Data_array;//所有的oad看做是array
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=0x08;//长度
+	temp_char=0x07;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
 

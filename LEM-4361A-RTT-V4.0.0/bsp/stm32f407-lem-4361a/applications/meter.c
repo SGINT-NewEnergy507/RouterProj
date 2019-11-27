@@ -16,6 +16,8 @@
 #define THREAD_METER_STACK_SIZE   2048
 #define THREAD_METER_TIMESLICE    5
 
+#define TASK_NAME "[Meter]:"
+
 //rt_thread_t meter_sig;					//meter thread
 //rt_uint8_t meter_signal_flag;
 
@@ -60,6 +62,10 @@ static Power_Analog_TypeDef	ScmAnalog;
 static rt_uint8_t save_meter_flag;
 
 
+static rt_uint32_t g_ulMeter_Rx_Count;//收发超时判断计数
+static rt_uint32_t g_ulMeter_Tx_Count;
+
+
 //static ScmMeter_Analog get_Analog;// 测试用
 
 static rt_err_t meter_rx_ind(rt_device_t dev, rt_size_t size)
@@ -91,7 +97,28 @@ static void save_meter_data(Power_Analog_TypeDef* analog)//系统掉电 保存电量信息
 	}
 }
 
-
+/********************************************************************  
+*	函 数 名: Meter_Commit_TimeOut
+*	功能说明: 电度表收发数据超时处理
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+void Meter_Commit_TimeOut(void)
+{
+	g_ulMeter_Rx_Count++;
+	g_ulMeter_Tx_Count++;
+	
+	if((g_ulMeter_Rx_Count>60)||(g_ulMeter_Tx_Count>60))
+	{
+		g_ulMeter_Rx_Count = 61;
+		g_ulMeter_Tx_Count = 61;
+		Router_WorkState.Router_Fault.Bit.MeterCom_Fau = RT_TRUE;//计量通讯异常
+	}
+	else
+	{
+		Router_WorkState.Router_Fault.Bit.MeterCom_Fau = RT_FALSE;//计量通讯恢复
+	}
+}
 
 static void meter_thread_entry(void *parameter)//meter 线程
 {
@@ -99,6 +126,9 @@ static void meter_thread_entry(void *parameter)//meter 线程
 	rt_uint8_t l_uchour;
 	rt_uint32_t e,time;
 	int ret;
+	STR_SYSTEM_TIME Systime;
+	
+		
 	rt_uint8_t buf[8]={0x01,0x03,0x00,0x48,0x00,0x08,0xC4,0x1A};
 	
 	meter_serial = rt_device_find(RT_METER_USART);//查找设备
@@ -112,13 +142,13 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		rt_device_control(meter_serial, RT_DEVICE_CTRL_CONFIG, &config);//配置串口参数
 		if (rt_device_open(meter_serial, RT_DEVICE_FLAG_DMA_RX) == RT_EOK)//打开设备
 		{
-			rt_lprintf("[meter]:Open serial %s sucess!\r\n",RT_METER_USART);
+			rt_lprintf("[Meter]: (%s) Open serial %s sucess!\n",__func__,RT_METER_USART);
 		}
 	}
 	else
 	{
 		res = RT_ERROR;
-		rt_lprintf("[meter]:Open serial %s err!\r\n",RT_METER_USART);
+		rt_lprintf("[Meter]: (%s) Open serial %s err!\n",__func__,RT_METER_USART);
 		return;
 	}
 	
@@ -136,15 +166,17 @@ static void meter_thread_entry(void *parameter)//meter 线程
 	
 	rt_thread_mdelay(5000);
 	
+	memcpy(&Systime,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+	
 	ret = GetStorageData(Cmd_MeterGJFModeRd,&stMeter_PriceModle,sizeof(stMeter_PriceModle));//读取计费模型
 	if(ret < 0)
 	{
 		cmMeter_GJFModeInit(&stMeter_PriceModle);
 		SetStorageData(Cmd_MeterGJFModeWr,&stMeter_PriceModle,sizeof(stMeter_PriceModle));
-		rt_lprintf("[meter]:JFmode is not exist,clear stMeter_PriceModle!\r\n");
+		rt_lprintf("[Meter]: (%s) JFmode is not exist,clear stMeter_PriceModle!\n",__func__);
 	}
 	
-	BCD_toInt(&l_uchour,&System_Time_STR.Hour,1);
+	BCD_toInt(&l_uchour,&Systime.Hour,1);
 	
 	if(l_uchour<24)
 	{
@@ -152,24 +184,24 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		if(ret < 0)
 		{
 			SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,sizeof(ulMeter_Half));
-			rt_lprintf("[meter]:half meter is not exist,clear half meter!\r\n");
+			rt_lprintf("[Meter]: (%s) half meter is not exist,clear half meter!\n",__func__);
 		}
 		s_ulevmin_start = stMeter_Analog.ulMeterTotal - ulMeter_Half[l_uchour*2];//若半小时内存在重启 需减去半小时内存储的电量 作为该时段的起始值
 	}
 	
-	if((System_Time_STR.Year > 0x19)&&(System_Time_STR.Month<13))
+	if((Systime.Year > 0x19)&&(Systime.Month<13))
 	{
 		time = 0x20;
-		time = (((time <<8)&0xff00) | System_Time_STR.Year);
-		time = (((time <<8)&0xffff00) | System_Time_STR.Month);
-		time = (((time <<8)&0xffffff00) | System_Time_STR.Day);
+		time = (((time <<8)&0xff00) | Systime.Year);
+		time = (((time <<8)&0xffff00) | Systime.Month);
+		time = (((time <<8)&0xffffff00) | Systime.Day);
 		
 		ret = GetStorageData(Cmd_MeterPowerRd,&stMeter_HisData,sizeof(stMeter_HisData));//读取电量
 		if(ret < 0)
 		{
 			memset(&stMeter_HisData.ulMeter_Day,0,sizeof(stMeter_HisData));
 			SetStorageData(Cmd_MeterPowerWr,&stMeter_HisData,sizeof(stMeter_HisData));
-			rt_lprintf("[meter]:total meter is not exist,clear half meter!\r\n");
+			rt_lprintf("[Meter]: (%s) total meter is not exist,clear half meter!\n",__func__);
 		}
 		else
 		{
@@ -181,9 +213,13 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		}
 	}
 	
+	g_ulMeter_Tx_Count = 0;
+	g_ulMeter_Rx_Count = 0;
+	
 	while (1)
 	{
 		rt_device_write(meter_serial, 0, &buf, sizeof(buf));
+		g_ulMeter_Tx_Count = 0;
 		
 		res = rt_event_recv(&meter_uartevent, UART_RX_EVENT, RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR, 1000, &e);
 		if(res== RT_EOK)
@@ -191,7 +227,7 @@ static void meter_thread_entry(void *parameter)//meter 线程
 			if(rt_device_read(meter_serial, 0, g_ucMeter_rxbuf, g_ucMeter_rxlenth) != 1)
 			{		
 				cmMeterModbus_RecProtocal(&stMeter);
-				my_printf((char*)stMeter.Rx_data,stMeter.DataRx_len,MY_HEX,0,"[meter]:RX:");				
+				my_printf((char*)stMeter.Rx_data,stMeter.DataRx_len,MY_HEX,0,TASK_NAME,(char*)(__func__),"RX:");				
 			}
 		}
 		else
@@ -201,7 +237,7 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		cmMeter_electricity_calc();//每月每日尖峰平谷电量计算
 		save_meter_data(&ScmAnalog);
 		
-		
+		Meter_Commit_TimeOut();
 //		cmMeter_get_data(EMMETER_ANALOG,&get_Analog);
 //		
 		rt_thread_mdelay(2000);
@@ -239,6 +275,9 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		tmp_arry[0] = pSTR->Rx_data[10];
 		memcpy(&temp,tmp_arry,sizeof(char)*4);
 		stMeter_Analog.ulCur = (unsigned long)(temp/10);//XXXX.XXX 交流电流 
+		if(stMeter_Analog.ulCur < 65)
+			stMeter_Analog.ulCur = 0;
+			
 
 		tmp_arry[3] = pSTR->Rx_data[11];
 		tmp_arry[2] = pSTR->Rx_data[12];
@@ -246,6 +285,9 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		tmp_arry[0] = pSTR->Rx_data[14];
 		memcpy(&temp,tmp_arry,sizeof(char)*4);
 		stMeter_Analog.ulAcPwr = (unsigned long)(temp/10);    // XXXXXX.XXX	有功功率
+		
+		if(stMeter_Analog.ulAcPwr < 5000)
+			stMeter_Analog.ulAcPwr = 0;
 									
 		tmp_arry[3] = pSTR->Rx_data[15];
 		tmp_arry[2] = pSTR->Rx_data[16];
@@ -275,7 +317,7 @@ unsigned char cmMeterStateUpdate(ScmUart_Comm *pSTR)
 		rt_lprintf("[meter]:----AcPwr = %d.%03dW  PwrFactor = %d.%02d  Frequency = %d.%02dHZ----\n",stMeter_Analog.ulAcPwr/1000,stMeter_Analog.ulAcPwr%1000,\
 			stMeter_Analog.ulPwrFactor/100,stMeter_Analog.ulPwrFactor%100,stMeter_Analog.ulFrequency/100,stMeter_Analog.ulFrequency%100);
 
-				
+		g_ulMeter_Rx_Count = 0;		
 		return 0;
 	}
 	else
@@ -387,13 +429,17 @@ static void cmMeter_electricity_calc(void)
 	rt_uint32_t l_ulmeter_day_sum[4],l_ulmeter_month_sum[4];
 	rt_uint32_t l_ulmeter_time;
 	
+	STR_SYSTEM_TIME time;
+	
+	memcpy(&time,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+	
 	memset(l_ulmeter_day_sum,0,sizeof(l_ulmeter_day_sum));
 	memset(l_ulmeter_month_sum,0,sizeof(l_ulmeter_month_sum));
 	
-	BCD_toInt(&l_ucmonth,&System_Time_STR.Month,1);
-	BCD_toInt(&l_ucDay,&System_Time_STR.Day,1);
-	BCD_toInt(&l_uchour,&System_Time_STR.Hour,1);
-	BCD_toInt(&l_ucminute,&System_Time_STR.Minute,1);
+	BCD_toInt(&l_ucmonth,&time.Month,1);
+	BCD_toInt(&l_ucDay,&time.Day,1);
+	BCD_toInt(&l_uchour,&time.Hour,1);
+	BCD_toInt(&l_ucminute,&time.Minute,1);
 	
 	if((l_ucmonth>12)||(l_ucmonth<1)||(l_ucDay>31)||(l_ucDay<1)||(l_uchour>24)||(l_ucminute>60))//时间合法开始计算电量
 	{
@@ -402,9 +448,9 @@ static void cmMeter_electricity_calc(void)
 	}
 	
 	l_ulmeter_time= 0x20;
-	l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Year;
-	l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Month;
-	l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Day;
+	l_ulmeter_time = l_ulmeter_time<<8|time.Year;
+	l_ulmeter_time = l_ulmeter_time<<8|time.Month;
+	l_ulmeter_time = l_ulmeter_time<<8|time.Day;
 	
 	if((!l_uchour)&&(!s_ucMeter_ClearHalf))//日初保存电量信息  清零日电量信息
 	{

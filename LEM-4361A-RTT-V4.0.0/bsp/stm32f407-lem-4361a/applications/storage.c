@@ -102,20 +102,15 @@ static  int Find_path_file(const char *PATH,int number,char *pathfile,rt_uint32_
 
 static void storage_thread_entry(void *parameter)
 {
-//	extern int df(const char *path);
-//	df("/");
-//	extern void ls(const char *pathname);
-//	ls("/Meter");
-//	ls("/LOG");	
+	
 	rt_thread_delay(2000);
 	char i,para[9];
 	char array[9];
+//	
+//	rt_uint8_t test;
 	
-	rt_uint8_t test;
-	
-	test = 0;
-	
-	
+//	test = 0;
+//	
 	if(GetStorageData(Cmd_MeterNumRd,&RouterInfo,sizeof(RouterInfo)) < 0)//读取文件错误 设置为默认值
 	{
 		RouterInfo.AssetNum[0] = 0x16;
@@ -134,193 +129,27 @@ static void storage_thread_entry(void *parameter)
 		
 		rt_kprintf("[Storage]:Read meter number err!\r\n");
 	}
-	if(test)
-	{
-		memset(RouterInfo.AssetNum,0,sizeof(RouterInfo.AssetNum));
-		RouterInfo.AssetNum[0] = 0x0C;
-		for(i = 0; i < (RouterInfo.AssetNum[0]-1);i++)
-		{
-			RouterInfo.AssetNum[i+1] = 0x30;
-		}
-//		RouterIfo.AssetNum[RouterIfo.AssetNum[0]-1] = 0x31;
-		RouterInfo.AssetNum[RouterInfo.AssetNum[0]] = 0x31;
-		
-		RouterInfo.Addr[0] = 0x0C;
-		for(i = 0; i < (RouterInfo.Addr[0]-1);i++)
-		{
-			RouterInfo.Addr[i+1] = 0x30;
-		}
-		RouterInfo.Addr[RouterInfo.Addr[0]] = 0x31;
-	}
-	
-	
-	
-	
-//	unlink((const char*)ROUTER_PARA_PATH_FILE); //删除oldest_file 必须完整路径
-//	memset(array,0x00,sizeof(array));
-//	memset(para,0x00,sizeof(para));
-//	for(int i=0;i<8;i++)
+//	if(test)
 //	{
-//		para[i] = i+1;
+//		memset(RouterInfo.AssetNum,0,sizeof(RouterInfo.AssetNum));
+//		RouterInfo.AssetNum[0] = 0x0C;
+//		for(i = 0; i < (RouterInfo.AssetNum[0]-1);i++)
+//		{
+//			RouterInfo.AssetNum[i+1] = 0x30;
+//		}
+////		RouterIfo.AssetNum[RouterIfo.AssetNum[0]-1] = 0x31;
+//		RouterInfo.AssetNum[RouterInfo.AssetNum[0]] = 0x31;
+//		
+//		RouterInfo.Addr[0] = 0x0C;
+//		for(i = 0; i < (RouterInfo.Addr[0]-1);i++)
+//		{
+//			RouterInfo.Addr[i+1] = 0x30;
+//		}
+//		RouterInfo.Addr[RouterInfo.Addr[0]] = 0x31;
 //	}
-//	for(int i=0;i<8;i++)
-//	{
-//		rt_kprintf("para[%d]=%02X\n",i,para[i]);
-//	}
-//	rt_kprintf("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
-//	SetStorageData(Cmd_MeterNumWr,para,sizeof(para));
-//	rt_thread_delay(1000);
-//	GetStorageData(Cmd_MeterNumRd,array,sizeof(array));
-//	rt_kprintf("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
-//	for(int i=0;i<8;i++)
-//	{
-//		rt_kprintf("array[%d]=%02X\n",i,array[i]);
-//	}
+	
 	while (1)
 	{
-//		/* lock scheduler */
-//		rt_enter_critical();
-///***************************************************************************************************/
-////		Meter_AnalogW.ulVol--;// 交流电压
-////		Meter_AnalogW.ulCur--;// 交流电流
-////		Meter_AnalogW.ulAcPwr--;// 瞬时有功功率
-////		Meter_AnalogW.ulMeterTotal--;//有功总电量
-////		Meter_AnalogW.ulPwrFactor--;//功率因数
-////		Meter_AnalogW.ulFrequency--;//频率
-
-////		Meter_Anolag_Storage(METER_ANALOG_PATH_FILE,WRITE);
-
-////		Meter_Anolag_Storage(METER_ANALOG_PATH_FILE,READ);
-///***************************************************************************************************/		
-////		ScmMeter_HisData pMeter_HisData;
-////		pMeter_HisData.ulMeter_Day.ulPowerT = 100;
-////		pMeter_HisData.ulMeter_Day.ulPowerJ = 100;
-////		pMeter_HisData.ulMeter_Day.ulPowerF = 100;
-////		pMeter_HisData.ulMeter_Day.ulPowerP = 100;
-////		pMeter_HisData.ulMeter_Day.ulPowerG = 100;
-////		
-////		pMeter_HisData.ulMeter_Month.ulPowerT = 200;
-////		pMeter_HisData.ulMeter_Month.ulPowerJ = 200;
-////		pMeter_HisData.ulMeter_Month.ulPowerF = 200;
-////		pMeter_HisData.ulMeter_Month.ulPowerP = 200;
-////		pMeter_HisData.ulMeter_Month.ulPowerG = 200;
-////		
-////		SetStorageData(Cmd_MeterPowerWr,&pMeter_HisData,0x20190801);
-////		SetStorageData(Cmd_MeterPowerWr,&pMeter_HisData,0x20190802);
-////		SetStorageData(Cmd_MeterPowerWr,&pMeter_HisData,0x20190803);
-////		GetStorageData(Cmd_MeterPowerRd,&pMeter_HisData,0x20190802);
-////		memset(&pMeter_HisData,0x00,sizeof(pMeter_HisData));		
-///***************************************************************************************************/		
-//		ScmMeter_PriceModle pPriceModleData;
-
-//	    int i = 0;
-//		for(i=0;i<8;i++)
-//		{
-//			pPriceModleData.uiJFmodID[i] = i+1;
-//			
-//		}
-
-//		pPriceModleData.EffectiveTime.Second = System_Time_STR.Second;        // 秒
-//		pPriceModleData.EffectiveTime.Minute = System_Time_STR.Minute;        // 分
-//		pPriceModleData.EffectiveTime.Hour = System_Time_STR.Hour;          // 时
-//		pPriceModleData.EffectiveTime.Day = System_Time_STR.Day;           // 日 
-//		pPriceModleData.EffectiveTime.Month = System_Time_STR.Month;         // 月
-//		pPriceModleData.EffectiveTime.Year = System_Time_STR.Year;          // 年 后两位		
-
-//		pPriceModleData.unEffectiveTime.Second = System_Time_STR.Second;        // 秒
-//		pPriceModleData.unEffectiveTime.Minute = System_Time_STR.Minute;        // 分
-//		pPriceModleData.unEffectiveTime.Hour = System_Time_STR.Hour;          // 时
-//		pPriceModleData.unEffectiveTime.Day = System_Time_STR.Day;           // 日 
-//		pPriceModleData.unEffectiveTime.Month = System_Time_STR.Month;         // 月
-//		pPriceModleData.unEffectiveTime.Year = System_Time_STR.Year;          // 年 后两位			
-//		
-//		pPriceModleData.state = 200;//执行状态
-//		pPriceModleData.style =30;//计量类型
-//		
-//		for(i=0;i<48;i++)
-//		{
-//			pPriceModleData.ulTimeNo[i] = i+1;
-//		}		
-
-//		pPriceModleData.count = 48;//有效费率数
-//		
-//		for(i=0;i<48;i++)
-//		{
-//			pPriceModleData.ulPriceNo[i] = i+1;
-//			
-//		}
-//		
-//		SetStorageData(Cmd_MeterGJFModeWr,&pPriceModleData,0x20190803);	
-//	
-//		rt_lprintf("存储完成\n");
-//		
-//		ScmMeter_PriceModle pPriceModleDataRR;
-
-//		GetStorageData(Cmd_MeterGJFModeRd,&pPriceModleDataRR,0x20190802);
-//		
-//		
-//		for(i=0;i<8;i++)
-//		{
-//			rt_lprintf("pPriceModleData.uiJFmodID[%d]=%d\n",i,pPriceModleData.uiJFmodID[i]);
-//		}
-
-//		rt_lprintf("pPriceModleData.EffectiveTime.Year=%02X\n",pPriceModleData.EffectiveTime.Year);	
-//		rt_lprintf("pPriceModleData.EffectiveTime.Month=%02X\n",pPriceModleData.EffectiveTime.Month);
-//		rt_lprintf("pPriceModleData.EffectiveTime.Day=%02X\n",pPriceModleData.EffectiveTime.Day);	
-//		rt_lprintf("pPriceModleData.EffectiveTime.Hour=%02X\n",pPriceModleData.EffectiveTime.Hour);
-//		rt_lprintf("pPriceModleData.EffectiveTime.Minute=%02X\n",pPriceModleData.EffectiveTime.Minute);	
-//		rt_lprintf("pPriceModleData.EffectiveTime.Second=%02X\n",pPriceModleData.EffectiveTime.Second);
-
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Year=%02X\n",pPriceModleData.unEffectiveTime.Year);	
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Month=%02X\n",pPriceModleData.unEffectiveTime.Month);
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Day=%02X\n",pPriceModleData.unEffectiveTime.Day);	
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Hour=%02X\n",pPriceModleData.unEffectiveTime.Hour);
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Minute=%02X\n",pPriceModleData.unEffectiveTime.Minute);	
-//		rt_lprintf("pPriceModleData.unEffectiveTime.Second=%02X\n",pPriceModleData.unEffectiveTime.Second);
-
-//		rt_lprintf("pPriceModleData.state=%d\n",pPriceModleData.state);	
-//		rt_lprintf("pPriceModleData.style=%d\n",pPriceModleData.style);	
-
-//		for(i=0;i<48;i++)
-//		{
-//			rt_lprintf("pPriceModleData.ulTimeNo[%d]=%d\n",i,pPriceModleData.ulTimeNo[i]);
-//		}	
-//		
-//		rt_lprintf("pPriceModleData.count=%d\n",pPriceModleData.count);
-//		
-//		for(i=0;i<48;i++)
-//		{
-//			rt_lprintf("pPriceModleData.ulPriceNo[%d]=%d\n",i,pPriceModleData.ulPriceNo[i]);
-//		}	
-
-//		memset(&pPriceModleData,0x00,sizeof(pPriceModleData));
-///***************************************************************************************************/
-///***************************************************************************************************/		
-////		static rt_uint32_t pulMeter_Half[48]; 
-////		int i = 0;
-////		for(i=0;i<48;i++)
-////		{
-////			pulMeter_Half[i] = i+1;		
-////			
-////		}
-////		
-////		SetStorageData(Cmd_MeterHalfPowerWr,&pulMeter_Half,0x20190803);	
-////	
-////		rt_lprintf("存储完成\n");
-////		
-////		static rt_uint32_t pulMeter_HalfRd[48]; 
-////		GetStorageData(Cmd_MeterHalfPowerRd,&pulMeter_HalfRd,0x20190802);
-////		for(i=0;i<48;i++)
-////		{
-////			rt_lprintf("pulMeter_HalfRd[%d]=%d\n",i,pulMeter_HalfRd[i]);
-////		}	
-
-////		memset(pulMeter_HalfRd,0x00,sizeof(pulMeter_HalfRd));
-///***************************************************************************************************/
-//		
-//		/* unlock scheduler */
-//		rt_exit_critical();	
-
 //		Log_Process();// 根据log大小存储LOG本地
 		
 //		df("/");

@@ -219,50 +219,6 @@ typedef struct
 
 /********************************** 自用记录单元 *************************************/
 
-typedef union 
-{
-	rt_uint32_t Info;
-	struct
-	{
-		rt_uint32_t Charge_Apply:1;		//	充电申请
-		rt_uint32_t Charge_Apply_Ack:1;		//  充电申请应答
-		rt_uint32_t Charge_Apply_Event:1;		//  充电申请事件上报
-		rt_uint32_t Charge_Apply_Event_Ack:1;	//  充电申请事件上报应答
-		rt_uint32_t Charge_Plan:1;		//  充电计划下发
-		rt_uint32_t Charge_Plan_Ack:1;		//  充电计划下发应答
-		rt_uint32_t Charge_Plan_Event:1;	//	充电计划上报事件
-		rt_uint32_t Charge_Plan_Event_Ack:1;		//  充电计划上报事件应答
-		rt_uint32_t Charge_Plan_Adj:1;			//	充电计划调整
-		rt_uint32_t Charge_Plan_Adj_Ack:1;			//	充电计划调整应答
-		rt_uint32_t Charge_Plan_Adj_Event:1;		// 充电计划调整事件上报
-		rt_uint32_t Charge_Plan_Adj_Event_Ack:1;		//  充电计划调整事件应答
-		rt_uint32_t Charge_Record_Event:1;		//  充电订单事件上报
-		rt_uint32_t Charge_Record_Event_Ack:1; 	//	充电订单事件上报应答
-		rt_uint32_t Router_Svc_Start:1;         //	路由器服务启动
-		rt_uint32_t Router_Svc_Start_Ack:1;         //	路由器服务启动应答
-		rt_uint32_t Router_Svc_Stop:1;         //	路由器服务停止
-		rt_uint32_t Router_Svc_Stop_Ack:1;         //	路由器服务停止应答
-		rt_uint32_t Charge_Power_Adj:1;					//充电功率调整
-		rt_uint32_t Charge_Power_Adj_Ack:1;			//充电功率调整应答
-		
-		rt_uint32_t Router_Fault_Event:1;
-		rt_uint32_t Router_Fault_Event_Ack:1;
-		rt_uint32_t Pile_Fault_Event:1;
-		rt_uint32_t Pile_Fault_Event_Ack:1;
-	}
-	Bit;
-}CTRL_CHARGE_INFO;/*路由器故障*/
-
-
-typedef struct
-{
-	CTRL_CHARGE_INFO Ctrl_Chg_Info;
-	CTL_CHARGE Ctrl_ChgData;
-	CTRL_TYPE CtrlType;			//控制类型{1：启动  2：停止  3：调整功率}
-	CTRL_CMD_SOURCE StartSource;//启动源{1：4G启动  2:蓝牙启动}
-	CTRL_CMD_SOURCE StopSource;	//停机源{1：4G停机  2:蓝牙停机}
-}CTRL_CHARGE_EVENT;/*充电控制记录单元*/
-CCMRAM extern CTRL_CHARGE_EVENT CtrlCharge_Event;
 
 /********************************** 事件记录单元 *************************************/
 typedef struct
@@ -312,7 +268,7 @@ typedef struct
 	ROUTER_FAULT Router_Fault;//路由器故障状态
 	CHARGE_PILE_FAULT Pile_Fault;//充电桩故障状态
 	
-}ROUTER_FAULT_EVENT;/*充电订单事件记录单元*/
+}ROUTER_FAULT_EVENT;/*路由器与充电桩异常事件上送*/
 
 #endif
 

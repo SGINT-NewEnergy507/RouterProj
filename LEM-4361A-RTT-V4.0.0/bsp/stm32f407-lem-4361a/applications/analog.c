@@ -51,30 +51,30 @@ static void analog_thread_entry(void *parameter)
 	
 	if(analog_adc != RT_NULL)
 	{
-		rt_lprintf("[Analog]:%s device find sucess!\r\n",RT_ANALOG_ADC);
+		rt_lprintf("[analog]:%s device find sucess!\r\n",RT_ANALOG_ADC);
 		
 		/* 使能ADC设备 */
     res = rt_adc_enable(analog_adc, ADC_Channel_10);
 		if(res == RT_EOK)
 		{
-			rt_lprintf("[Analog]:ADC_Channel_10 enable ok!\r\n");
+			rt_lprintf("[analog]:ADC_Channel_10 enable ok!\r\n");
 		}
 		res = rt_adc_enable(analog_adc, ADC_Channel_11);
 		if(res == RT_EOK)
 		{
-			rt_lprintf("[Analog]:ADC_Channel_11 enable ok!\r\n");
+			rt_lprintf("[analog]:ADC_Channel_11 enable ok!\r\n");
 		}
 		res = rt_adc_enable(analog_adc, ADC_Channel_15);
 		
 		if(res == RT_EOK)
 		{
-			rt_lprintf("[Analog]:ADC_Channel_15 enable ok!\r\n");
+			rt_lprintf("[analog]:ADC_Channel_15 enable ok!\r\n");
 		}
 	}
 	else
 	{
 		res = RT_ERROR;
-		rt_lprintf("[Analog]:Not find device %s!\r\n",RT_ANALOG_ADC);
+		rt_lprintf("[analog]:Not find device %s!\r\n",RT_ANALOG_ADC);
 		return;
 	}
 	
@@ -90,7 +90,8 @@ static void analog_thread_entry(void *parameter)
 		analog_adc_read(analog_adc);
 		battery_manage();
 		
-		
+//		rt_kprintf("[analog]: (%s) Sys time:%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
+//								,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 		rt_thread_mdelay(2000);
 	}
 }
@@ -127,9 +128,8 @@ static void analog_adc_read(rt_adc_device_t device)
 	
 	Str_Power_Analog.Pow_3V = (rt_uint32_t)((s_lPowratevalue[POW3V_RATE]*adc_value)>>12);
 	
-	rt_lprintf("[Analog]:Bat_vol = %d.%03dV----", Str_Power_Analog.Bat_vol/1000,Str_Power_Analog.Bat_vol%1000);
-	rt_lprintf("Pow_5V = %d.%03dV----", Str_Power_Analog.Pow_5V/1000,Str_Power_Analog.Pow_5V%1000);
-	rt_lprintf("Pow_3V = %d.%03dV----\r\n", Str_Power_Analog.Pow_3V/1000,Str_Power_Analog.Pow_3V%1000);
+	rt_lprintf("[analog]:---Bat_vol = %d.%03dV  Pow_5V = %d.%03dV  Pow_3V = %d.%03dV----\n", Str_Power_Analog.Bat_vol/1000,Str_Power_Analog.Bat_vol%1000,\
+		Str_Power_Analog.Pow_5V/1000,Str_Power_Analog.Pow_5V%1000, Str_Power_Analog.Pow_3V/1000,Str_Power_Analog.Pow_3V%1000);
 }
 
 static void battery_manage(void)
@@ -148,7 +148,7 @@ static void battery_manage(void)
 	{
 		BAT_STOP_CHARGE();
 		
-		rt_lprintf("[Analog]:battery stat1 is %d stat2 is %d\r\n", stat1,stat2);
+		rt_lprintf("[analog]:battery stat1 is %d stat2 is %d\r\n", stat1,stat2);
 	}
 }
 

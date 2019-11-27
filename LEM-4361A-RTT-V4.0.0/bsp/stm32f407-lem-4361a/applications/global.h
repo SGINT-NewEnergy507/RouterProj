@@ -88,8 +88,14 @@ extern PILE_INFO_UNIT PileInfo;
 typedef enum 
 {
 	ChgState_Standby=0,            //正常待机
+	ChgState_PlanSoltsStart,           //计划执行中
+	ChgState_PlanSoltsStarting,           //计划执行中
+	ChgState_PlanSoltsStartFail,           //计划执行失败
 	ChgState_InCharging,           //充电中
-	ChgState_DisCharging,          //放电中
+	ChgState_PlanExeEnd,           //计划完成
+	ChgState_PlanSoltsStop,           //计划执行中
+	ChgState_PlanSoltsStoping,
+	ChgState_PlanSoltsStopFail,           //计划执行失败
 	ChgState_Finished,				//充放电完成（3秒回待机）
 	ChgState_Fault,            	//故障
 	ChgState_Update,
@@ -176,10 +182,59 @@ typedef struct
 extern ROUTER_WORK_STATE Router_WorkState;
 
 
+typedef union 
+{
+	rt_uint32_t Info;
+	struct
+	{
+		rt_uint32_t Charge_Apply:1;		//	充电申请
+		rt_uint32_t Charge_Apply_Ack:1;		//  充电申请应答
+		rt_uint32_t Charge_Apply_Event:1;		//  充电申请事件上报
+		rt_uint32_t Charge_Apply_Event_Ack:1;	//  充电申请事件上报应答
+		rt_uint32_t Charge_Plan:1;		//  充电计划下发
+		rt_uint32_t Charge_Plan_Ack:1;		//  充电计划下发应答
+		rt_uint32_t Charge_Plan_Event:1;	//	充电计划上报事件
+		rt_uint32_t Charge_Plan_Event_Ack:1;		//  充电计划上报事件应答
+		rt_uint32_t Charge_Plan_Adj:1;			//	充电计划调整
+		rt_uint32_t Charge_Plan_Adj_Ack:1;			//	充电计划调整应答
+		rt_uint32_t Charge_Plan_Adj_Event:1;		// 充电计划调整事件上报
+		rt_uint32_t Charge_Plan_Adj_Event_Ack:1;		//  充电计划调整事件应答
+		rt_uint32_t Charge_Record_Event:1;		//  充电订单事件上报
+		rt_uint32_t Charge_Record_Event_Ack:1; 	//	充电订单事件上报应答
+		rt_uint32_t Router_Svc_Start:1;         //	路由器服务启动
+		rt_uint32_t Router_Svc_Start_Ack:1;         //	路由器服务启动应答
+		rt_uint32_t Router_Svc_Stop:1;         //	路由器服务停止
+		rt_uint32_t Router_Svc_Stop_Ack:1;         //	路由器服务停止应答
+		rt_uint32_t Charge_Power_Adj:1;					//充电功率调整
+		rt_uint32_t Charge_Power_Adj_Ack:1;			//充电功率调整应答
+		
+		rt_uint32_t Router_Fault_Event:1;
+		rt_uint32_t Router_Fault_Event_Ack:1;
+		rt_uint32_t Pile_Fault_Event:1;
+		rt_uint32_t Pile_Fault_Event_Ack:1;
+	}
+	Bit;
+}CTRL_CHARGE_INFO;/*路由器xinxi*/
 
 
+typedef union 
+{
+	rt_uint32_t Info;
+	struct
+	{
+		rt_uint32_t BLE_CONNECT:1;		//	蓝牙连接状态
+	}
+	Bit;
+}ROUTER_MODULE_INFO;/*路由器xinxi*/
 
 
+typedef struct
+{
+	CTRL_CHARGE_INFO Router_HPLC_Info;
+	CTRL_CHARGE_INFO Router_BLE_Info;
+	ROUTER_MODULE_INFO Router_Module_Info;
+}CTRL_CHARGE_EVENT;/*充电控制记录单元*/
+CCMRAM extern CTRL_CHARGE_EVENT CtrlCharge_Event;
 
 
 	
@@ -364,7 +419,7 @@ extern unsigned char CRC7(unsigned char *ptr,unsigned int count);
 extern unsigned char XOR_Check(unsigned char *pData, unsigned int Len);
 extern char *itoa(int num,char *str,int radix);
 extern char* comm_cmdtype_to_string(COMM_CMD_C cmd);
-extern void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* function);
+extern void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* head,char* function,char* name);
 ////////////////////////////////////////////////////////////////////////////////// 
 
 #endif

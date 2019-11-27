@@ -18,9 +18,15 @@ CCMRAM char Sprintf_Buffer[1024];
 //rt_mq_t storage_mq;
 ROUTER_INFO_UNIT RouterInfo;
 PILE_INFO_UNIT PileInfo;
-ROUTER_FAULT Fault;
+//ROUTER_FAULT Fault;
 
-ROUTER_WORK_STATE Router_WorkState;
+CCMRAM ROUTER_WORK_STATE Router_WorkState;
+CCMRAM CTRL_CHARGE_EVENT CtrlCharge_Event;
+
+STR_SYSTEM_TIME System_Time_STR;
+
+
+static rt_mutex_t my_printf_mutex = RT_NULL;//wyg  191025  printf Ëø
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 unsigned char DEBUG_MSH = 1;
@@ -248,8 +254,8 @@ const unsigned int gMonthTable2[12] =
 ////////////////////////////////////////////////////////////////////////////////// 
 unsigned long timebin2long(unsigned char *buf)
 {
-    uint32_t tlong;
-    uint8_t ch,ch1;
+    rt_uint32_t tlong;
+    rt_uint8_t ch,ch1;
     ch = (buf[5]/16)*10+buf[5]%16;//Äê
     tlong = (uint32_t)((uint16_t)gYearTable[ch]);
     ch1 = (buf[4]/16)*10+buf[4]%16;
@@ -398,7 +404,7 @@ void BCD_toInt(unsigned char *data1,unsigned char *data2,unsigned char len)
 
 	for(i=0;i<len;i++)
 	{
-		data1[i]= data2[i] - (data2[i]>>4)*6;
+		data1[i]= (unsigned char)((data2[i]&0xff) - (((data2[i]>>4)&0x0f)*6));
 	}
 //	return tmp;	
 }
@@ -442,9 +448,11 @@ unsigned char XOR_Check(unsigned char *pData, unsigned int Len)
 	return Check_Data;	
 }
 
-void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* function)
+void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,char* head,char* function,char* name)
 {
 	rt_uint32_t i;	
+	
+	rt_mutex_take(my_printf_mutex, RT_WAITING_FOREVER);
 	
 	strcpy((char*)Printf_Buffer,"");
 	strcpy((char*)Sprintf_Buffer,"");
@@ -458,22 +466,23 @@ void my_printf(char* buf,rt_uint32_t datalenth,rt_uint8_t type,rt_uint8_t cmd,ch
 				strcat((char*)Printf_Buffer,(const char*)Sprintf_Buffer);								
 			}
 			if(cmd)
-				rt_kprintf("%s%s\n",function,Printf_Buffer);
+				rt_kprintf("%s (%s) %s %s\n",head,function,name,Printf_Buffer);
 			else
-				rt_lprintf("%s%s\n",function,Printf_Buffer);
+				rt_lprintf("%s (%s) %s %s\n",head,function,name,Printf_Buffer);
 			break;
 		}
 		case MY_CHAR:
 		{
 			if(cmd)
-				rt_kprintf("%s%s\n",function,buf);
+				rt_kprintf("%s (%s) %s %s\n",head,function,name,buf);
 			else
-				rt_lprintf("%s%s\n",function,buf);
+				rt_lprintf("%s (%s) %s %s\n",head,function,name,buf);
 			break;
 		}
 		default:
 			break;
 	}
+	rt_mutex_release(my_printf_mutex);
 }
 
 char* comm_cmdtype_to_string(COMM_CMD_C cmd)
@@ -568,6 +577,12 @@ char* comm_cmdtype_to_string(COMM_CMD_C cmd)
 		str[i-j-1]=temp; 
 	} 
 	return str; 
-} 
+}
+
+void my_printf_mutex_init(void)
+{
+	my_printf_mutex = rt_mutex_create("my_printf_mutex", RT_IPC_FLAG_FIFO);
+}
+INIT_APP_EXPORT(my_printf_mutex_init);
 
 

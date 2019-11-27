@@ -721,7 +721,8 @@ static void chargepile_thread_entry(void *parameter)
 
 //		rt_hw_interrupt_enable(level);
 
-
+//		rt_kprintf("[chargepile]: (%s) Sys time:%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
+//								,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
 		rt_thread_mdelay(500);
 	}
 }
@@ -1011,19 +1012,23 @@ void Inform_Communicate_Can(uint8_t SendCmd,uint8_t Resend)
 			break;
 		}
 		case TimingFrame:
-		{			
+		{	
+				STR_SYSTEM_TIME time;
+	
+				memcpy(&time,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+			
 			//能源路由器向充电控制器发送"校时"：优先级0X06，PF：0X05。
 			PriorityLeve = PriorityLeve6;	   //优先级6
 			TxBuf.id = (PriorityLeve<<26)+(SendCmd<<16)+(DestAdress<<8)+SrcAdress;//SrcAdress
-            temp1 = System_Time_STR.Second*1000;
+      temp1 = time.Second*1000;
 			TxBuf.data[0] =  StrStateSystem.ChargIdent&0xFF;                          // 充电接口标识
 			TxBuf.data[1] =  temp1&0xFF;                                              // 毫秒  低8位
 			TxBuf.data[2] =  (temp1>>8)&0xFF;                                         // 毫秒  高8位	  
-			TxBuf.data[3] =  System_Time_STR.Minute&0x3F;                             // 分
-			TxBuf.data[4] =  System_Time_STR.Hour&0x1F;                               // 小时	
-			TxBuf.data[5] =  (System_Time_STR.Week<<5)+(System_Time_STR.Day&0x1F);    // 0-4日期 5-7星期
-			TxBuf.data[6] =  System_Time_STR.Month&0x0F;                              // 月
-			TxBuf.data[7] =  System_Time_STR.Year&0x7F;                               // 0-6位年	
+			TxBuf.data[3] =  time.Minute&0x3F;                             // 分
+			TxBuf.data[4] =  time.Hour&0x1F;                               // 小时	
+			TxBuf.data[5] =  (time.Week<<5)+(time.Day&0x1F);    // 0-4日期 5-7星期
+			TxBuf.data[6] =  time.Month&0x0F;                              // 月
+			TxBuf.data[7] =  time.Year&0x7F;                               // 0-6位年	
 			DataLength = 0x08;
 			CAN1_Send_Msg(TxBuf,DataLength);
 			if(Resend == TRUE)
@@ -1035,19 +1040,23 @@ void Inform_Communicate_Can(uint8_t SendCmd,uint8_t Resend)
 			break;
 		}		
 		case TimingFrameAck:
-		{			
+		{
+			STR_SYSTEM_TIME time;
+	
+			memcpy(&time,&System_Time_STR,sizeof(STR_SYSTEM_TIME));
+			
 			//充电控制器向能源路由器发送"校时"命令确认：优先级0X06，PF：0X06
 			PriorityLeve = PriorityLeve6;	   //优先级6
 			TxBuf.id = (PriorityLeve<<26)+(SendCmd<<16)+(DestAdress<<8)+SrcAdress;//SrcAdress
-            temp1 = System_Time_STR.Second*1000;
+            temp1 = time.Second*1000;
 			TxBuf.data[0] =  StrStateSystem.ChargIdent&0xFF;                          // 充电接口标识
 			TxBuf.data[1] =  temp1&0xFF;                                              // 毫秒  低8位
 			TxBuf.data[2] =  (temp1>>8)&0xFF;                                         // 毫秒  高8位	  
-			TxBuf.data[3] =  System_Time_STR.Minute&0x3F;                             // 分
-			TxBuf.data[4] =  System_Time_STR.Hour&0x1F;                               // 小时	
-			TxBuf.data[5] =  (System_Time_STR.Week<<5)+(System_Time_STR.Day&0x1F);    // 0-4日期 5-7星期
-			TxBuf.data[6] =  System_Time_STR.Month&0x0F;                              // 月
-			TxBuf.data[7] =  System_Time_STR.Year&0x7F;                               // 0-6位年	
+			TxBuf.data[3] =  time.Minute&0x3F;                             // 分
+			TxBuf.data[4] =  time.Hour&0x1F;                               // 小时	
+			TxBuf.data[5] =  (time.Week<<5)+(time.Day&0x1F);    // 0-4日期 5-7星期
+			TxBuf.data[6] =  time.Month&0x0F;                              // 月
+			TxBuf.data[7] =  time.Year&0x7F;                               // 0-6位年	
 			DataLength = 0x08;
 			CAN1_Send_Msg(TxBuf,DataLength);
 			if(Resend == TRUE)
@@ -1933,14 +1942,14 @@ void CAN_V110_RecProtocal(void)
 				&&((pCan->data[6]&0x0F)<=12) &&((pCan->data[6]&0x0F)>=1)\
 				&&((pCan->data[7]&0x7F)<100)&&((pCan->data[3]&0x3F)!=System_Time_STR.Minute))//误差超过1分钟
 			{								
-				System_Time_STR.Second = temp;//秒
-				System_Time_STR.Minute = pCan->data[3]&0x3F;	// 0-5位 -- 分钟
-				System_Time_STR.Hour = pCan->data[4]&0x1F;   // 0-4位 -- 小时
+//				System_Time_STR.Second = temp;//秒
+//				System_Time_STR.Minute = pCan->data[3]&0x3F;	// 0-5位 -- 分钟
+//				System_Time_STR.Hour = pCan->data[4]&0x1F;   // 0-4位 -- 小时
 
-				System_Time_STR.Day = pCan->data[5]&0x1F;    // 0-4位 -- 日期
-				System_Time_STR.Week = pCan->data[5]&0xE0;   // 5-7位 -- 星期
-				System_Time_STR.Month = pCan->data[6]&0x0F;  // 0-3位 -- 月
-				System_Time_STR.Year = pCan->data[7]&0x7F;   // 0-6位 -- 年 后两位0-99
+//				System_Time_STR.Day = pCan->data[5]&0x1F;    // 0-4位 -- 日期
+//				System_Time_STR.Week = pCan->data[5]&0xE0;   // 5-7位 -- 星期
+//				System_Time_STR.Month = pCan->data[6]&0x0F;  // 0-3位 -- 月
+//				System_Time_STR.Year = pCan->data[7]&0x7F;   // 0-6位 -- 年 后两位0-99
 				
 //					In_RTC_Init(&System_Time_STR);      //初始化片内RTC
 //					SystemTimeToRTC(&System_Time_STR);  //初始化片外RTC
