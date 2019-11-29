@@ -69,7 +69,6 @@ static rt_err_t get_rtc_timestamp(rt_device_t dev,void *args)
     rt_size_t ret = 0;
     RT_ASSERT(dev != 0);
 		
-		rt_err_t result = rt_mutex_take(pcf8563_mutex, RT_WAITING_FOREVER);
 		
 		ptr = args;
 	
@@ -91,19 +90,19 @@ static rt_err_t get_rtc_timestamp(rt_device_t dev,void *args)
 			ret = rt_i2c_transfer(pcf8563->bus, &msg[2*i], 2);
 			if(ret != 2)
 			{
-				if (result == RT_EOK)
-				{
-					/* ÊÍ·Å»¥³âËø */
-					rt_mutex_release(pcf8563_mutex);
-				}
+//				if (result == RT_EOK)
+//				{
+//					/* ÊÍ·Å»¥³âËø */
+//					rt_mutex_release(pcf8563_mutex);
+//				}
 				return RT_ERROR;
 			}
 		}
-		if (result == RT_EOK)
-		{
-			/* ÊÍ·Å»¥³âËø */
-			rt_mutex_release(pcf8563_mutex);
-		}
+//		if (result == RT_EOK)
+//		{
+//			/* ÊÍ·Å»¥³âËø */
+//			rt_mutex_release(pcf8563_mutex);
+//		}
 		return RT_EOK;
 }
 
@@ -117,8 +116,8 @@ static rt_err_t set_rtc_time_stamp(rt_device_t dev,void *args)
     rt_size_t ret = 0;
     RT_ASSERT(dev != 0);
 		
-		rt_err_t result = rt_mutex_take(pcf8563_mutex, RT_WAITING_FOREVER);
-		
+//		rt_err_t result = rt_mutex_take(pcf8563_mutex, RT_WAITING_FOREVER);
+//		
 		ptr = args;
 	
 		pcf8563 = (struct pcf8563_device *) dev;
@@ -137,22 +136,22 @@ static rt_err_t set_rtc_time_stamp(rt_device_t dev,void *args)
 			ret = rt_i2c_transfer(pcf8563->bus, &msg[i], 1);
 			if(ret != 1)
 			{
-				if (result == RT_EOK)
-				{
-					/* ÊÍ·Å»¥³âËø */
-					rt_mutex_release(pcf8563_mutex);
-				}
+//				if (result == RT_EOK)
+//				{
+//					/* ÊÍ·Å»¥³âËø */
+//					rt_mutex_release(pcf8563_mutex);
+//				}
 				return RT_ERROR;
 			}
 			rt_kprintf("%02X ",mem_addr[1]);			
 		}
 		rt_kprintf("\r\n");
 		
-		if (result == RT_EOK)
-		{
-			/* ÊÍ·Å»¥³âËø */
-			rt_mutex_release(pcf8563_mutex);
-		}
+//		if (result == RT_EOK)
+//		{
+//			/* ÊÍ·Å»¥³âËø */
+//			rt_mutex_release(pcf8563_mutex);
+//		}
 		return RT_EOK;
 }
 
@@ -162,7 +161,10 @@ static rt_err_t pcf8563_control(rt_device_t dev, int cmd, void *args)
 		rt_err_t result = RT_EOK;		
     RT_ASSERT(dev != RT_NULL);
 	
+		rt_mutex_take(pcf8563_mutex, RT_WAITING_FOREVER);
 
+		rt_enter_critical();
+	
     switch (cmd)
     {
     case RT_DEVICE_CTRL_RTC_GET_TIME:
@@ -187,6 +189,10 @@ static rt_err_t pcf8563_control(rt_device_t dev, int cmd, void *args)
 					rt_kprintf("pcf8563: set rtc_time fail\r\n");
         break;
     }
+		rt_exit_critical();
+		
+		rt_mutex_release(pcf8563_mutex);
+		
     return result;
 }
 

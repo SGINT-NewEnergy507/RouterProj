@@ -6262,9 +6262,15 @@ int STR_SYSTEM_TIME_to_date_time_s(STR_SYSTEM_TIME * SYSTEM_TIME,struct _698_dat
 
 	if(SYSTEM_TIME->Year!=0){
 		date_time_s->year[0]=date_time_s->data[0]=((2000&0xff00)>>8);//	
+		date_time_s->year[1]=date_time_s->data[1]=(((SYSTEM_TIME->Year&0xf0)>>4)*10+(SYSTEM_TIME->Year&0x0f)+(2000&0x00ff));//年
+	}
+	else
+	{
+		date_time_s->year[0]=date_time_s->data[0]= 0;
+		date_time_s->year[1]=date_time_s->data[1]= 0;
 	}
 	
-	date_time_s->year[1]=date_time_s->data[1]=(((SYSTEM_TIME->Year&0xf0)>>4)*10+(SYSTEM_TIME->Year&0x0f)+(2000&0x00ff));//年	
+		
 
 	date_time_s->month=date_time_s->data[2]=(((SYSTEM_TIME->Month&0xf0)>>4)*10+(SYSTEM_TIME->Month&0x0f));//月
 	date_time_s->day=date_time_s->data[3]=(((SYSTEM_TIME->Day&0xf0)>>4)*10+(SYSTEM_TIME->Day&0x0f));//日	
@@ -7076,7 +7082,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 	for(j=0;j<5;j++){
 
-		len=priv_EVENT->StartMeterValue[i];
+		len=priv_EVENT->StartMeterValue[j];
 		_698_double_long((unsigned int) len, hplc_data);		
 	}
 	
@@ -7090,7 +7096,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 	for(j=0;j<5;j++){
 
-		len=priv_EVENT->StopMeterValue[i];
+		len=priv_EVENT->StopMeterValue[j];
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
 
@@ -7119,7 +7125,7 @@ int report_CHG_ORDER_package(CHG_ORDER_EVENT *priv_EVENT,struct _698_STATE  * pr
 
 	for(j=0;j<5;j++){
 
-		len=priv_EVENT->ucChargeEle[i];
+		len=priv_EVENT->ucChargeEle[j];
 		_698_double_long_unsigned((unsigned int) len, hplc_data);		
 	}			
 	
@@ -7344,7 +7350,6 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
 	
-
 	//已充时间	double-long-unsigned单位：秒
 
   len=priv_EVENT->Chg_ExeState.ucChargeTime;

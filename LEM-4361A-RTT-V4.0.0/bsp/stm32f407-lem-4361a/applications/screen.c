@@ -1181,7 +1181,7 @@ static void screen_thread_entry(void *parameter)//lcd显示任务
 //			s_ucLCD_TPfinish = 0;
 //			rt_pin_irq_enable(TOUCH_PIN,PIN_IRQ_ENABLE);
 //		}
-		rt_thread_mdelay(500);
+		rt_thread_mdelay(1000);
 	}
 }
 
@@ -1370,13 +1370,8 @@ static void LCD_DisPlayScreen001(void)
 	rt_graphix_ops(lcddev)->draw_circle(GREEN,85,130,63);
 	
 	rt_graphix_ops(lcddev)->draw_hline(RED,35,135,160);
-
-	if(Router_WorkState.Router_State == ChgState_Standby)	
-		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
-	else if(Router_WorkState.Router_State == ChgState_InCharging)
-		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"充电",BLUE,WHITE);
-	else if(Router_WorkState.Router_State == ChgState_Fault)
-		rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"故障",BLUE,WHITE);
+	
+	rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
 	
 	rt_graphix_ops(lcddev)->set_bmp(170,70,(void*)gImage_logo,100,40);
 	rt_graphix_ops(lcddev)->set_font24(170,130,(void*)"欢迎使用",BLUE,WHITE);
@@ -1497,6 +1492,30 @@ static void LCD_DisPlayScreen004(void)
 static void LCD_UpdateScreen001(void)
 {
 	rt_uint8_t i;
+	static rt_uint8_t Router_State;
+	
+	if(Router_State^Router_WorkState.Router_State)
+	{
+		rt_graphix_ops(lcddev)->fill_fb(WHITE,60,110,99,125);
+		
+		Router_State = Router_WorkState.Router_State;
+		
+		switch(Router_State)
+		{
+			case ChgState_Standby:
+				rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
+			break;
+			case ChgState_InCharging:
+				rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"充电",BLUE,WHITE);
+			break;
+			case ChgState_Fault:
+				rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"故障",BLUE,WHITE);
+			break;
+			default:
+				rt_graphix_ops(lcddev)->set_font24(61,100,(void*)"正常",BLUE,WHITE);
+			break;
+		}
+	}
 	
 	if(s_ucLCD__PasPageNum == SCR_001)
 	{
