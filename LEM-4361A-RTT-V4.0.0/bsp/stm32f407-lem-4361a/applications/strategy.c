@@ -715,6 +715,9 @@ static void ExeState_Update(void)
 	Chg_ExeState.ucVoltage.A = stgMeter_Analog.ulVol;
 	Chg_ExeState.ucCurrent.A = stgMeter_Analog.ulCur;
 	
+	memcpy(Chg_ExeState.ucChargeEle,ChgOrder_Event.ucChargeEle,5*sizeof(long));
+	Chg_ExeState.ucChargeTime = ChgOrder_Event.ucChargeTime;
+	
 	ChargepileDataGetSet(Cmd_GetPilePara,&ChargePilePara_Get);
 	Router_WorkState.Pile_State = ChargePilePara_Get.ChgPileState;
 	Chg_ExeState.ChgPileState = Router_WorkState.Pile_State;//直接取用充电桩的三态	
@@ -1106,12 +1109,16 @@ static rt_int8_t Charge_Record_Update(CHG_ORDER_EVENT* charge_record)
 	
 	
 	for(i=0;i<5;i++)
+	{
 		PlanSolts_ChargeEle[PlanExeNum][i] = charge_record->StopMeterValue[i] - ChgStart_Ele[i];
+	}
 	
 	for(i=0;i<5;i++)
 	{
 		ChgStart_EleTotal[i] += PlanSolts_ChargeEle[PlanExeNum][i];
 		charge_record->ucChargeEle[i] = ChgStart_EleTotal[i];
+		
+//		rt_kprintf("[strategy]:  (%s) ChgStart_EleTotal[%d] = %d!\n",__func__,i,ChgStart_EleTotal[i]);
 	}
 }
 
@@ -1212,17 +1219,15 @@ static void HPLC_Data_RecProcess(void)
 	{
 		case Cmd_ChgPlanIssue://收到充电计划
 		{
-			if(CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Apply == RT_FALSE)
-			{
-				memset(&CtrlCharge_Event,0,sizeof(CtrlCharge_Event));
-			}
-			
 			if(CtrlCharge_Event.Router_HPLC_Info.Bit.Charge_Plan == RT_TRUE)
 			{
 				CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,-1);//充电计划取值
 				Charge_PlanIssue_RSP(&Chg_Strategy,&Chg_StrategyRsp);//充电计划响应
+				rt_kprintf("[strategy]:  (%s)  charge plan already have ,not create charge plan event again!\n",__func__);
 				break;
 			}
+			else
+				memset(&CtrlCharge_Event.Router_HPLC_Info,0,sizeof(CtrlCharge_Event.Router_HPLC_Info));
 			
 			memset(&Chg_Strategy,0,sizeof(Chg_Strategy));
 			CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,0);//充电计划取值
@@ -1243,7 +1248,18 @@ static void HPLC_Data_RecProcess(void)
 						rt_timer_start(HPLC_ChgPlanOfferAck_Timer);
 						HPLC_ChgPlanOfferAck_count = 0;
 						rt_kprintf("[strategy]:  (%s)  HPLC_ChgPlanOfferAck_Timer start!\n",__func__);	
-					}					
+					}
+//					if(CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Apply == RT_TRUE)
+//					{
+//						BLE_CtrlUnit_RecResp(Cmd_ChgPlanOffer,&Plan_Offer_Event,0);//上报充电计划事件
+//						if(BLE_ChgPlanOfferAck_Timer != RT_NULL)
+//						{
+//							rt_timer_start(BLE_ChgPlanOfferAck_Timer);
+//							BLE_ChgPlanOfferAck_count = 0;
+//							rt_kprintf("[strategy]:  (%s)  ChgPlanOfferAck_Timer start!\n",__func__);	
+//						}
+//						CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Plan = RT_TRUE;
+//					}					
 				}				
 				CtrlCharge_Event.Router_HPLC_Info.Bit.Charge_Plan_Event = RT_TRUE; //充电计划上报
 			}
@@ -1260,7 +1276,8 @@ static void HPLC_Data_RecProcess(void)
 			CtrlUnit_RecResp(Cmd_ChgPlanOfferAck,0,0);//回复
 			rt_timer_stop(HPLC_ChgPlanOfferAck_Timer);//收到确认响应 停止重发
 			
-			Router_WorkState.Router_State = ChgState_PlanSoltsStart;//已收到充电计划响应 开始判断充电计划 进入执行状态
+			if(Router_WorkState.Router_State < ChgState_PlanSoltsStart)
+				Router_WorkState.Router_State = ChgState_PlanSoltsStart;//已收到充电计划响应 开始判断充电计划 进入执行状态
 					
 			if(CtrlCharge_Event.Router_HPLC_Info.Bit.Charge_Plan_Adj_Event == RT_TRUE)
 				CtrlCharge_Event.Router_HPLC_Info.Bit.Charge_Plan_Adj_Event_Ack = RT_TRUE;
@@ -1278,6 +1295,7 @@ static void HPLC_Data_RecProcess(void)
 		case Cmd_ChgRequestReportAck://充电申请事件应答
 		{
 			CtrlUnit_RecResp(Cmd_ChgRequestReportAck,0,0);//清除标志
+			rt_timer_stop(HPLC_ChgReqReportAck_Timer);
 			rt_kprintf("[strategy]:  (%s)  Cmd_ChgRequestReportAck clear!\n",__func__);
 			break;
 		}
@@ -1289,17 +1307,20 @@ static void HPLC_Data_RecProcess(void)
 			
 			Charge_PlanAdj_RSP(&Chg_Strategy_Adj,&Chg_StrategyRsp_Adj);//充电计划调整响应
 			
-			if(memcmp(&Chg_Strategy_Adj.strChargeTimeSolts[0].strDecStartTime,\
-				&Chg_Strategy_Adj.strChargeTimeSolts[0].strDecStopTime,sizeof(STR_SYSTEM_TIME)) == 0)
-				{
-					if(memcmp(&RouterInfo.AssetNum,&Chg_Strategy_Adj.cAssetNO,sizeof(RouterInfo.AssetNum)) == 0)//校验资产一致性		
-					{
-						ChargePile_Stop_Charge();
-						Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束		
-						Chg_ExeState.exeState = EXE_END;
-					}
-					break;
-				}
+//			if(memcmp(&Chg_Strategy_Adj.strChargeTimeSolts[0].strDecStartTime,\
+//				&Chg_Strategy_Adj.strChargeTimeSolts[0].strDecStopTime,sizeof(STR_SYSTEM_TIME)) == 0)
+//				{
+//					if(memcmp(&RouterInfo.AssetNum,&Chg_Strategy_Adj.cAssetNO,sizeof(RouterInfo.AssetNum)) == 0)//校验资产一致性		
+//					{
+//						if(Router_WorkState.Router_State ==  ChgState_InCharging)
+//						{
+//							ChargePile_Stop_Charge();					
+//							Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束	
+//						}							
+//						Chg_ExeState.exeState = EXE_END;
+//					}
+//					break;
+//				}
 			
 			if(Chg_StrategyRsp_Adj.cSucIdle == SUCCESSFUL)//正确  更新充电计划
 			{
@@ -1371,8 +1392,11 @@ static void HPLC_Data_RecProcess(void)
 			if((memcmp(&RouterInfo.AssetNum,&Ctrl_Stop.cAssetNO,sizeof(RouterInfo.AssetNum)) == 0)//校验资产一致性
 				||(memcmp(&Ctrl_Start.OrderSn,&Ctrl_Stop.OrderSn,sizeof(Ctrl_Start.OrderSn)) == 0))//校验启停单号一致性		
 			{
-				ChargePile_Stop_Charge();
-				Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束		
+				if(Router_WorkState.Router_State ==  ChgState_InCharging)
+				{
+					ChargePile_Stop_Charge();
+					Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束
+				}					
 				Chg_ExeState.exeState = EXE_END;
 			}
 			else
@@ -1516,7 +1540,7 @@ static void BLE_Data_RecProcess(void)
 		//充电申请    然后直接启动充电，启动后立即上送执行事件
 		case Cmd_ChgRequest:
 		{	
-			memset(&CtrlCharge_Event,0,sizeof(CtrlCharge_Event));///////////////////////////////////////##############
+			memset(&CtrlCharge_Event.Router_BLE_Info,0,sizeof(CtrlCharge_Event.Router_BLE_Info));///////////////////////////////////////##############
 			
 			res = BLE_CtrlUnit_RecResp(Cmd_ChgRequest,&Chg_Apply,0);//取值
 			
@@ -1557,17 +1581,13 @@ static void BLE_Data_RecProcess(void)
 		{
 			BLE_CtrlUnit_RecResp(Cmd_ChgRequestReportAck,0,0);//清除标志
 			rt_timer_stop(BLE_ChgReqReportAck_Timer);
+			CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Apply_Event_Ack = TRUE;
 			rt_kprintf("[strategy]:  (%s)  Cmd_ChgRequestReportAck clear!\n",__func__);
 			break;
 		}
 
 		case Cmd_ChgPlanIssue://收到充电计划
 		{
-			if(CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Apply == RT_FALSE)
-			{
-				memset(&CtrlCharge_Event,0,sizeof(CtrlCharge_Event));
-			}
-			
 			if(CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Plan == RT_TRUE)
 			{
 				BLE_CtrlUnit_RecResp(Cmd_ChgPlanIssue,&Chg_Strategy,-1);//充电计划取值
@@ -1651,10 +1671,12 @@ static void BLE_Data_RecProcess(void)
 		case Cmd_StopChg:
 		{	
 			res = BLE_CtrlUnit_RecResp(Cmd_StopChg,&Ctrl_Stop,0);//取值	
-
-			ChargePile_Stop_Charge();
-			
-			Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束
+			if(Router_WorkState.Router_State ==  ChgState_InCharging)
+			{
+				ChargePile_Stop_Charge();
+				
+				Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束
+			}
 			Chg_ExeState.exeState = EXE_END;		
 			CtrlCharge_Event.Router_BLE_Info.Bit.Router_Svc_Stop = RT_TRUE;
 			break;
@@ -1730,6 +1752,7 @@ static void Start_ChargePile_Process(void)
 	if(rt_event_recv(&ChargePileEvent, ChargeStartOK_EVENT|ChargeStartER_EVENT,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,100, &start_result) == RT_EOK)	
 	{		
 		rt_timer_stop(StartChgResp_Timer);
+		ExeState_Update();//路由器状态更新
 		
 		if(start_result|ChargeStartOK_EVENT)//启动充电成功
 		{
@@ -1743,7 +1766,6 @@ static void Start_ChargePile_Process(void)
 		}
 		else if(start_result|ChargeStartER_EVENT)//启动充电失败
 		{
-			ExeState_Update();//路由器状态更新
 			Ctrl_Start.cSucIdle = FAILED;//启动失败
 			Chg_ExeState.exeState = EXE_FAILED;//执行失败
 			
@@ -1763,14 +1785,19 @@ static void Start_ChargePile_Process(void)
 			{
 				rt_timer_start(HPLC_ChgPlanExeStateAck_Timer);
 				HPLC_ChgPlanExeStateAck_count = 0;
+				
+				rt_kprintf("[strategy]: (%s) Plan exe event send to HPLC!\n",__func__);
 			}
-			if(CtrlCharge_Event.Router_Module_Info.Bit.BLE_CONNECT == RT_TRUE)//如果蓝牙已连接 则向蓝牙上报充电执行事件记录
+			
+			if(CtrlCharge_Event.Router_BLE_Info.Bit.Charge_Apply_Event_Ack == RT_TRUE)//如果蓝牙已连接 则向蓝牙上报充电执行事件记录
 			{
 				BLE_CtrlUnit_RecResp(Cmd_ChgPlanExeState,&Ctrl_ChgExe_Event,0);	//向APP上报充电执行事件记录
 				if (BLE_ChgPlanExeStateAck_Timer != RT_NULL)
 				{
 					rt_timer_start(BLE_ChgPlanExeStateAck_Timer);
 					BLE_ChgPlanExeStateAck_count = 0;
+					
+					rt_kprintf("[strategy]: (%s) Plan exe event send to BLE!\n",__func__);
 				}
 			}
 		}
@@ -1805,7 +1832,7 @@ static void Stop_ChargePile_Process(void)
 			
 			Charge_Record_Update(&ChgOrder_Event);//更新充电记录
 			if(Router_WorkState.Router_State == ChgState_PlanExeEnd)//执行完成 转换为充电完成状态 等待上传订单
-				Router_WorkState.Router_State = ChgState_Finished;//状态变更
+				Router_WorkState.Router_State = ChgState_Finished;//状态变更 
 			else
 			{
 				PlanExeNum++;
@@ -1915,7 +1942,7 @@ static void Charge_Plan_Running(void)
 	
 	PlanStartTime_stop[PlanExeNum] = TimeCalculation(&Chg_Strategy.strChargeTimeSolts[PlanExeNum].strDecStopTime);
 	
-	if(Time_s > PlanStartTime_stop[PlanExeNum])
+	if((Time_s > PlanStartTime_stop[PlanExeNum])||(Router_WorkState.Pile_State != PILE_WORKING))//满足停止条件
 	{
 		rt_kprintf("[strategy]: (%s) ChargePile_Stop_Charge!\n",__func__,Time_s);
 		ChargePile_Stop_Charge();
@@ -1923,11 +1950,11 @@ static void Charge_Plan_Running(void)
 			Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束
 		else
 			Router_WorkState.Router_State = ChgState_PlanSoltsStoping;//计划执行未结束 暂时停机 不上传充电订单
-	}
-	
-	rt_kprintf("[strategy]: (%s) Time_s = %d!\n",__func__,Time_s);
-	rt_kprintf("[strategy]: (%s) Sys time: %02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
+		
+		rt_kprintf("[strategy]: (%s) Time_s = %d!\n",__func__,Time_s);
+		rt_kprintf("[strategy]: (%s) Sys time: %02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
 							,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
+	}
 }
 		
 /********************************************************************  
@@ -2097,6 +2124,9 @@ static void strategy_thread_entry(void *parameter)
 //		rt_kprintf("[strategy]: (%s) time = %d  \n",__func__,time);
 //		rt_kprintf("[strategy]: (%s) Sys time:%02X-%02X-%02X-%02X-%02X-%02X!\n",__func__,System_Time_STR.Year,System_Time_STR.Month,System_Time_STR.Day\
 //								,System_Time_STR.Hour,System_Time_STR.Minute,System_Time_STR.Second);
+//		
+//		if(System_Time_STR.Minute>0x60)
+//			while(1){};
 		
 		rt_thread_mdelay(500);
 	}
@@ -2155,6 +2185,11 @@ void alarm(int argc, char**argv)
 		Router_WorkState.Router_Fault.Bit.Memory_Fau =1;
 		Router_WorkState.Router_Fault.Bit.ESAM_Fau = 1;
 	}
+	else if(tmp == 2)
+	{
+		Router_WorkState.Pile_Fault.Bit.Memory_Fau =1;
+		Router_WorkState.Pile_Fault.Bit.ESAM_Fau = 1;
+	}
 	else
 	{
 		Router_WorkState.Router_Fault.Bit.Memory_Fau =0;
@@ -2162,6 +2197,20 @@ void alarm(int argc, char**argv)
 	}
 }
 MSH_CMD_EXPORT(alarm, AC out  CMD);
+
+void charge(int argc, char**argv)
+{
+	rt_uint8_t tmp;
+	
+	tmp = strtol(argv[1],NULL,10);
+	
+	if(tmp == 0)//停止
+	{
+		ChargePile_Stop_Charge();
+		Router_WorkState.Router_State = ChgState_PlanExeEnd;//计划执行结束
+	}
+}
+MSH_CMD_EXPORT(charge, AC out  CMD);
 
 
 

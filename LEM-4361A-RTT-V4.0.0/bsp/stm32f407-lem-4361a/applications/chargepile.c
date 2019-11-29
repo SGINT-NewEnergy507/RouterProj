@@ -2108,13 +2108,12 @@ void CAN_V110_RecProtocal(void)
 			{
 				Inform_Communicate_Can(ChargeStartStateFrameAck,FALSE); // 启动状态应答
 				STR_ChargePile_A.ChgState = state_Charging;
-				STR_ChargPilePara.ChgPileState = PILE_WORKING;//wyg191104
 				rt_event_send(&ChargePileEvent, ChargeStartOK_EVENT);
-				rt_lprintf("[chargepile]: monitor_task:state_Charging&ChargeStartOK_EVENT\n");
+				rt_kprintf("[chargepile]: monitor_task:state_Charging&ChargeStartOK_EVENT\n");
 			}
 
 			StrStateFrame.ChargeStartStateFrameAckReSendFlag = TRUE;
-			rt_lprintf("[chargepile]: CAN_V110_Rec:Receive ChargeStartStateFrame\n");
+			rt_kprintf("[chargepile]: CAN_V110_Rec:Receive ChargeStartStateFrame\n");
 //			rt_timer_stop(DownCount_Time);	//关闭定时器	
 //			rt_lprintf("[chargepile]: CAN_V110_Rec:rt_timer_stop DownCount_Time!\n");				
 

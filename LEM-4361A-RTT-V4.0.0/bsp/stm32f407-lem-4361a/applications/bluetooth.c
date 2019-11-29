@@ -206,6 +206,7 @@ static rt_uint8_t g_ucRecv698_In_AT;//在AT指令模式下  收到了698协议数据
 	
 static rt_uint32_t g_BLE_Send_to_Strategy_event;
 static rt_uint32_t g_BLE_Get_Strategy_event;
+static rt_uint32_t g_BLE_Send_Ack_to_Strategy_event;
 	
 struct _698_BLE_FRAME _698_ble_frame;
 struct _698_BLE_ADDR _698_ble_addr;
@@ -232,7 +233,7 @@ rt_uint8_t BLE_Get_Strategy_Event(void);//获取到 策略传递过来的事件 做响应处理
 rt_uint8_t BLE_Send_Event_To_Strategy(COMM_CMD_C cmd);//发送事件到策略
 rt_uint32_t Strategy_get_BLE_event(void);
 rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count);
-rt_uint8_t BLE_Send_To_Strategy_Event_Ack(void);
+rt_uint8_t BLE_Send_Ack_To_Strategy_Event(void);
 
 /********************************************************************  
 *	函 数 名: BLE_Commit_TimeOut
@@ -849,9 +850,6 @@ rt_err_t BLE_698_Get_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,Scm
 			BLE_698_Get_METER_ADDR_Package(dev_recv,stData);
 			break;
 		}
-		case 0x60120300:
-			BLE_Send_To_Strategy_Event_Ack();
-			break;
 		case 0x90030200:   //90030200 单枪   90030201 枪1状态  90030202 枪2状态
 		case 0x90030201:
 		case 0x90030202:
@@ -1576,6 +1574,32 @@ rt_err_t BLE_698_Action_Request_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,
 }
 
 /********************************************************************  
+*	函 数 名: BLE_698_Action_Request_Normal_Analysis
+*	功能说明: 698 get request 解析
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+rt_err_t BLE_698_Report_Response_Normal_Analysis(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint32_t apdu_oad;
+	
+	apdu_oad = dev_recv->apdu.apdu_data[3];
+	apdu_oad = apdu_oad<<8|dev_recv->apdu.apdu_data[4];
+	apdu_oad = apdu_oad<<8|dev_recv->apdu.apdu_data[5];
+	apdu_oad = apdu_oad<<8|dev_recv->apdu.apdu_data[6];
+	
+	switch(apdu_oad)
+	{
+		case 0x60120300:
+			BLE_Send_Ack_To_Strategy_Event();
+			break;
+		default:
+			break;
+	}
+	return RT_EOK;		
+}
+
+/********************************************************************  
 *	函 数 名: BLE_698_Security_Request_Analysis_and_Response
 *	功能说明: 698 Security Request 解析
 *	形    参: 无
@@ -1591,6 +1615,28 @@ rt_err_t BLE_698_Action_Request_Analysis_and_Response(struct _698_BLE_FRAME *dev
 		case ACTION_REQUEST_NOMAL:
 		{
 			BLE_698_Action_Request_Normal_Analysis(dev_recv,stData);
+			break;
+		}
+	}
+	return RT_EOK;
+}
+
+/********************************************************************  
+*	函 数 名: BLE_698_Security_Request_Analysis_and_Response
+*	功能说明: 698 Security Request 解析
+*	形    参: 无
+*	返 回 值: 无
+********************************************************************/
+rt_err_t BLE_698_Report_Response_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmUart_Comm* stData)
+{
+	rt_uint8_t apdu_attitude;
+	
+	apdu_attitude 	= dev_recv->apdu.apdu_data[0];
+	switch(apdu_attitude)
+	{	
+		case REPORTNOTIFICATIONRECORDLIST:
+		{
+			BLE_698_Report_Response_Normal_Analysis(dev_recv,stData);
 			break;
 		}
 	}
@@ -1624,6 +1670,11 @@ rt_err_t BLE_698_Data_Analysis_and_Response(struct _698_BLE_FRAME *dev_recv,ScmU
 		case ACTION_REQUEST:
 		{
 			BLE_698_Action_Request_Analysis_and_Response(dev_recv,stData);
+			break;
+		}
+		case REPORT_RESPONSE:
+		{
+			BLE_698_Report_Response_Analysis_and_Response(dev_recv,stData);
 			break;
 		}
 	}
@@ -3883,21 +3934,24 @@ rt_err_t BLE_698_Pile_Fault_Event_Response(struct _698_BLE_FRAME *dev_recv,ScmUa
 
 /******************************************与策略数据传递接口******************************************/
 
-rt_uint8_t BLE_Send_To_Strategy_Event_Ack(void)
+rt_uint8_t BLE_Send_Ack_To_Strategy_Event(void)
 {
 	rt_uint32_t i,cmd;
 	
-	if(g_BLE_Send_to_Strategy_event == 0)//无事件发生
+	if(g_BLE_Send_Ack_to_Strategy_event == 0)//无事件发生
 		return 0;
 	
 	for(i = 0; i <sizeof(rt_uint32_t)*8;i++)
 	{
-		if(g_BLE_Send_to_Strategy_event&(0x00000001<<i))
+		if(g_BLE_Send_Ack_to_Strategy_event&(0x00000001<<i))
 		{
 			cmd = i;
 			break;
 		}
 	}
+	
+	rt_kprintf("[bluetooth]: (%s) send %s ack!\n",__func__,comm_cmdtype_to_string(cmd));
+	
 	switch(cmd)
 	{
 		case Cmd_ChgRequestReport:
@@ -3928,6 +3982,7 @@ rt_uint8_t BLE_Send_To_Strategy_Event_Ack(void)
 			break;
 	}
 	
+	g_BLE_Send_Ack_to_Strategy_event &= (rt_uint32_t)(~(0x00000001<<cmd));
 }
 
 
@@ -4071,7 +4126,7 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 
 			my_printf((char*)&stBLE_Charge_Apply_RSP.cAssetNO[1],stBLE_Charge_Apply_RSP.cAssetNO[0],MY_HEX,KPRINTF_ENABLE,TASK_NAME,(char*)(__func__),"AssetNO");
 			rt_kprintf("[bluetooth]: (%s) GunNum: %d\n",__func__,stBLE_Charge_Apply_RSP.GunNum);
-			rt_kprintf("[bluetooth]: (%s) SucIdle: %d",__func__,stBLE_Charge_Apply_RSP.cSucIdle);
+			rt_kprintf("[bluetooth]: (%s) SucIdle: %d\n",__func__,stBLE_Charge_Apply_RSP.cSucIdle);
 		
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestAck);
 			result=0;
@@ -4087,18 +4142,21 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 		case Cmd_ChgPlanOffer:
 			stBLE_Charge_Plan_Event = *((PLAN_OFFER_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgPlanOffer);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_ChgPlanOffer);
 			result=0;
 		break;
 		
 		case Cmd_ChgPlanExeState:
 			stBLE_Charge_Exe_Event = *((CHARGE_EXE_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgPlanExeState);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_ChgPlanExeState);
 		result=0;
 		break;
 		
 		case Cmd_ChgRequestReport:
 			stBLE_Charge_Apply_Event = *((CHARGE_APPLY_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRequestReport);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_ChgRequestReport);
 			result=0;
 		break;
 		
@@ -4111,18 +4169,21 @@ rt_uint8_t BLE_CtrlUnit_RecResp(COMM_CMD_C cmd,void *STR_SetPara,int count)
 		case Cmd_ChgRecord:
 			stBLE_Charge_Record = *((CHG_ORDER_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_ChgRecord);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_ChgRecord);
 			result=0;
 		break;
 		
 		case Cmd_DeviceFault:
 			stBLE_Router_Fault_Event = *((ROUTER_FAULT_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_DeviceFault);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_DeviceFault);
 			result=0;
 		break;
 		
 		case Cmd_PileFault:
 			stBLE_Router_Fault_Event = *((ROUTER_FAULT_EVENT*)STR_SetPara);
 			g_BLE_Get_Strategy_event |= (0x00000001<<Cmd_PileFault);
+			g_BLE_Send_Ack_to_Strategy_event |= (0x00000001<<Cmd_PileFault);
 			result=0;
 		break;
 		
@@ -4213,6 +4274,9 @@ static void bluetooth_thread_entry(void *parabluetooth)
 	Esam_KEY_Sess_State= 0;// 会话协商标志  会话协商完毕 才能进行其他业务
 	g_ulBLE_Rx_Count = 0;
 	g_ulBLE_Tx_Count = 0;
+	g_BLE_Send_to_Strategy_event = 0;
+	g_BLE_Get_Strategy_event = 0;
+	g_BLE_Send_Ack_to_Strategy_event = 0;
 		
 	while (1)
 	{

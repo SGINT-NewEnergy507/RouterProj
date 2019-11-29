@@ -81,19 +81,21 @@ static void save_meter_data(Power_Analog_TypeDef* analog)//系统掉电 保存电量信息
 	
 	get_analog_data(analog);
 	
-	if((analog->Pow_5V < 4000)&&(!save_meter_flag))//系统掉电 发送信号给meter 存储电量
+	if((analog->Pow_5V < 4000)&&(save_meter_flag))//系统掉电 发送信号给meter 存储电量
 	{
+		save_meter_flag = 0;
+		
 		l_ulmeter_time= 0x20;
-		l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Year;
-		l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Month;
-		l_ulmeter_time = l_ulmeter_time<<8|System_Time_STR.Day;
+		l_ulmeter_time = ((l_ulmeter_time<<8)&0xff00)|System_Time_STR.Year;
+		l_ulmeter_time = ((l_ulmeter_time<<8)&0xffff00)|System_Time_STR.Month;
+		l_ulmeter_time = ((l_ulmeter_time<<8)&0xffffff00)|System_Time_STR.Day;
 		SetStorageData(Cmd_MeterPowerWr,&stMeter_HisData,l_ulmeter_time);//保存电量信息
 	
 		SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,l_ulmeter_time);//保存电量信息
 	}
 	else if(analog->Pow_5V > 4500)//系统恢复  清除标志
 	{
-		save_meter_flag = 0;
+		save_meter_flag = 1;
 	}
 }
 
@@ -176,19 +178,6 @@ static void meter_thread_entry(void *parameter)//meter 线程
 		rt_lprintf("[Meter]: (%s) JFmode is not exist,clear stMeter_PriceModle!\n",__func__);
 	}
 	
-	BCD_toInt(&l_uchour,&Systime.Hour,1);
-	
-	if(l_uchour<24)
-	{
-		ret = GetStorageData(Cmd_MeterHalfPowerRd,&ulMeter_Half,sizeof(ulMeter_Half));//读取半小时电量
-		if(ret < 0)
-		{
-			SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,sizeof(ulMeter_Half));
-			rt_lprintf("[Meter]: (%s) half meter is not exist,clear half meter!\n",__func__);
-		}
-		s_ulevmin_start = stMeter_Analog.ulMeterTotal - ulMeter_Half[l_uchour*2];//若半小时内存在重启 需减去半小时内存储的电量 作为该时段的起始值
-	}
-	
 	if((Systime.Year > 0x19)&&(Systime.Month<13))
 	{
 		time = 0x20;
@@ -211,6 +200,19 @@ static void meter_thread_entry(void *parameter)//meter 线程
 			ulMeter_TotalOld.ulPowerP = stMeter_HisData.ulMeter_Total.ulPowerP;
 			ulMeter_TotalOld.ulPowerG = stMeter_HisData.ulMeter_Total.ulPowerG;
 		}
+	}
+	BCD_toInt(&l_uchour,&Systime.Hour,1);
+	
+	if(l_uchour<24)
+	{
+		ret = GetStorageData(Cmd_MeterHalfPowerRd,&ulMeter_Half,sizeof(ulMeter_Half));//读取半小时电量
+		
+		if(ret < 0)
+		{
+			SetStorageData(Cmd_MeterHalfPowerWr,&ulMeter_Half,sizeof(ulMeter_Half));
+			rt_lprintf("[Meter]: (%s) half meter is not exist,clear half meter!\n",__func__);
+		}
+		s_ulevmin_start = stMeter_HisData.ulMeter_Total.ulPowerT - ulMeter_Half[l_uchour*2];//若半小时内存在重启 需减去半小时内存储的电量 作为该时段的起始值
 	}
 	
 	g_ulMeter_Tx_Count = 0;
@@ -508,17 +510,17 @@ static void cmMeter_electricity_calc(void)
 																				+stMeter_HisData.ulMeter_Day.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerG;//某日总电量
 		
 	stMeter_HisData.ulMeter_Month.ulPowerJ = ulMeter_MonthOld.ulPowerJ+stMeter_HisData.ulMeter_Day.ulPowerJ;//月尖总
-	stMeter_HisData.ulMeter_Month.ulPowerJ = ulMeter_MonthOld.ulPowerF+stMeter_HisData.ulMeter_Day.ulPowerF;//月峰总
-	stMeter_HisData.ulMeter_Month.ulPowerJ = ulMeter_MonthOld.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerP;//月平总
-	stMeter_HisData.ulMeter_Month.ulPowerJ = ulMeter_MonthOld.ulPowerG+stMeter_HisData.ulMeter_Day.ulPowerG;//月谷总
+	stMeter_HisData.ulMeter_Month.ulPowerF = ulMeter_MonthOld.ulPowerF+stMeter_HisData.ulMeter_Day.ulPowerF;//月峰总
+	stMeter_HisData.ulMeter_Month.ulPowerP = ulMeter_MonthOld.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerP;//月平总
+	stMeter_HisData.ulMeter_Month.ulPowerG = ulMeter_MonthOld.ulPowerG+stMeter_HisData.ulMeter_Day.ulPowerG;//月谷总
 	
 	stMeter_HisData.ulMeter_Month.ulPowerT = stMeter_HisData.ulMeter_Month.ulPowerJ+stMeter_HisData.ulMeter_Month.ulPowerF\
 																					+stMeter_HisData.ulMeter_Month.ulPowerP+stMeter_HisData.ulMeter_Month.ulPowerG;//月总
 	
 	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerJ+stMeter_HisData.ulMeter_Day.ulPowerJ;//月尖总
-	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerF+stMeter_HisData.ulMeter_Day.ulPowerF;//月峰总
-	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerP;//月平总
-	stMeter_HisData.ulMeter_Total.ulPowerJ = ulMeter_TotalOld.ulPowerG+stMeter_HisData.ulMeter_Day.ulPowerG;//月谷总
+	stMeter_HisData.ulMeter_Total.ulPowerF = ulMeter_TotalOld.ulPowerF+stMeter_HisData.ulMeter_Day.ulPowerF;//月峰总
+	stMeter_HisData.ulMeter_Total.ulPowerP = ulMeter_TotalOld.ulPowerP+stMeter_HisData.ulMeter_Day.ulPowerP;//月平总
+	stMeter_HisData.ulMeter_Total.ulPowerG = ulMeter_TotalOld.ulPowerG+stMeter_HisData.ulMeter_Day.ulPowerG;//月谷总
 	
 	stMeter_HisData.ulMeter_Total.ulPowerT = stMeter_HisData.ulMeter_Total.ulPowerJ+stMeter_HisData.ulMeter_Total.ulPowerF\
 																					+stMeter_HisData.ulMeter_Total.ulPowerP+stMeter_HisData.ulMeter_Total.ulPowerG;//月总
