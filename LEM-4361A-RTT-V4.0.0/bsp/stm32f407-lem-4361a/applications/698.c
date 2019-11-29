@@ -1976,10 +1976,10 @@ rt_kprintf("[hplc]  (%s) \n",__func__);
 	temp_char=Data_array;//已充电量	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=priv_struct->ucTimeSlotNum;//长度
+	temp_char=5;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	for(j=0;j<priv_struct->ucTimeSlotNum;j++){
+	for(j=0;j<5;j++){
 
 		len=priv_struct->ucChargeEle[j];
 		if(j>sizeof(priv_struct->ucChargeEle)){
@@ -7336,10 +7336,10 @@ int report_CHARGE_EXE_EVENT_package(CHARGE_EXE_EVENT *priv_EVENT,struct _698_STA
 	temp_char=Data_array;//已充电量	array double-long
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	temp_char=priv_EVENT->Chg_ExeState.ucTimeSlotNum;//长度
+	temp_char=5;//长度
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 
-	for(j=0;j<priv_EVENT->Chg_ExeState.ucTimeSlotNum;j++){
+	for(j=0;j<5;j++){
 		len=priv_EVENT->Chg_ExeState.ucChargeEle[j];			
 		_698_double_long((unsigned int) len, hplc_data);		
 	}	
@@ -8091,7 +8091,7 @@ int report_notification_package(COMM_CMD_C report_type,void *report_struct,struc
 	hplc_data->_698_frame.addr=priv_698_state->addr;
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,hplc_data->_698_frame.addr.s_addr,hplc_data->_698_frame.addr.s_addr_len);
 
-	temp_char=hplc_data->_698_frame.addr.ca=priv_698_state->addr.ca;//控制器地址
+	temp_char=priv_698_state->addr.ca;//控制器地址
 	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
 
 	int HCS_position=hplc_data->dataSize;
