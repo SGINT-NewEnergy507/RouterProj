@@ -289,10 +289,10 @@ int get_single_frame_frome_hplc(struct _698_STATE  * priv_698_state,struct CharP
 								return -1;//最好不用这个			
 							}else {									
 								priv_698_state->USART_RX_STA|=0x04000000;      //接收完成，不再接收其他帧？？			
-								rt_kprintf("[hplc]  (%s)  get right frame!!!!! first check use’s business\n",__func__);								
-								if(1){//查看底层有没有事件上传上来	
-									check_afair_from_botom(priv_698_state,data_tx);
-								}									
+								rt_kprintf("[hplc]  (%s)  get right frame!!!!! not check use’s business\n",__func__);								
+//								if(1){//查看底层有没有事件上传上来	
+//									check_afair_from_botom(priv_698_state,data_tx);
+//								}									
 								return 0;														
 							}											
 						}												
@@ -6112,12 +6112,12 @@ int judge_meter_no(struct _698_STATE  * priv_698_state,struct CharPointDataManag
 int get_meter_addr(unsigned char * addr){//需要别人提供接口
 unsigned char tmp_addr[6];
 	int i=0,j=0;
-//	addr[0]=0x11;
+//	addr[0]=0x15;
 //	addr[1]=0x00;	
-//	addr[2]=0x00;
-//	addr[3]=0x00;
-//	addr[4]=0x00;	
-//	addr[5]=0x00;
+//	addr[2]=0x01;
+//	addr[3]=0x03;
+//	addr[4]=0x18;	
+//	addr[5]=0x20;
 	rt_kprintf("[hplc]  (%s)  \n",__func__);//重要信息需要打印		
 	
 
@@ -6145,7 +6145,7 @@ unsigned char tmp_addr[6];
 			rt_kprintf("[hplc]  (%s)  addr[%d]=%0x\n",__func__,i,addr[i]);//重要信息需要打印		
 		}
 
-		return 0;	
+//		return 0;	
 
 //	}else{
 //		return -1;
