@@ -35,6 +35,11 @@ struct rt_event HplcEvent;
 CCMRAM struct  _698_FRAME _698_ChgPlanIssue;
 unsigned char _698_ChgPlanIssue_data[1024];
 
+
+CCMRAM struct  _698_FRAME _698_ChgPlanIssue;
+unsigned char _698_ChgPlanIssue_data[1024];
+
+
 CCMRAM CHARGE_STRATEGY charge_strategy_ChgPlanIssue;//充电计划下发
 
 CCMRAM CHARGE_STRATEGY charge_strategy_ChgRecord;   //上送充电订单
@@ -2573,6 +2578,68 @@ int oi_electrical_oib_sum(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE 
 
 
 ***/
+int oi_report_response_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+	int result=0,len;
+	unsigned char temp_char,*temp_array;
+
+	rt_kprintf("[hplc]  (%s)   \n",__func__);
+	switch (priv_698_state->oad_omd.oi[1]){//判别了两位，还要判断属性或者方法，很少，用if在里面判断
+
+			
+		case(0x12):
+			//判断属性,处理方法
+			if(priv_698_state->oad_omd.attribute_id==0x03){//下发充电计划
+				if(_698_ChgPlanIssue.need_package==1){
+					_698_ChgPlanIssue.need_package=0;
+					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
+					
+				}else{
+
+					if(_698_frame_rev->usrData_len>sizeof(_698_ChgPlanIssue_data)){
+						rt_kprintf("[hplc]  (%s)  usrData_len> array size  \n",__func__);
+						return -1;					
+					}
+
+					_698_ChgPlanIssue=*_698_frame_rev;
+					my_strcpy(_698_ChgPlanIssue_data,_698_frame_rev->usrData,0,_698_frame_rev->usrData_len);//拷贝数组
+					_698_ChgPlanIssue.usrData=_698_ChgPlanIssue_data;						
+					
+					_698_ChgPlanIssue.time_flag_positon=_698_frame_rev->usrData_len;//最后一位，只给方法用时有效
+		
+					//保存启动功率
+					action_response_charge_strategy(&charge_strategy_ChgPlanIssue,_698_frame_rev);//存到里面等周调用
+					strategy_event_send(Cmd_ChgPlanIssue);
+//					CtrlUnit_RecResp(Cmd_ChgPlanIssueAck,&ChgPlanIssue_rsp,1);//测试				
+					
+					return 2;//发送事件	
+				}
+
+				//发送信号让下面把充电计划单准备好
+			}else{
+				rt_kprintf("[hplc]  (%s)  only deal   attribute_id==2  \n",__func__);
+				return -1;
+			}				
+			break;		
+							
+					
+		default:
+
+			rt_kprintf("[hplc]  (%s)  only supply operation=%0x \n",__func__,priv_698_state->oad_omd.oi[1]);
+			result=-1;
+			break;		
+	}	
+	if(result == 0)	{//继续打包	
+	}
+	
+	return result;		
+	
+
+}
+/****
+默认是成功，有错误直接return -1返回
+
+
+***/
 int oi_action_response_charge_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
 	int result=0,len;
 	unsigned char temp_char,*temp_array;
@@ -3220,6 +3287,36 @@ int get_response_electrical_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_
 	return result;		
 }
 
+int report_response_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+	int result=0;
+	unsigned char temp_char;
+//	rt_kprintf("[hplc]  (%s)  \n",__func__);
+		
+	temp_char=priv_698_state->oad_omd.oi[0]&OI2_MASK;//获取对象标识
+	switch (temp_char){//
+		case(0)://
+			result=-1;
+			rt_kprintf("[hplc]  (%s)   charge   \n",__func__);
+
+			//result=oi_action_response_charge_oib(_698_frame_rev,priv_698_state,hplc_data);	
+			result=oi_report_response_oib(_698_frame_rev,priv_698_state,hplc_data);
+			break;
+		default:
+			result=-1;
+			rt_kprintf("[hplc]  (%s)   \n",__func__);
+
+			break;		
+	}	
+		if(result == 0)	{//继续打包
+		
+	}
+	
+	return result;		
+}
+
+
+
+
 int action_response_charge_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
 	int result=0;
 	unsigned char temp_char;
@@ -3354,6 +3451,54 @@ int get_response_parameter_oia(struct  _698_FRAME  *_698_frame_rev,struct _698_S
 	}	
 	return result;		
 }
+
+
+/*
+处理 对象型属性。
+返回值：result==1，不需要发送
+
+*/
+
+int report_response_normal_omd(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+	int result=0;
+	unsigned char temp_char;
+	//保存oad
+//	rt_kprintf("[hplc]  (%s)  \n",__func__);
+	temp_char=priv_698_state->oad_omd.oi[0];//
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+
+	temp_char=priv_698_state->oad_omd.oi[1];//
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+
+	temp_char=priv_698_state->oad_omd.attribute_id;//
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
+	temp_char=priv_698_state->oad_omd.attribute_index;//
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
+	temp_char=(priv_698_state->oad_omd.oi[0]&OI1_MASK)>>4;//获取对象标识
+	switch (temp_char){//
+		
+		case(6)://9 充电的类型,
+			result=-1;
+			rt_kprintf("[hplc]  (%s)     chargepile \n",__func__);
+			//result=action_response_charge_oia(_698_frame_rev,priv_698_state,hplc_data);
+			result=report_response_oia(_698_frame_rev,priv_698_state,hplc_data);
+			break;
+		
+		default:
+			result=-1;
+			rt_kprintf("[hplc]  (%s)  not support  oia=%0x  \n",__func__,temp_char);
+			break;		
+	}	
+		if(result == 0)	{//继续打包
+		
+	}	
+	
+		return result;
+	
+}
+
 
 /*
 处理 对象型属性。
@@ -3918,6 +4063,54 @@ int action_notice_user_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_ST
 
 }
 
+/*
+响应操作一个对象属性请求
+
+*/
+int report_response_package_normal(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data){
+	int result=0;//不发送返回1,如果发送，result=0;
+	unsigned char temp_char;
+	rt_kprintf("[hplc]  (%s)  \n",__func__);
+	temp_char=report_response;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	temp_char=_698_frame_rev->usrData[1];//具体类型
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
+	temp_char=_698_frame_rev->usrData[2];//PIID-ACD
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+
+	temp_char=_698_frame_rev->usrData[3];//数组的长度
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+	
+	if(_698_frame_rev->need_package!=1){
+		_698_frame_rev->time_flag_positon=3+1;	
+	}
+	//	往下处理oad,多个对象型的就这么处理
+	oad_package(&priv_698_state->oad_omd,_698_frame_rev,4);//上报多了一位
+	if(_698_frame_rev->need_package!=1){
+		_698_frame_rev->time_flag_positon+=4;	//也用做数据的开始帧
+	}	
+
+	//result=action_response_normal_omd(_698_frame_rev,priv_698_state,hplc_data);
+	result=report_response_normal_omd(_698_frame_rev,priv_698_state,hplc_data);
+	if(result==0){		
+		
+		temp_char=0;//FollowReport OPTIONAL=0 表示没有上报信息
+		result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+		
+//		if(_698_frame_rev->usrData[_698_frame_rev->time_flag_positon]==0){//接收帧oad后面的那个是时间标识
+			temp_char=0;//没有时间标签
+			result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);			
+//		}else{//加时间标签
+//			rt_kprintf("[hplc]  (%s)  error need timeflag _698_frame_rev->time_flag_positon=%d\n",__func__,_698_frame_rev->time_flag_positon);
+//			result=-1;
+//		
+//		}	
+	}				
+	return result;	
+}
+
 
 /*
 响应操作一个对象属性请求
@@ -4102,6 +4295,9 @@ int report_response_notice_user(struct  _698_FRAME  *_698_frame_rev,struct _698_
 
 }
 
+
+
+
 /*
 函数作用：对用户提交的
 返回值：
@@ -4170,6 +4366,115 @@ int Cmd_security_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  
 			
 
 }
+
+/*
+函数作用：对用户提交的
+返回值：
+*/
+
+int report_response_package(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE  * priv_698_state,struct CharPointDataManage * hplc_data)
+{
+
+
+	int result=0;//不发送返回1,如果发送，result=0;
+
+	unsigned char temp_char;	
+	//结构体赋值，共同部分
+  hplc_data->dataSize=0;
+
+	if(_698_frame_rev->need_package==1){
+		
+		
+	}//不加这个了，因为复用代码会产生很多问题。
+	temp_char=hplc_data->_698_frame.head =_698_frame_rev->head;//起始帧头 = 0x68	
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);//这样打包好么,最后打包比较好
+	
+	priv_698_state->len_position=hplc_data->dataSize;
+	hplc_data->dataSize+=2;//加两字节的，长度
+
+	temp_char=hplc_data->_698_frame.control=CON_STU_U|CON_U_DATA;   //控制域c,bit7,传输方向位
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);//这样打包好么
+
+	temp_char=hplc_data->_698_frame.addr.sa=priv_698_state->addr.sa;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);//这样打包好么	
+	
+	//拷贝主机地址
+	hplc_data->_698_frame.addr.s_addr_len=priv_698_state->addr.s_addr_len;
+
+	my_strcpy(hplc_data->_698_frame.addr.s_addr,priv_698_state->addr.s_addr,0,priv_698_state->addr.s_addr_len);//拷贝数组
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,hplc_data->_698_frame.addr.s_addr,hplc_data->_698_frame.addr.s_addr_len);//
+
+
+	temp_char=hplc_data->_698_frame.addr.ca=_698_frame_rev->addr.ca;
+	result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);
+	
+	priv_698_state->HCS_position=hplc_data->dataSize;
+	hplc_data->dataSize+=2;//加两字节的校验位
+
+	//下面的只处理数据，不打包到指针最后统一打包用户数据。
+	hplc_data->_698_frame.usrData_len=0;//用户数据长度归零
+	hplc_data->_698_frame.usrData=hplc_data->priveData+(8+hplc_data->_698_frame.addr.s_addr_len);		                               
+	
+	switch (_698_frame_rev->usrData[1]){//判断操作类型
+		case(ReportNotificationList)://=1 操作一个对象方法请求 [1] ，	
+			rt_kprintf("[hplc]  (%s)     ReportNotificationList \n",__func__);
+			result=-1;
+			break;
+		
+		case(ReportNotificationRecordList):// 2//操作若干个对象方法请求 [2] ，		
+			rt_kprintf("[hplc]  (%s)     ReportNotificationRecordList \n",__func__);
+			//result=action_response_package_normal(_698_frame_rev, priv_698_state,hplc_data);
+			result=report_response_package_normal(_698_frame_rev, priv_698_state,hplc_data);
+			break;		
+		
+		default:
+			rt_kprintf("[hplc]  (%s)  not support type=%0x \n",__func__,_698_frame_rev->usrData[1]);
+			result=-1;		
+			break;		
+	}
+
+	if(result == 0)	{//继续打包
+		
+		hplc_data->_698_frame.usrData_len=hplc_data->dataSize-priv_698_state->HCS_position-2;//用户数据总长度	,下面拷贝用户数据到usrData,这个式子还要试试。	
+		//save_char_point_usrdata(hplc_data->_698_frame.usrData,&hplc_data->_698_frame.usrData_size,hplc_data->priveData,hplc_data->dataSize-hplc_data->_698_frame.usrData_len,hplc_data->_698_frame.usrData_len);		
+
+		priv_698_state->FCS_position=hplc_data->dataSize;
+		hplc_data->dataSize+=2;//加两字节的校验
+
+			
+		temp_char=hplc_data->_698_frame.end=0x16;
+		result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);//这样打包好么
+
+
+	//给长度结构体赋值,这里判断是不是需要分针
+		hplc_data->priveData[priv_698_state->len_position]=hplc_data->_698_frame.length0=(hplc_data->dataSize-2)%256;//hplc_data->size<1024时
+
+		hplc_data->priveData[priv_698_state->len_position+1]=hplc_data->_698_frame.length1=(hplc_data->dataSize-2)/256;	
+
+	//校验头
+		//rt_kprintf("[hplc]  (%s)   link_response_package calculate the HCS_positon=%d \n",__func__,HCS_position); 	
+		result=tryfcs16(hplc_data->priveData, priv_698_state->HCS_position);
+		hplc_data->_698_frame.HCS0=hplc_data->priveData[priv_698_state->HCS_position];	
+		hplc_data->_698_frame.HCS1=hplc_data->priveData[priv_698_state->HCS_position+1];
+
+		//rt_kprintf("[hplc]  (%s)   link_response_package calculate the FCS_position=%d \n",__func__,FCS_position); 	
+		result=tryfcs16(hplc_data->priveData, priv_698_state->FCS_position);
+		
+		hplc_data->_698_frame.FCS0=hplc_data->priveData[priv_698_state->FCS_position];
+		hplc_data->_698_frame.FCS1=hplc_data->priveData[priv_698_state->FCS_position+1];		
+	}
+	
+	
+	return result;
+
+
+}
+
+
+
+
+
+
 
 /*
 函数作用：操作一个对象方法
@@ -4875,10 +5180,12 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 			break;
 
 
-		case(report_notification)://上报给我的只有离线或者在线事件
+		case(report_notification)://上报给我的只有离线或者在线事件//...........................
 			rt_kprintf("[hplc]  (%s)  report_notification\n",__func__);
-
-//			strategy_event_send(priv_698_state->current_report);//判断一下是否离线
+			result=report_response_package(&data_rev->_698_frame,priv_698_state,data_tx);
+		
+			//strategy_event_send(Cmd_STAOnlineState);//判断一下是否离线
+		
 
 			result=3;
 			break;
