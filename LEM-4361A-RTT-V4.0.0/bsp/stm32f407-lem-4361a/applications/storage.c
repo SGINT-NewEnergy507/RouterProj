@@ -4335,14 +4335,14 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 		strcat((char*)Para_Buff,(const char*)buffer);
 		
 		//状态变化 {上线（0）， 离线（1）}
-		sprintf((char*)buffer,"AutualState=%03u\n",(rt_uint8_t)pOnline_State->AutualState);
-		strcat((char*)Para_Buff,(const char*)buffer);
-		//离线信息---//本次离线时长（单位：秒）
-		sprintf((char*)buffer,"OfflinePeriod=%03u\n",(rt_uint8_t)pOnline_State->OfflineIfo.OfflinePeriod);
-		strcat((char*)Para_Buff,(const char*)buffer);
-		//离线信息---//离线原因 {未知（0），停电（1），信道变化（2）}
-		sprintf((char*)buffer,"OfflineReason=%03u\n",(rt_uint8_t)pOnline_State->OfflineIfo.OfflineReason);
-		strcat((char*)Para_Buff,(const char*)buffer);		
+//		sprintf((char*)buffer,"AutualState=%03u\n",(rt_uint8_t)pOnline_State->AutualState);
+//		strcat((char*)Para_Buff,(const char*)buffer);
+//		//离线信息---//本次离线时长（单位：秒）
+//		sprintf((char*)buffer,"OfflinePeriod=%03u\n",(rt_uint8_t)pOnline_State->OfflineIfo.OfflinePeriod);
+//		strcat((char*)Para_Buff,(const char*)buffer);
+//		//离线信息---//离线原因 {未知（0），停电（1），信道变化（2）}
+//		sprintf((char*)buffer,"OfflineReason=%03u\n",(rt_uint8_t)pOnline_State->OfflineIfo.OfflineReason);
+//		strcat((char*)Para_Buff,(const char*)buffer);		
 		/****************************************************************************************/
 		if(strlen((const char*)Para_Buff)> MAX_MALLOC_NUM)
 		{
@@ -4553,25 +4553,25 @@ static int Online_State_Storage(const char *PATH,void *Storage_Para,rt_uint32_t 
 			rt_lprintf("namelen=0\n");
 		}
 /////////状态变化 {上线（0）， 离线（1）}/////////////////////////////////////////////////////////////////////////////////
-		sprintf((char*)fpnameRd,"AutualState"); 
-		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
-		if(namelen)//接收完了
-		{
-			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
-			{
-				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOnline_State->AutualState,1);//返回当前文件读指针
-				rt_lprintf("%s=%u;\n",fpnameRd,pOnline_State->AutualState);
-			}
-			else
-			{
-				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
-			}
-			namelen=0;
-		}
-		else
-		{
-			rt_lprintf("namelen=0\n");
-		}
+//		sprintf((char*)fpnameRd,"AutualState"); 
+//		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
+//		if(namelen)//接收完了
+//		{
+//			if(strcmp((const char*)fpname,(const char*)fpnameRd)==0)
+//			{
+//				fpoint = get_pvalue(fpoint,(rt_uint32_t*)&pOnline_State->AutualState,1);//返回当前文件读指针
+//				rt_lprintf("%s=%u;\n",fpnameRd,pOnline_State->AutualState);
+//			}
+//			else
+//			{
+//				rt_lprintf("%s变量名不符合fpname=%s\n",fpnameRd,fpname); 
+//			}
+//			namelen=0;
+//		}
+//		else
+//		{
+//			rt_lprintf("namelen=0\n");
+//		}
 ////////离线信息---//本次离线时长（单位：秒）///////////////////////////////////////////////////////////////////////////////
 		sprintf((char*)fpnameRd,"OfflinePeriod"); 
 		fpoint = get_name(fpoint,fpname,&namelen);//返回当前文件读指针
@@ -6333,7 +6333,6 @@ int SetStorageData(STORAGE_CMD_ENUM cmd,void *Storage_Para,rt_uint32_t datalen)
 			break;
 		case Cmd_MeterAnalogWr://
 			ret = Meter_Anolag_Storage(METER_ANALOG_PATH_FILE,Storage_Para,datalen,WRITE);	
-			
 			break;
 		case Cmd_HistoryRecordWr:/*充电订单事件记录单元*/
 			ret = Charge_Record_Storage(HISTORY_RECORD_PATH,Storage_Para,datalen,WRITE);	
