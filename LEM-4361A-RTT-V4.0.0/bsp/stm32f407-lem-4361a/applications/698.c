@@ -2753,7 +2753,7 @@ int oi_report_response_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE
 					
 				}else{
 
-					if(_698_frame_rev->usrData_len>sizeof(_698_ChgPlanIssue_data)){
+					if(_698_frame_rev->usrData_len>sizeof(_698_ONLINE_STATE_data)){
 						rt_kprintf("[hplc]  (%s)  usrData_len> array size  \n",__func__);
 						return -1;					
 					}
