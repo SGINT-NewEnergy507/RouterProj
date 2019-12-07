@@ -2747,8 +2747,8 @@ int oi_report_response_oib(struct  _698_FRAME  *_698_frame_rev,struct _698_STATE
 		case(0x12):
 			//判断属性,处理方法
 			if(priv_698_state->oad_omd.attribute_id==0x03){//下发充电计划
-				if(_698_ChgPlanIssue.need_package==1){
-					_698_ChgPlanIssue.need_package=0;
+				if(_698_frame_rev->need_package==1){
+					_698_frame_rev->need_package=0;
 					rt_kprintf("[hplc]  (%s)   .need_package==1   \n",__func__);
 					
 				}else{
@@ -5345,8 +5345,6 @@ int rev_698_del_affairs(struct _698_STATE  * priv_698_state,struct CharPointData
 		
 			//strategy_event_send(Cmd_STAOnlineState);//判断一下是否离线
 		
-
-			result=3;
 			break;
 
 		
