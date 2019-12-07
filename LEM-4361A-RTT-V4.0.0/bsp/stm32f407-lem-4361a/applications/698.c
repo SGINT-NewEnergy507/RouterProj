@@ -4255,8 +4255,8 @@ int report_response_package_normal(struct  _698_FRAME  *_698_frame_rev,struct _6
 	result=report_response_normal_omd(_698_frame_rev,priv_698_state,hplc_data);
 	if(result==0){		
 		
-		temp_char=0;//FollowReport OPTIONAL=0 表示没有上报信息
-		result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
+//		temp_char=0;//FollowReport OPTIONAL=0 表示没有上报信息
+//		result=save_char_point_data(hplc_data,hplc_data->dataSize,&temp_char,1);	
 		
 //		if(_698_frame_rev->usrData[_698_frame_rev->time_flag_positon]==0){//接收帧oad后面的那个是时间标识
 			temp_char=0;//没有时间标签
@@ -6232,7 +6232,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 	
 	if(hplc_event&(0x1<<Cmd_STAOnlineStateAck)){	//STA监测自身及路由器在线状态确认	
 		hplc_event&=(~(0x1<<Cmd_STAOnlineStateAck));		
-		rt_kprintf("[hplc]  (%s)  Cmd_ChgPlanAdjustAck  \n",__func__);	
+		rt_kprintf("[hplc]  (%s)  Cmd_STAOnlineStateAck  \n",__func__);	
 		_698_ONLINE_STATE.need_package=1;
 		result=report_response_package(&_698_ONLINE_STATE,priv_698_state,data_tx);//发送	
 		_698_ONLINE_STATE.need_package=0;
@@ -6240,7 +6240,7 @@ int check_afair_from_botom(struct _698_STATE  * priv_698_state,struct CharPointD
 				rt_kprintf("[hplc]  (%s)    error \n",__func__);//												
 		}else{//下面是需要回复的情况
 			hplc_tx_frame(priv_698_state,hplc_serial,data_tx);//发送数据	
-	
+			printmy(&data_tx->_698_frame);
 		}		
 	}		
 	
