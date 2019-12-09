@@ -1788,6 +1788,11 @@ int report_response_strategy(ONLINE_STATE * online_state,struct  _698_FRAME  *_6
 	i+=3;//AutualState的类型位置
 	i++;//AutualState的值
 	online_state->OfflineIfo.AutualState=_698_frame_rev->usrData[i];
+	if(_698_frame_rev->usrData[i]==1){
+		hplc_698_state.connect_flag=0;
+	}
+	
+	
 	
 	i++;//OfflinePeriod的类型位置
 	online_state->OfflineIfo.OfflinePeriod=0;	
@@ -1804,85 +1809,6 @@ int report_response_strategy(ONLINE_STATE * online_state,struct  _698_FRAME  *_6
 	i++;//DeviceType的值
 	online_state->OfflineIfo.DeviceType=_698_frame_rev->usrData[i];	
 
-	
-/*	
-	//充电申请单号 octet-string（SIZE(16)）
-	i+=2;//跳过上面的一个成员数量，一个类型
-	len=_698_frame_rev->usrData[i]+1;//
-	if(len>sizeof(online_state->cRequestNO)){
-		rt_kprintf("[hplc]  (%s) len=%d>sizeof(online_state->cRequestNO)=%d  \n",__func__,len,sizeof(online_state->cRequestNO));						
-		return -1;	
-	}
-	my_strcpy_char(online_state->cRequestNO,(char *)_698_frame_rev->usrData,i,len);	
-	
-	//用户ID visible-string（SIZE(64)）
-	i+=len+1;//跳过上面的16位，一个类型
-	len=_698_frame_rev->usrData[i]+1;//
-	if(len>sizeof(online_state->cUserID)){
-		rt_kprintf("[hplc]  (%s) len>sizeof(online_state->cUserID)  \n",__func__);						
-		return -1;	
-	}	
-	my_strcpy_char(online_state->cUserID,(char *)_698_frame_rev->usrData,i,len);
-	
-	//决策者  {主站（1）、控制器（2）}
-	i+=len+1;//跳过上面的位，一个类型
-	//my_strcpy(&online_state->ucDecMaker,_698_frame_rev->usrData,i,1);
-	online_state->ucDecMaker=_698_frame_rev->usrData[i];
-	
-	//决策类型{生成（1） 、调整（2）}
-	i+=2;//跳过上面的位，一个类型
-	online_state->ucDecType=_698_frame_rev->usrData[i];
-	
-	//决策时间
-	i+=2;//跳过上面的位，一个类型,
-	date_time_s_to_STR_SYSTEM_TIME(&online_state->strDecTime,(_698_frame_rev->usrData+i));
-
-	
-	//路由器资产编号  visible-string（SIZE(22)）	
-	i+=7+1;//跳过上面的位，一个类型,
-	len=_698_frame_rev->usrData[i]+1;
-	if(len>sizeof(online_state->cAssetNO)){
-		rt_kprintf("[hplc]  (%s) len>sizeof(online_state->cAssetNO)  \n",__func__);						
-		return -1;	
-	}	
-	my_strcpy_char(online_state->cAssetNO,(char *)_698_frame_rev->usrData,i,len);
-
-
-	//枪序号	enum{A枪（1）、B枪（2）}
-	i+=len+1;//跳过上面的位，一个类型,
-	online_state->GunNum=_698_frame_rev->usrData[i];
-
-	//充电需求电量（单位：kWh，换算：-2）double-long-unsigned
-	i+=1+1;//跳过上面的位，一个类型,
-	unsigned_char_to_int(&online_state->ulChargeReqEle,_698_frame_rev->usrData+i);	
-
-	//充电额定功率  double-long（单位：kW，换算：-4），//不用判断负数原样转发就可以了
-	i+=4+1;//跳过上面的位，一个类型,
-	unsigned_char_to_int(&online_state->ulChargeRatePow,_698_frame_rev->usrData+i);
-
-	//充电模式      enum{正常（0），有序（1）}
-	i+=4+1;//跳过上面的位，一个类型,
-	online_state->ucChargeMode=_698_frame_rev->usrData[i];
-
-	//充电时段  array时段充电功率		
-	i+=2;//跳过上面的位，一个类型,
-	count=_698_frame_rev->usrData[i];//个数
-	online_state->ucTimeSlotNum=count;
-	i+=3;//跳过上面的位,再跳过结构体类型,一个数量，
-	for(j=0;j<count;j++){
-		//开始时间    date_time_s
-		i+=1;//跳过一个类型
-		date_time_s_to_STR_SYSTEM_TIME(&online_state->strChargeTimeSolts[j].strDecStartTime,_698_frame_rev->usrData+i);
-		//结束时间    date_time_s，
-		i+=7+1;//跳过上面的位，一个类型,
-		date_time_s_to_STR_SYSTEM_TIME(&online_state->strChargeTimeSolts[j].strDecStopTime,_698_frame_rev->usrData+i);
-		//充电功率    double-long（单位：kW，换算：-4）
-		i+=7+1;//跳过上面的位，一个类型,
-		unsigned_char_to_int(&online_state->strChargeTimeSolts[j].ulChargePow,_698_frame_rev->usrData+i);
-		i+=4;//跳过上面的位
-	}
-//	print_online_state(charge_strategy);	
-*/
 	return 0;
 }
 
